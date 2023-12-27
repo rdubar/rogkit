@@ -1,0 +1,70 @@
+#!/bin/bash
+
+echo "RogKit comprehensive updater"
+
+start_time=$(date +%s) # Record start time
+
+# Capture system versions before upgrade
+system_info_before=$(lsb_release -a 2>/dev/null)
+kernel_version_before=$(uname -r)
+
+echo "Updating package lists..."
+sudo apt update
+
+echo "Upgrading packages..."
+sudo apt upgrade -y
+
+echo "Performing dist-upgrade..."
+sudo apt dist-upgrade -y
+
+# Check for further upgrades
+echo "Checking for full-upgrade..."
+upgrade_available=$(sudo apt list --upgradable 2>/dev/null | grep -c "upgradable,")
+
+if [ "$upgrade_available" -ne 0 ]; then
+    echo "Further upgrades are available. Do you want to perform a full-upgrade? (y/n)"
+    read answer
+    if [ "$answer" == "y" ]; then
+        echo "Performing full-upgrade..."
+        sudo apt full-upgrade -y
+    fi
+fi
+
+echo "Checking for and fixing broken dependencies..."
+sudo apt --fix-broken install -y
+
+# Clean up
+echo "Cleaning up..."
+sudo apt autoremove -y
+
+# Check if a reboot is required
+if [ -f /var/run/reboot-required ]; then
+    echo 'Reboot required. Rebooting now...'
+    sudo reboot
+else
+    echo 'Update and upgrade complete. No reboot required.'
+fi
+
+end_time=$(date +%s) # Record end time
+total_time=$((end_time - start_time)) # Calculate total time
+
+# Capture system versions after upgrade
+system_info_after=$(lsb_release -a 2>/dev/null)
+kernel_version_after=$(uname -r)
+
+# Compare and display system versions only if there are changes
+if [ "$system_info_before" != "$system_info_after" ] || [ "$kernel_version_before" != "$kernel_version_after" ]; then
+    echo "System versions have been updated."
+    echo "Before upgrade:"
+    echo "$system_info_before"
+    echo "Kernel version: $kernel_version_before"
+    echo
+    echo "After upgrade:"
+    echo "$system_info_after"
+    echo "Kernel version: $kernel_version_after"
+    echo
+else
+    echo "No changes in system versions."
+fi
+
+echo "Total time taken: $((total_time / 60)) minutes and $((total_time % 60)) seconds."
