@@ -281,12 +281,15 @@ class BackupUtility:
 
     def get_latest_backup_file(self):
         try:
-            files = sorted(Path(self.primary_archive_dir).glob('*.tar.gz'))
+            files = list(Path(self.primary_archive_dir).glob('*.tar.gz'))
             if files:
-                return files[-1]
+                # Sort files by last modification time in descending order and return the latest file
+                latest_file = max(files, key=lambda x: x.stat().st_mtime)
+                return latest_file
         except Exception as e:
             print(f"Error listing files in {self.primary_archive_dir}: {e}")
         return None
+
 
     def format_time_since(self, past_datetime):
         time_diff = datetime.now() - past_datetime
