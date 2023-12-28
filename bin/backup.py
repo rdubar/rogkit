@@ -1,4 +1,4 @@
-#!/home/pi/.pyenv/shims/python
+#!/usr/bin/env python3
 """
 RogKit Backup Utility
 """
@@ -6,6 +6,7 @@ import os
 import re
 import argparse
 import subprocess
+import tempfile
 from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -15,8 +16,8 @@ from time import perf_counter
 DEFAULT_CONFIG = {
     "base_dirs": [os.path.expanduser("~")],
     "include_patterns": [".bash_aliases", ".bashrc"],
-    "exclude_patterns": ["__pycache__", ".git", "venv/", "Dropbox-Uploader", ".tar.gz"],
-    "archive_dirs": ["/mnt/expansion/Archive/pi", "/mnt/archive/Archive/pi"],
+    "exclude_patterns": ["__pycache__", ".git", "venv/", "Dropbox-Uploader", ".tar.gz", ".pyc", ".rst", "/usr/include", "/usr/lib"],
+    "archive_dirs": ["/mnt/expansion/Archive/pi", "/mnt/archive/Archive/pi", "/mnt/c/Users/RogerDubar/Dropbox/Archive/wsl2"],
     "include_files": ["/etc/fstab"]
 }
 
@@ -53,8 +54,8 @@ class BackupUtility:
             else:
                 archive_lost.append(dir)
         if not archive_here:
-            print('Archive location not specified:', self.archive_dir)
-            return False
+            print('Archive location not specified:', self.archive_dirs)
+            exit(1)
         self.primary_archive_dir = archive_here[0]
         self.secondary_archive_dirs = archive_here[1:]
         return True
@@ -63,9 +64,16 @@ class BackupUtility:
         if not self.files_to_include:
             self.init_backup()
         print('Creating backup...')
+
+        # Write file paths to a temporary file
+        with tempfile.NamedTemporaryFile(mode='w+', delete=False) as temp_file:
+            for file_path in self.files_to_include:
+                temp_file.write(file_path + '\n')
+            temp_file_name = temp_file.name
+
         # Create the tar command with --hard-dereference option
-        command = ["tar", "--hard-dereference", "-czf", backup_filename]
-        command.extend(self.files_to_include)
+        command = ["tar", "--hard-dereference", "-czf", backup_filename, "-T", temp_file_name]
+
         # Execute the command
         try:
             subprocess.run(command, check=True)
@@ -73,6 +81,9 @@ class BackupUtility:
         except subprocess.CalledProcessError as e:
             print(f"Error during backup: {e}")
             return False
+        finally:
+            # Clean up the temporary file
+            os.remove(temp_file_name)
 
     def should_include(self, file_path, base_dir):
         # Determine if a file should be included
