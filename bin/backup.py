@@ -188,11 +188,16 @@ class BackupUtility:
         return True
 
     def human_readable_size(self, size):
-        postfixes = ["bytes", "KB", "MB", "GB", "TB", "PB"]
-        for i, postfix in enumerate(postfixes):
-            if size < 1024 ** (i + 1) or i == len(postfixes) - 1:
-                return f"{size / (1024 ** i):.2f} {postfix}"
-            size /= 1024
+        if size < 1024:
+            return f"{size} bytes"
+        size /= 1024
+        if size < 1024:
+            return f"{size:.2f} KB"
+        size /= 1024
+        if size < 1024:
+            return f"{size:.2f} MB"
+        size /= 1024
+        return f"{size:.2f} GB"
 
     def report_values(self):
         # do deep listing of all values in this object in a nice format
