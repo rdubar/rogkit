@@ -17,7 +17,10 @@ DEFAULT_CONFIG = {
     "base_dirs": [os.path.expanduser("~")],
     "include_patterns": [".bash_aliases", ".bashrc"],
     "exclude_patterns": ["__pycache__", ".git", "venv/", "Dropbox-Uploader", ".tar.gz", ".pyc", ".rst", "/usr/include", "/usr/lib"],
-    "archive_dirs": ["/mnt/expansion/Archive/pi", "/mnt/archive/Archive/pi", "/mnt/c/Users/RogerDubar/Dropbox/Archive/wsl2"],
+    "archive_dirs": ["/mnt/expansion/Archive/pi", 
+                     "/mnt/archive/Archive/pi", 
+                     "/mnt/c/Users/RogerDubar/Dropbox/Archive/wsl2",
+                     "/mnt/c/Users/RogerDubar/OneDrive - Arden Grange/Archive/Backups"],
     "include_files": ["/etc/fstab"]
 }
 
