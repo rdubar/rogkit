@@ -1,0 +1,19 @@
+#!/bin/bash
+
+# Define the log file name with a timestamp
+LOG_FILE="$(dirname "$0")/time_sync_log.log"
+
+# Function to append output to the log file with a timestamp
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S'): $1" >> "$LOG_FILE"
+}
+
+echo "Starting time synchronization script"
+echo "Current time: $(date)"
+# Synchronize time
+SYNC_OUTPUT=$(sudo ntpdate pool.ntp.org 2>&1)
+echo "$SYNC_OUTPUT"
+log "$SYNC_OUTPUT [$(arch)]"
+# Fixed time after synchronization
+echo "Fixed time: $(date)"
+echo "Time synchronization script completed"
