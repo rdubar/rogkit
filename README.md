@@ -18,7 +18,11 @@ Then reload your ~/bashrc (or ~/.zshrc):
 source ~/bashrc  # or source ~/.zshrc
 ```
 Current commands are:
-* backup
-* update
+| Command | Description       |
+|---------|-------------------|
+| backup  | Backup files      |
+| update  | Update system     |
+| tim     | Sync clock        |
+
 
 More to come.
