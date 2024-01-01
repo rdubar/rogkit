@@ -20,6 +20,8 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4
     # Convert both times to UTC
     system_time = system_time.replace(tzinfo=tz.tzutc())
     online_time = online_time.replace(tzinfo=tz.tzutc())
+    print('System time:', system_time)
+    print('Online time:', online_time)
     # Calculate the difference
     time_difference = online_time - system_time
     print(f"The difference between the online time and the system time is {time_difference}.")
@@ -37,7 +39,7 @@ def set_time(npt_url='pool.ntp.org'):
     # Run the command and capture the output
     result = subprocess.run(command, capture_output=True, text=True)
     result_text = result.stdout if result.stdout else result.stderr
-    result_text = result_text.strip()
+    result_text = result_text.strip() if result_text else "No output from command."
     logger.info(result_text)
     print(result_text)
 
