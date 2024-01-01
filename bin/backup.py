@@ -207,7 +207,7 @@ class BackupUtility:
         for k, v in vars(self).items():
             print(f'{k}: {v}')
     
-    def report_text(self):
+    def show_report_text(self):
         # print out the backup_text file
         if not os.path.isfile(self.backup_text):
             print(f'No backup text file found: {self.backup_text}')
@@ -371,7 +371,7 @@ def main():
         backup_util.report_values()
 
     if args.text:
-        backup_util.report_text()
+        backup_util.show_report_text()
     
     if args.log:
         backup_util.show_log()
