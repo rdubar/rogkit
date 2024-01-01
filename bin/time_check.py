@@ -32,7 +32,7 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4
 
 def set_time(npt_url='pool.ntp.org'):
     # Define the command as a list
-    command = ["sudo", "ntpdate", "pool.ntp.org"]
+    command = ["sudo", "ntpdate", npt_url]
     print(f"Setting the system time: {' '.join(command)}")
     # Run the command and capture the output
     result = subprocess.run(command, capture_output=True, text=True)
