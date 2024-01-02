@@ -5,6 +5,7 @@ def convert_seconds(seconds):
     # Return immediately for 0 seconds
     if seconds <= 5:
         return f"{seconds} seconds"
+    seconds = int(seconds)
 
     # Define time units in seconds
     aeon = 31557600000000000  # Assuming an aeon as 1 billion years

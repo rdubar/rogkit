@@ -191,6 +191,18 @@ class BackupUtility:
             
         return True
 
+    def human_readable_size(self, size):
+        if size < 1024:
+            return f"{size} bytes"
+        size /= 1024
+        if size < 1024:
+            return f"{size:.2f} KB"
+        size /= 1024
+        if size < 1024:
+            return f"{size:.2f} MB"
+        size /= 1024
+        return f"{size:.2f} GB"
+
     def report_values(self):
         # do deep listing of all values in this object in a nice format
         for k, v in vars(self).items():
@@ -212,7 +224,7 @@ class BackupUtility:
         files = sorted(os.listdir(self.primary_archive_dir))
         for file_ in files:
             file_path = os.path.join(self.primary_archive_dir, file_)
-            print(f'{file_:40} {convert_seconds(os.path.getsize(file_path))}')  
+            print(f'{file_:40} {self.human_readable_size(os.path.getsize(file_path))}')  
             
     def show_log(self):
         # list the backup log
@@ -285,24 +297,8 @@ class BackupUtility:
 
     def format_time_since(self, past_datetime):
         time_diff = datetime.now() - past_datetime
-        days = time_diff.days
-        hours, remainder = divmod(time_diff.seconds, 3600)
-        minutes, seconds = divmod(remainder, 60)
-
-        time_components = []
-        if days > 0:
-            time_components.append(f"{days} days")
-        if hours > 0:
-            time_components.append(f"{hours} hours")
-        if minutes > 0:
-            time_components.append(f"{minutes} minutes")
-        if seconds > 0:
-            time_components.append(f"{seconds} seconds")
-
-        if time_components:
-            return ", ".join(time_components) + " since the last backup."
-        else:
-            return "Backup just occurred."
+        time_string = convert_seconds(time_diff.total_seconds())
+        return "Last backup: " + time_string
         
     def _print_report(self, files_):
         [print(x) for x in files_]
