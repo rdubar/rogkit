@@ -1,0 +1,64 @@
+#!/usr/bin/env python3
+import sys
+
+def convert_seconds(seconds):
+    # Return immediately for 0 seconds
+    if seconds <= 5:
+        return f"{seconds} seconds"
+
+    # Define time units in seconds
+    aeon = 31557600000000000  # Assuming an aeon as 1 billion years
+    century = 3155760000  # 100 years
+    year = 31557600  # 1 year (365.25 days accounting for leap years)
+    day = 86400  # 1 day
+    hour = 3600  # 1 hour
+    minute = 60  # 1 minute
+
+    # Calculate aeons, centuries, years, days, hours, minutes, and seconds
+    aeons = seconds // aeon
+    seconds %= aeon
+    centuries = seconds // century
+    seconds %= century
+    years = seconds // year
+    seconds %= year
+    days = seconds // day
+    seconds %= day
+    hours = seconds // hour
+    seconds %= hour
+    minutes = seconds // minute
+    seconds %= minute
+
+    # Create a list of time components
+    time_list = []
+    if aeons > 0:
+        time_list.append(f"{aeons:,} aeons")
+    if centuries > 0:
+        time_list.append(f"{centuries:,} centuries")
+    if years > 0:
+        time_list.append(f"{years:,} years")
+    if days > 0:
+        time_list.append(f"{days:,} days")
+    if hours > 0:
+        time_list.append(f"{hours} hours")
+    if minutes > 0:
+        time_list.append(f"{minutes} minutes")
+    if seconds > 0:
+        time_list.append(f"{seconds} seconds")
+
+    # Construct the time string
+    if len(time_list) > 1:
+        return ", ".join(time_list[:-1]) + " and " + time_list[-1] + '.'
+    elif time_list:
+        return time_list[0] + '.'
+    else:
+        return "0 seconds."
+
+if __name__ == "__main__":
+    if len(sys.argv) > 1:
+        try:
+            input_seconds = int(sys.argv[1])
+            print(convert_seconds(input_seconds))
+        except ValueError:
+            print("Please provide a valid number of seconds.")
+    else:
+        print("Usage: seconds.py [number of seconds]")

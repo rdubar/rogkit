@@ -1,47 +1,20 @@
 #!/usr/bin/env python3
+import os
 import datetime
 import requests
 import subprocess
 import logging
-from dateutil import parser, tz
+import argparse
+from dateutil.parser import parse
+from dateutil import tz
+from seconds import convert_seconds
 
-logging.basicConfig(filename='time_check.log', level=logging.DEBUG,
+script_dir = os.path.dirname(os.path.abspath(__file__))
+log_file_path = os.path.join(script_dir, 'time_check.log')
+logging.basicConfig(filename=log_file_path, level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(name)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger=logging.getLogger(__name__) 
-
-def human_time(seconds):
-    # Return immediately for 0 seconds
-    if seconds <= 5:
-        return f"{seconds} seconds"
-
-    # Calculate days, hours, minutes, and seconds
-    days = seconds // 86400
-    seconds %= 86400
-    hours = seconds // 3600
-    seconds %= 3600
-    minutes = seconds // 60
-    seconds %= 60
-
-    # Create a list of time components
-    time_list = []
-    if days > 0:
-        time_list.append(f"{days} days")    
-    if hours > 0:   
-        time_list.append(f"{hours} hours")
-    if minutes > 0:
-        time_list.append(f"{minutes} minutes")
-    if seconds > 0:
-        time_list.append(f"{seconds} seconds")
-
-    # Construct the time string
-    if len(time_list) > 1:
-        return ", ".join(time_list[:-1]) + " and " + time_list[-1]
-    elif time_list:
-        return time_list[0]
-    else:
-        return "0 seconds"
-
 
 def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4):
     # Get the system time
@@ -49,7 +22,7 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4
     # Get the online time
     print(f"Getting the online time from {url}")
     response = requests.get(url)
-    online_time = parser.parse(response.json()['datetime'])
+    online_time = parse(response.json()['datetime'])
     # Convert both times to UTC
     system_time = system_time.replace(tzinfo=tz.tzutc())
     online_time = online_time.replace(tzinfo=tz.tzutc())
@@ -59,8 +32,8 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4
     time_difference = online_time - system_time
     # get the time difference in seconds
     time_difference_seconds = time_difference.total_seconds()
-    print(f"The difference between the online time and the system time is {human_time(time_difference_seconds)}.") 
-    # If the difference is greater than 10 seconds, set the system time
+    print(f"The difference between the online time and the system time is {convert_seconds(time_difference_seconds)}.") 
+    # If the difference is greater than the threshold, indicate a discrepancy
     if abs(time_difference_seconds) > threshold:
         return False
     return True
@@ -77,9 +50,18 @@ def set_time(npt_url='pool.ntp.org'):
     print(result_text)
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Check and set system time.")
+    parser.add_argument("-s", "--seconds", type=float, default=1, help="Threshold in seconds for time difference")
+    parser.add_argument("-f", "--force", action="store_true", help="Force time synchronization")
+
+    args = parser.parse_args()
+
     print("Rog's time checker...")
-    if check_time():
+
+    if args.force:
+        set_time()
+    elif check_time(threshold=args.seconds):
         print("System time OK.")
     else:
         set_time()
-        check_time()
+        check_time(threshold=args.seconds)
