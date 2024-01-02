@@ -7,6 +7,7 @@ import re
 import argparse
 import subprocess
 import tempfile
+import shutil
 from pathlib import Path
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -164,15 +165,24 @@ class BackupUtility:
         self.init = True
 
     def perform_backup(self, verbose=False):        
-        backup_filename = f'backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.tar.gz'
-        backup_path = os.path.join(self.primary_archive_dir, backup_filename)
-        if not self.create_backup(backup_path):
-            print('Backup failed')
-            return False
-        
-        size = byte_size(os.path.getsize(backup_path))
-        
-        print(f'Backup saved to {backup_path} ({size})')
+        # Create a temporary file
+        with tempfile.NamedTemporaryFile(delete=False) as temp_file:
+            temp_backup_path = temp_file.name
+
+            # Attempt to create the backup
+            if not self.create_backup(temp_backup_path):
+                print('Backup failed')
+                os.remove(temp_backup_path)  # Clean up the temp file
+                return False
+
+            # Rename the temporary file to the final backup file
+            backup_filename = f'backup_{datetime.now().strftime("%Y%m%d_%H%M%S")}.tar.gz'
+            backup_path = os.path.join(self.primary_archive_dir, backup_filename)
+            shutil.move(temp_backup_path, backup_path)
+
+            # Rest of your function's logic
+            size = byte_size(os.path.getsize(backup_path))
+            print(f'Backup saved to {backup_path} ({size})')
         
         # Update the backup log 
         with open(self.backup_log, 'a') as f:
