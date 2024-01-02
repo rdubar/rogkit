@@ -10,6 +10,39 @@ logging.basicConfig(filename='time_check.log', level=logging.DEBUG,
                     datefmt='%Y-%m-%d %H:%M:%S')
 logger=logging.getLogger(__name__) 
 
+def human_time(seconds):
+    # Return immediately for 0 seconds
+    if seconds <= 5:
+        return f"{seconds} seconds"
+
+    # Calculate days, hours, minutes, and seconds
+    days = seconds // 86400
+    seconds %= 86400
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+
+    # Create a list of time components
+    time_list = []
+    if days > 0:
+        time_list.append(f"{days} days")    
+    if hours > 0:   
+        time_list.append(f"{hours} hours")
+    if minutes > 0:
+        time_list.append(f"{minutes} minutes")
+    if seconds > 0:
+        time_list.append(f"{seconds} seconds")
+
+    # Construct the time string
+    if len(time_list) > 1:
+        return ", ".join(time_list[:-1]) + " and " + time_list[-1]
+    elif time_list:
+        return time_list[0]
+    else:
+        return "0 seconds"
+
+
 def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4):
     # Get the system time
     system_time = datetime.datetime.now()
@@ -24,9 +57,9 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4
     print('Online time:', online_time)
     # Calculate the difference
     time_difference = online_time - system_time
-    print(f"The difference between the online time and the system time is {time_difference}.")
     # get the time difference in seconds
     time_difference_seconds = time_difference.total_seconds()
+    print(f"The difference between the online time and the system time is {human_time(time_difference_seconds)}.") 
     # If the difference is greater than 10 seconds, set the system time
     if abs(time_difference_seconds) > threshold:
         return False
