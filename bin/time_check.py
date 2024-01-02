@@ -32,7 +32,7 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4
     time_difference = online_time - system_time
     # get the time difference in seconds
     time_difference_seconds = time_difference.total_seconds()
-    print(f"The difference between the online time and the system time is {convert_seconds(time_difference_seconds)}.") 
+    print(f"The difference between the online time and the system time is {convert_seconds(time_difference_seconds)}") 
     # If the difference is greater than the threshold, indicate a discrepancy
     if abs(time_difference_seconds) > threshold:
         return False
@@ -51,7 +51,7 @@ def set_time(npt_url='pool.ntp.org'):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check and set system time.")
-    parser.add_argument("-s", "--seconds", type=float, default=1, help="Threshold in seconds for time difference")
+    parser.add_argument("-s", "--seconds", type=float, default=5, help="Threshold in seconds for time difference")
     parser.add_argument("-f", "--force", action="store_true", help="Force time synchronization")
 
     args = parser.parse_args()

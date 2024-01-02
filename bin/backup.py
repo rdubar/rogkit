@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import List, Set
 from time import perf_counter
 from seconds import convert_seconds
+from bytes import byte_size
 
 DEFAULT_CONFIG = {
     "base_dirs": [os.path.expanduser("~")],
@@ -169,7 +170,7 @@ class BackupUtility:
             print('Backup failed')
             return False
         
-        size = self.human_readable_size(os.path.getsize(backup_path))
+        size = byte_size(os.path.getsize(backup_path))
         
         print(f'Backup saved to {backup_path} ({size})')
         
@@ -190,18 +191,6 @@ class BackupUtility:
             subprocess.run(['cp', backup_path, dir + '/' + backup_filename], check=True)
             
         return True
-
-    def human_readable_size(self, size):
-        if size < 1024:
-            return f"{size} bytes"
-        size /= 1024
-        if size < 1024:
-            return f"{size:.2f} KB"
-        size /= 1024
-        if size < 1024:
-            return f"{size:.2f} MB"
-        size /= 1024
-        return f"{size:.2f} GB"
 
     def report_values(self):
         # do deep listing of all values in this object in a nice format
@@ -224,7 +213,7 @@ class BackupUtility:
         files = sorted(os.listdir(self.primary_archive_dir))
         for file_ in files:
             file_path = os.path.join(self.primary_archive_dir, file_)
-            print(f'{file_:40} {self.human_readable_size(os.path.getsize(file_path))}')  
+            print(f'{file_:40} {byte_size(os.path.getsize(file_path))}')  
             
     def show_log(self):
         # list the backup log

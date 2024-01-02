@@ -8,9 +8,6 @@ python3.12 -m venv --without-pip venv
 source venv/bin/activate
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python get-pip.py
-```
-Run:
-```
 chmod +x  ~/bin/rogkit/bin/*
 ```
 Add this to your ~/bashrc (or ~/.zshrc):
@@ -31,8 +28,10 @@ Current commands are:
 | Command | Description       |
 |---------|-------------------|
 | backup  | Backup files      |
-| update  | Update system     |
+| bytes   | Bytes to KB/MB/GB |
+| seconds | Seconds to H/M/S  |
 | tim     | Sync clock        |
+| update  | Update system     |
 
 
 More to come.

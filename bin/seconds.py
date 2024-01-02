@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import sys
 
-def convert_seconds(seconds):
+def convert_seconds(seconds, long=False, end='.'):
     # Return immediately for 0 seconds
     if seconds <= 5:
-        return f"{seconds} seconds"
+        return f"{seconds} seconds."
     seconds = int(seconds)
 
     # Define time units in seconds
@@ -16,10 +16,11 @@ def convert_seconds(seconds):
     minute = 60  # 1 minute
 
     # Calculate aeons, centuries, years, days, hours, minutes, and seconds
-    aeons = seconds // aeon
-    seconds %= aeon
-    centuries = seconds // century
-    seconds %= century
+    if long:
+        aeons = seconds // aeon
+        seconds %= aeon
+        centuries = seconds // century
+        seconds %= century
     years = seconds // year
     seconds %= year
     days = seconds // day
@@ -31,10 +32,11 @@ def convert_seconds(seconds):
 
     # Create a list of time components
     time_list = []
-    if aeons > 0:
-        time_list.append(f"{aeons:,} aeons")
-    if centuries > 0:
-        time_list.append(f"{centuries:,} centuries")
+    if long:
+        if aeons > 0:
+            time_list.append(f"{aeons:,} aeons")
+        if centuries > 0:
+            time_list.append(f"{centuries:,} centuries")
     if years > 0:
         time_list.append(f"{years:,} years")
     if days > 0:
@@ -48,11 +50,11 @@ def convert_seconds(seconds):
 
     # Construct the time string
     if len(time_list) > 1:
-        return ", ".join(time_list[:-1]) + " and " + time_list[-1] + '.'
+        return ", ".join(time_list[:-1]) + " and " + time_list[-1] + end
     elif time_list:
-        return time_list[0] + '.'
+        return time_list[0] + end
     else:
-        return "0 seconds."
+        return "0 seconds" + end
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
