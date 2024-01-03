@@ -293,7 +293,6 @@ class BackupUtility:
             print(f"Error listing files in {self.primary_archive_dir}: {e}")
         return None
 
-
     def format_time_since(self, past_datetime):
         time_diff = datetime.now() - past_datetime
         time_string = convert_seconds(time_diff.total_seconds())

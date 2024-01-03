@@ -14,9 +14,10 @@ log_file_path = os.path.join(script_dir, 'time_check.log')
 logging.basicConfig(filename=log_file_path, level=logging.DEBUG,
                     format='%(asctime)s %(levelname)s %(name)s %(message)s',
                     datefmt='%Y-%m-%d %H:%M:%S')
+logging.getLogger("urllib3").setLevel(logging.WARNING)
 logger=logging.getLogger(__name__) 
 
-def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4):
+def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=1):
     # Get the system time
     system_time = datetime.datetime.now()
     # Get the online time
@@ -38,21 +39,31 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=0.4
         return False
     return True
 
-def set_time(npt_url='pool.ntp.org'):
-    # Define the command as a list
-    command = ["sudo", "ntpdate", npt_url]
+def set_time(ntp_url='pool.ntp.org'):
+    command = ["sudo", "ntpdate", ntp_url]
     print(f"Setting the system time: {' '.join(command)}")
-    # Run the command and capture the output
-    result = subprocess.run(command, capture_output=True, text=True)
-    result_text = result.stdout if result.stdout else result.stderr
-    result_text = result_text.strip() if result_text else "No output from command."
-    logger.info(result_text)
+    start_time = datetime.datetime.now()
+    try:
+        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        end_time = datetime.datetime.now()
+        time_difference = (end_time - start_time).total_seconds()
+        result_text = f"{ntp_url} : {time_difference} : {convert_seconds(time_difference)}"
+        logger.info(result_text)
+    except subprocess.CalledProcessError as e:
+        end_time = datetime.datetime.now()
+        time_difference = (end_time - start_time).total_seconds()
+        logger.warning(f"{ntp_url} {e.stderr.strip()} {time_difference}.")
     print(result_text)
+
+def show_log_file():
+    with open(log_file_path, 'r') as f:
+        print(f.read())
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Check and set system time.")
     parser.add_argument("-s", "--seconds", type=float, default=5, help="Threshold in seconds for time difference")
     parser.add_argument("-f", "--force", action="store_true", help="Force time synchronization")
+    parser.add_argument("-l", "--log", action="store_true", help="Show the log file")
 
     args = parser.parse_args()
 
@@ -65,3 +76,6 @@ if __name__ == "__main__":
     else:
         set_time()
         check_time(threshold=args.seconds)
+
+    if args.log:
+        show_log_file()
