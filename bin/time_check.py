@@ -52,7 +52,8 @@ def set_time(ntp_url='pool.ntp.org'):
     except subprocess.CalledProcessError as e:
         end_time = datetime.datetime.now()
         time_difference = (end_time - start_time).total_seconds()
-        logger.warning(f"{ntp_url} {e.stderr.strip()} {time_difference}.")
+        result_text = f"{ntp_url} {e.stderr.strip()} {time_difference}."
+        logger.warning(result_text)
     print(result_text)
 
 def show_log_file():

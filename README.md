@@ -30,6 +30,7 @@ Current commands are:
 | backup  | Backup files      |
 | bytes   | Bytes to KB/MB/GB |
 | passw   | Generate password |
+| rcase   | rANdoMcAse text   |
 | seconds | Seconds to H/M/S  |
 | tim     | Sync clock        |
 | update  | Update system     |

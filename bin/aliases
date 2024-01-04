@@ -1,5 +1,7 @@
 alias backup='~/bin/rogkit/bin/backup.py "$@"'
 alias bytes='~/bin/rogkit/bin/bytes.py "$@"'
 alias passw='~/bin/rogkit/bin/passw.py "$@"'
+alias randomcase='~/bin/rogkit/bin/randomcase.py "$@"'
+alias rcase='~/bin/rogkit/bin/randomcase.py "$@"'
 alias seconds='~/bin/rogkit/bin/seconds.py "$@"'
 alias tim='~/bin/rogkit/bin/time_check.py "$@"'
