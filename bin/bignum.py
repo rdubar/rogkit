@@ -139,8 +139,12 @@ def demo_uses():
     print(time_description)  # Output: '31 years and 8 months', depending on the granularity
 
 def bignum(number, round_to=2, show_e=2, minimum=1000):
-    formatter = PrettyNumberFormatter()
-    return formatter.zillions(number, round_to=round_to, show_e=show_e, minimum=minimum)
+    try:
+        formatter = PrettyNumberFormatter()
+        return formatter.zillions(number, round_to=round_to, show_e=show_e, minimum=minimum)
+    except Exception as e:
+        print(f"Error converting number to text: {e}")
+        return f'{number:,}'
 
 def seconds_time(seconds, granularity=2):
     formatter = PrettyNumberFormatter()

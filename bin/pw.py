@@ -61,13 +61,16 @@ class PasswordGenerator:
             print("No password generated to copy.")
 
     def display_password_info(self, guesses_per_second):
-        if self.password is not None:   
-            print(f"Password: {self.password}")
-            print(f'Combinations: {bignum(self.calculate_combinations())}')
-            print(f"Estimated Crack Time: {self.estimate_crack_time(guesses_per_second)}")
-            print(f'Assumes {bignum(guesses_per_second)} guesses per second.')
-        else:
-            print("No password generated.")
+        try:
+            if self.password is not None:   
+                print(f"Password: {self.password}")
+                print(f'Combinations: {bignum(self.calculate_combinations())}')
+                print(f"Estimated Crack Time: {self.estimate_crack_time(guesses_per_second)}")
+                print(f'Assumes {bignum(guesses_per_second)} guesses per second.')
+            else:
+                print("No password generated.")
+        except Exception as e:
+            print(f"Error displaying password info: {e}")
 
 
 def main():
