@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import sys
+from bignum import bignum
 
 def convert_seconds(seconds, long=False, end='.'):
     # Return immediately for 0 seconds
@@ -38,7 +39,10 @@ def convert_seconds(seconds, long=False, end='.'):
         if centuries > 0:
             time_list.append(f"{centuries:,} centuries")
     if years > 0:
-        time_list.append(f"{years:,} years")
+        if years > 1e6:
+            time_list.append(f'{bignum(years)} years')
+        else:
+            time_list.append(f"{years:,} years")
     if days > 0:
         time_list.append(f"{days:,} days")
     if hours > 0:

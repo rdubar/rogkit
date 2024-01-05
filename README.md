@@ -28,8 +28,9 @@ Current commands are:
 | Command | Description       |
 |---------|-------------------|
 | backup  | Backup files      |
+| bignum  | Show big numbers  |
 | bytes   | Bytes to KB/MB/GB |
-| passw   | Generate password |
+| pw      | Generate password |
 | rcase   | rANdoMcAse text   |
 | seconds | Seconds to H/M/S  |
 | tim     | Sync clock        |
