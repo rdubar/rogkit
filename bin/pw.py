@@ -2,9 +2,7 @@
 import argparse
 import secrets
 import string
-import math
 from dataclasses import dataclass
-from seconds import convert_seconds
 from bignum import bignum, seconds_time
 import pyperclip
 
@@ -17,6 +15,7 @@ class PasswordGenerator:
     dashes: bool = False
     password: str = None
     check: bool = False
+    info: bool = False
 
     def __post_init__(self):
         self.alphabet = self._create_alphabet()
@@ -92,34 +91,35 @@ class PasswordGenerator:
     def display_password_info(self, guesses_per_second):
         try:
             if self.password is not None:   
-                print(f"Password: {self.password}")
-                print(f'Length: {bignum(self.length)}')
-                if self.length < 200:
-                    print(f'Combinations: {bignum(self.calculate_combinations())}')
-                    print(f"Estimated Crack Time: {self.estimate_crack_time(guesses_per_second)}")
-                    print(f'Assumes {bignum(guesses_per_second)} guesses per second.')
-                if self.check:
-                    print("Password contains special, numberic, lower and upper case characters.")
+                print(self.password)
+                if self.info:
+                    print(f'Length: {bignum(self.length)}')
+                    if self.length < 200:
+                        print(f'Combinations: {bignum(self.calculate_combinations())}')
+                        print(f"Estimated max time to crack: {self.estimate_crack_time(guesses_per_second)}")
+                        print(f'Assumes {bignum(guesses_per_second)} guesses per second.')
+                    if self.check:
+                        print("Password contains special, numeric, lower and upper case characters.")
             else:
                 print("No password generated.")
         except Exception as e:
             print(f"Error displaying password info: {e}")
 
-
 def main():
     parser = argparse.ArgumentParser(description='Generate a password.')
-    parser.add_argument('-l', '--length', type=int, default=16, help='Length of the password')
+    parser.add_argument('-l', '--length', type=int, default=20, help='Length of the password')
     parser.add_argument('-a', '--alpha', action='store_true', help='Include alphabetic characters')
     parser.add_argument('-n', '--numeric', action='store_true', help='Include numeric characters')
     parser.add_argument('-s', '--special', action='store_true', help='Include special characters')
     parser.add_argument('-d', '--dashes', action='store_true', help='Include dashes')
+    parser.add_argument('-i', '--info', action='store_true', help='Show information about the password')
     parser.add_argument('-g', '--guesses', type=int, default=1e12, help='Guesses per second for crack time estimation')
     parser.add_argument('-c', '--check', action='store_true', help='If length > 6, check password for required character types')
     args = parser.parse_args()
 
     # if no character type options are given, include all
     if not (args.alpha or args.numeric or args.special or args.dashes):
-        args.alpha = args.numeric = args.special = True
+        args.alpha = args.numeric = args.dashes = args.check = True
 
     password_generator = PasswordGenerator(
         length=args.length, 
@@ -127,7 +127,8 @@ def main():
         numeric=args.numeric, 
         special=args.special,
         dashes=args.dashes,
-        check=args.check
+        check=args.check,
+        info=args.info
     )
 
     password_generator.generate_and_store_password()
