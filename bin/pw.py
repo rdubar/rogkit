@@ -16,6 +16,7 @@ class PasswordGenerator:
     special: bool = True
     dashes: bool = False
     password: str = None
+    check: bool = False
 
     def __post_init__(self):
         self.alphabet = self._create_alphabet()
@@ -33,15 +34,43 @@ class PasswordGenerator:
         return ''.join(set(''.join(alphabet)))
 
     def generate_and_store_password(self):
-        self.password = ''.join(secrets.choice(self.alphabet) for _ in range(self.length))
+        if self.length < 1:
+            print("Password length must be greater than 0.")
+            exit(1)
+        if self.length > 1000:
+            print("Maxium password length is 1000.")
+            exit(1)
+        while True:
+            self.password = ''.join(secrets.choice(self.alphabet) for _ in range(self.length))
+            if self.check:
+                if not self.check_password():
+                    continue
+            break
         return self.password
+    
+    def check_password(self):
+        if self.length < 6:
+            return True
+        if not any(c in self.password for c in string.ascii_lowercase):
+            return False
+        if not any(c in self.password for c in string.ascii_uppercase):
+            return False
+        if not any(c in self.password for c in string.digits):
+            return False
+        if not any(c in self.password for c in string.punctuation):
+            return False
+        return True
+    
 
     def calculate_combinations(self):
         return len(self.alphabet) ** self.length
 
     def estimate_crack_time(self, guesses_per_second):
         combinations = self.calculate_combinations()
-        seconds = combinations / guesses_per_second
+        try:
+            seconds = combinations / guesses_per_second
+        except:
+            return "Infinity"
         return self._format_time(seconds)
 
     def _format_time(self, seconds):
@@ -64,9 +93,13 @@ class PasswordGenerator:
         try:
             if self.password is not None:   
                 print(f"Password: {self.password}")
-                print(f'Combinations: {bignum(self.calculate_combinations())}')
-                print(f"Estimated Crack Time: {self.estimate_crack_time(guesses_per_second)}")
-                print(f'Assumes {bignum(guesses_per_second)} guesses per second.')
+                print(f'Length: {bignum(self.length)}')
+                if self.length < 200:
+                    print(f'Combinations: {bignum(self.calculate_combinations())}')
+                    print(f"Estimated Crack Time: {self.estimate_crack_time(guesses_per_second)}")
+                    print(f'Assumes {bignum(guesses_per_second)} guesses per second.')
+                if self.check:
+                    print("Password contains special, numberic, lower and upper case characters.")
             else:
                 print("No password generated.")
         except Exception as e:
@@ -81,6 +114,7 @@ def main():
     parser.add_argument('-s', '--special', action='store_true', help='Include special characters')
     parser.add_argument('-d', '--dashes', action='store_true', help='Include dashes')
     parser.add_argument('-g', '--guesses', type=int, default=1e12, help='Guesses per second for crack time estimation')
+    parser.add_argument('-c', '--check', action='store_true', help='If length > 6, check password for required character types')
     args = parser.parse_args()
 
     # if no character type options are given, include all
@@ -92,7 +126,8 @@ def main():
         alpha=args.alpha, 
         numeric=args.numeric, 
         special=args.special,
-        dashes=args.dashes
+        dashes=args.dashes,
+        check=args.check
     )
 
     password_generator.generate_and_store_password()
