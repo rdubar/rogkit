@@ -16,23 +16,24 @@ class PasswordGenerator:
     password: str = None
     check: bool = False
     info: bool = False
-    max_length: int = 20000
+    max_length: int = 1000000
 
     def __post_init__(self):
         self.alphabet = self._create_alphabet()
 
     def _create_alphabet(self):
-        alphabet = []
+        alphabet_set = set()
         if self.alpha:
-            alphabet.append(string.ascii_letters)
+            alphabet_set.update(string.ascii_letters)
         if self.numeric:
-            alphabet.append(string.digits)
+            alphabet_set.update(string.digits)
         if self.special:
-            alphabet.append(string.punctuation)
+            alphabet_set.update(string.punctuation)
         if self.dashes:
-            alphabet.append('-_')
-        return ''.join(set(''.join(alphabet)))
-    
+            alphabet_set.update('-_')
+        
+        return ''.join(alphabet_set)
+        
     def generate_password(self):
         try:
             self.password = ''.join(secrets.choice(self.alphabet) for _ in range(self.length))
@@ -115,19 +116,26 @@ class PasswordGenerator:
 
 def main():
     parser = argparse.ArgumentParser(description='Generate a password.')
+    # Basic password composition options
     parser.add_argument('-l', '--length', type=int, default=20, help='Length of the password')
     parser.add_argument('-a', '--alpha', action='store_true', help='Include alphabetic characters')
     parser.add_argument('-n', '--numeric', action='store_true', help='Include numeric characters')
     parser.add_argument('-s', '--special', action='store_true', help='Include special characters')
-    parser.add_argument('-d', '--dashes', action='store_true', help='Include dashes')
-    parser.add_argument('-i', '--info', action='store_true', help='Show information about the password')
+    parser.add_argument('-d', '--dashes', action='store_true', help='Include dashes (-_)')
+    parser.add_argument('-e', '--everything', action='store_true', help='Include every character type')
+    # Password analysis and constraints
+    parser.add_argument('-c', '--check', action='store_true', help='If length > 6, check password for required character types')
     parser.add_argument('-g', '--guesses', type=int, default=1e12, help='Guesses per second for crack time estimation')
     parser.add_argument('-m', '--max_length', type=int, default=1e12, help='Set maximum password length')
-    parser.add_argument('-c', '--check', action='store_true', help='If length > 6, check password for required character types')
+    # Additional information
+    parser.add_argument('-i', '--info', action='store_true', help='Show information about the password')
     args = parser.parse_args()
 
-    # if no character type options are given, include all
-    if not (args.alpha or args.numeric or args.special or args.dashes):
+    if args.everything:
+        args.alpha = args.numeric = args.special = args.check = True
+        args.dashes = False
+    # if no character type options are given, use these defaults
+    elif not (args.alpha or args.numeric or args.special or args.dashes):
         args.alpha = args.numeric = args.dashes = args.check = True
 
     password_generator = PasswordGenerator(
