@@ -16,6 +16,7 @@ class PasswordGenerator:
     password: str = None
     check: bool = False
     info: bool = False
+    max_length: int = 20000
 
     def __post_init__(self):
         self.alphabet = self._create_alphabet()
@@ -31,16 +32,23 @@ class PasswordGenerator:
         if self.dashes:
             alphabet.append('-_')
         return ''.join(set(''.join(alphabet)))
+    
+    def generate_password(self):
+        try:
+            self.password = ''.join(secrets.choice(self.alphabet) for _ in range(self.length))
+        except Exception as e:
+            print(f"Error generating password: {e}")
+            exit(1)
 
     def generate_and_store_password(self):
         if self.length < 1:
             print("Password length must be greater than 0.")
             exit(1)
-        if self.length > 1000:
-            print("Maxium password length is 1000.")
+        if self.length > self.max_length:
+            print(f"Maxium password length is {self.max_length}.")
             exit(1)
         while True:
-            self.password = ''.join(secrets.choice(self.alphabet) for _ in range(self.length))
+            self.generate_password()
             if self.check:
                 if not self.check_password():
                     continue
@@ -114,6 +122,7 @@ def main():
     parser.add_argument('-d', '--dashes', action='store_true', help='Include dashes')
     parser.add_argument('-i', '--info', action='store_true', help='Show information about the password')
     parser.add_argument('-g', '--guesses', type=int, default=1e12, help='Guesses per second for crack time estimation')
+    parser.add_argument('-m', '--max_length', type=int, default=1e12, help='Set maximum password length')
     parser.add_argument('-c', '--check', action='store_true', help='If length > 6, check password for required character types')
     args = parser.parse_args()
 
@@ -128,7 +137,8 @@ def main():
         special=args.special,
         dashes=args.dashes,
         check=args.check,
-        info=args.info
+        info=args.info,
+        max_length=args.max_length
     )
 
     password_generator.generate_and_store_password()
