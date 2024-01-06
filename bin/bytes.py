@@ -5,16 +5,11 @@ def byte_size(size, base=1024):
     if base not in [1000, 1024]:
         raise ValueError("Base must be 1000 or 1024")
 
-    if size < base:
-        return f"{size} bytes"
-    size /= base
-    if size < base:
-        return f"{size:.2f} KB"
-    size /= base
-    if size < base:
-        return f"{size:.2f} MB"
-    size /= base
-    return f"{size:.2f} GB"
+    units = ["bytes", "KB", "MB", "GB", "TB", "PB"]
+    for unit in units:
+        if size < base or unit == units[-1]:  # Stop at the last unit (PB)
+            return f"{size:,.2f} {unit}"
+        size /= base
 
 if __name__ == "__main__":
     if len(sys.argv) > 1:
