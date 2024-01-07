@@ -43,18 +43,18 @@ source ~/bashrc  # or source ~/.zshrc
 ```
 ### Commands
 
-| Command | Description       |
-|---------|-------------------|
-| backup  | Backup files      |
-| bignum  | Show big numbers  |
-| bytes   | Bytes to KB/MB/GB |
-| clip    | Copy to clipboard |
-| pw      | Generate password |
-| rcase   | rANdoMcAse text   |
-| seconds | Seconds to H/M/S  |
-| strike  | Strikethru text   |
-| tim     | Sync clock        |
-| update  | Update system     |
+| Command | Description       | Python Imports                      |
+|---------|-------------------|-------------------------------------|
+| backup  | Backup files      |                                     |
+| bignum  | Show big numbers  | from bignum import bignum           |
+| bytes   | Bytes to KB/MB/GB | from bytes import byte_size         |
+| clip    | Copy to clipboard | from clipboard import clipboard     |
+| pw      | Generate password | from pw import PasswordGenerator    |
+| rcase   | rANdoMcAse text   | from randomcase import randomcase   |
+| seconds | Seconds to H/M/S  | from seconds import convert_seconds |
+| strike  | Strikethru text   | from strike import strikethru       |
+| tim     | Sync clock        |                                     |
+| update  | Update system     |                                     |
 
 
 ### Notes:
