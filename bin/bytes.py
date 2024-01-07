@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-import sys
+import argparse
 
 def byte_size(size, base=1024):
     if base not in [1000, 1024]:
@@ -12,14 +12,13 @@ def byte_size(size, base=1024):
         size /= base
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        try:
-            input_bytes = int(sys.argv[1])
-            base = 1024
-            if len(sys.argv) > 2:
-                base = int(sys.argv[2])
-            print(byte_size(input_bytes, base=base))
-        except ValueError as e:
-            print(e)
-    else:
-        print("Usage: bytes.py [number of bytes] [base (optional, 1000 or 1024)]")
+    parser = argparse.ArgumentParser(description='Convert bytes to human-readable format.')
+    parser.add_argument('bytes', type=int, help='Number of bytes to convert')
+    parser.add_argument('-b', '--base', type=int, default=1024, choices=[1000, 1024], help='Base to use (1000 or 1024)')
+
+    args = parser.parse_args()
+
+    try:
+        print(byte_size(args.bytes, base=args.base))
+    except ValueError as e:
+        print(e)
