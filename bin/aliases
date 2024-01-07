@@ -1,8 +1,14 @@
-alias backup='~/bin/rogkit/bin/backup.py "$@"'
-alias bignum='~/bin/rogkit/bin/bignum.py "$@"'
-alias bytes='~/bin/rogkit/bin/bytes.py "$@"'
-alias pw='~/bin/rogkit/bin/pw.py "$@"'
-alias randomcase='~/bin/rogkit/bin/randomcase.py "$@"'
-alias rcase='~/bin/rogkit/bin/randomcase.py "$@"'
-alias seconds='~/bin/rogkit/bin/seconds.py "$@"'
-alias tim='~/bin/rogkit/bin/time_check.py "$@"'
+INSTALL=~/opt
+ROGKIT_BIN="$INSTALL/rogkit/bin"
+
+alias backup='$ROGKIT_BIN/backup.py "$@"'
+alias bignum='$ROGKIT_BIN/bignum.py "$@"'
+alias clip='$ROGKIT_BIN/clipboard.py "$@"'
+alias clipboard='$ROGKIT_BIN/clipboard.py "$@"'
+alias bytes='$ROGKIT_BIN/bytes.py "$@"'
+alias pw='$ROGKIT_BIN/pw.py "$@"'
+alias randomcase='$ROGKIT_BIN/randomcase.py "$@"'
+alias rcase='$ROGKIT_BIN/randomcase.py "$@"'
+alias seconds='$ROGKIT_BIN/seconds.py "$@"'
+alias strike='$ROGKIT_BIN/strike.py "$@"'
+alias tim='$ROGKIT_BIN/time_check.py "$@"'

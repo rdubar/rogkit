@@ -4,7 +4,7 @@ import secrets
 import string
 from dataclasses import dataclass
 from bignum import bignum, seconds_time
-import pyperclip
+from clipboard import copy_to_clipboard
 
 @dataclass
 class PasswordGenerator:
@@ -89,11 +89,7 @@ class PasswordGenerator:
 
     def copy_to_clipboard(self):
         if self.password is not None:
-            try:
-                pyperclip.copy(self.password)
-                print("Password copied to clipboard.")
-            except Exception as e:
-                print(f"Error copying to clipboard: {e}")
+            copy_to_clipboard(self.password)
         else:
             print("No password generated to copy.")
 
