@@ -53,7 +53,7 @@ source ~/bashrc  # or source ~/.zshrc
 | rcase   | rANdoMcAse text   | from randomcase import randomcase   |
 | seconds | Seconds to H/M/S  | from seconds import convert_seconds |
 | strike  | Strikethru text   | from strike import strikethru       |
-| tim     | Sync clock        |                                     |
+| tim     | Sync system clock |                                     |
 | update  | Update system     |                                     |
 
 
