@@ -49,4 +49,8 @@ Current commands are:
 | tim     | Sync clock        |
 | update  | Update system     |
 
-More to come.
+
+Notes:
+
+* Copy to clipboard is not currently working on Raspberry Pi OS
+* More utities to come

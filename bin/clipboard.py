@@ -2,12 +2,15 @@
 import sys
 import pyperclip
 
-def copy_to_clipboard(text):
+def copy_to_clipboard(text, verbose=False):
     try:
         pyperclip.copy(text)
         print("Copied to clipboard.")
     except Exception as e:
-        print(f"Error copying to clipboard: {e}")
+        if verbose:
+            print(f"Error copying to clipboard: {e}")
+        else:
+            print("Could not copy to clipboard.")
 
 def main():
     # join all text in args
