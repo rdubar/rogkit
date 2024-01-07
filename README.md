@@ -1,10 +1,13 @@
 # RogKit
-Install (use as needed)
+### Installation
+Use as needed...
 ```
+# Set up the installation directory
 INSTALL=~/opt
 mkdir -p "$INSTALL"  # Create the directory if it does not exist
 cd "$INSTALL"
 
+# Install and setup
 gh repo clone rdubar/rogkit
 cd rogkit
 python3.12 -m venv --without-pip venv
@@ -14,14 +17,13 @@ python get-pip.py
 rm get-pip.py
 pip install -r requirements.txt
 
-# Making scripts executable
+# Make scripts executable
 chmod +x "$INSTALL/rogkit/bin/*"
-```
-If you are running Linix, install this for clipboard functionality:
-```
+
+# install for clipboard functionality
 sudo apt install wl-clipboard
 ```
-Add this to your ~/bashrc (or ~/.zshrc):
+Add this to your `~/bashrc` (or `~/.zshrc`):
 ```
 # RogKit
 INSTALL=~/opt
@@ -35,11 +37,12 @@ if [ -f "$ROGKIT_BIN/aliases" ]; then
     source "$ROGKIT_BIN/aliases"
 fi
 ```
-Then reload your ~/bashrc (or ~/.zshrc):
+Then reload your `~/bashrc` (or `~/.zshrc`):
 ```
 source ~/bashrc  # or source ~/.zshrc
 ```
-Current commands are:
+### Commands
+
 | Command | Description       |
 |---------|-------------------|
 | backup  | Backup files      |
@@ -54,7 +57,8 @@ Current commands are:
 | update  | Update system     |
 
 
-Notes:
+### Notes:
 
-* Copy to clipboard may not currently work on Raspberry Pi OS
-* More utities to come
+* More utilities to come
+
+Roger D.
