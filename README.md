@@ -17,6 +17,10 @@ pip install -r requirements.txt
 # Making scripts executable
 chmod +x "$INSTALL/rogkit/bin/*"
 ```
+If you are running Linix, install this for clipboard functionality:
+```
+sudo apt install wl-clipboard
+```
 Add this to your ~/bashrc (or ~/.zshrc):
 ```
 # RogKit
@@ -52,5 +56,5 @@ Current commands are:
 
 Notes:
 
-* Copy to clipboard is not currently working on Raspberry Pi OS
+* Copy to clipboard may not currently work on Raspberry Pi OS
 * More utities to come

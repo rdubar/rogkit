@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import sys
-import pyperclip
+import pyclip
 
-def copy_to_clipboard(text, verbose=False):
+def copy_to_clipboard(text, verbose=True):
     try:
-        pyperclip.copy(text)
+        pyclip.copy(text)
         print("Copied to clipboard.")
     except Exception as e:
         if verbose:

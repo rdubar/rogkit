@@ -11,12 +11,15 @@ def main():
     parser.add_argument('string', nargs='*', type=str, help='string to randomize')
     args = parser.parse_args()
 
+    clipboard = True
     # Join the list of arguments into a single string
     combined_string = ' '.join(args.string)
     if combined_string == '':
         combined_string = 'Please provide a string to randomize.'
+        clipboard = False
     print(randomcase(combined_string))
-    copy_to_clipboard(randomcase(combined_string))
+    if clipboard:
+        copy_to_clipboard(randomcase(combined_string))
 
 if __name__ == "__main__":
     main()

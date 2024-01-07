@@ -8,7 +8,7 @@ def strikethru(text):
 def main():
     # join all text in args
     if len(sys.argv) < 2:
-        print("Usage: strike.py <text>\Strikethru <text>.")
+        print("Usage: strike.py <text>\nStrikethru <text>.")
         exit(1)
     text = ' '.join(sys.argv[1:])
     text = strikethru(text).strip()
