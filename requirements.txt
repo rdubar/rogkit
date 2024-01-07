@@ -1,7 +1,7 @@
 certifi==2023.11.17
 charset-normalizer==3.3.2
 idna==3.6
-pyperclip==1.8.2
+pyclip==0.7.0
 python-dateutil==2.8.2
 requests==2.31.0
 setuptools==69.0.3
