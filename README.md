@@ -28,11 +28,9 @@ Add this to your `~/bashrc` (or `~/.zshrc`):
 # RogKit
 INSTALL=~/opt
 ROGKIT_BIN="$INSTALL/rogkit/bin"
-
 if [ -d "$ROGKIT_BIN" ] && [[ ":$PATH:" != *":$ROGKIT_BIN:"* ]]; then
     export PATH="$PATH:$ROGKIT_BIN"
 fi
-
 if [ -f "$ROGKIT_BIN/aliases" ]; then
     source "$ROGKIT_BIN/aliases"
 fi
