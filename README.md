@@ -48,6 +48,7 @@ source ~/bashrc  # or source ~/.zshrc
 | bytes   | Bytes to KB/MB/GB | from bytes import byte_size         |
 | clip    | Copy to clipboard | from clipboard import clipboard     |
 | pw      | Generate password | from pw import PasswordGenerator    |
+| fakes   | Generate text etc | from fakes import fake_data         |
 | rcase   | rANdoMcAse text   | from randomcase import randomcase   |
 | seconds | Seconds to H/M/S  | from seconds import convert_seconds |
 | strike  | Strikethru text   | from strike import strikethru       |
