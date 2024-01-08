@@ -200,7 +200,7 @@ def main():
         return
 
     # Default case - Show help if no relevant option is provided
-    print("Invalid or insufficient arguments. Use -h or --help for usage information.")
+    print("Bignum: convert huge numbers to text. Use -h or --help for usage information.")
 
 if __name__ == "__main__":
     main()

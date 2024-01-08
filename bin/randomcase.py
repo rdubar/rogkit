@@ -8,7 +8,7 @@ def randomcase(string):
 
 def main():
     parser = argparse.ArgumentParser(description='Randomize the case of a string.')
-    parser.add_argument('string', nargs='*', type=str, help='string to randomize')
+    parser.add_argument('string', nargs='*', type=str, help='string to make random case')
     args = parser.parse_args()
 
     clipboard = True
