@@ -16,7 +16,7 @@ class PasswordGenerator:
     password: str = None
     check: bool = False
     info: bool = False
-    max_length: int = 1000000
+    max_length: int = 1_000_000
 
     def __post_init__(self):
         self.alphabet = self._create_alphabet()

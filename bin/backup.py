@@ -273,10 +273,13 @@ class BackupUtility:
         latest_backup_file = self.get_latest_backup_file()
         if not latest_backup_file:
             return 'No backup files found'
+        
+        # get the size of the last backup in human readable format
+        size = byte_size(os.path.getsize(latest_backup_file))
 
         # Get the timestamp of the latest backup
         last_backup_time = datetime.fromtimestamp(os.path.getmtime(latest_backup_file))
-        elapsed_time_str = self.format_time_since(last_backup_time)
+        elapsed_time_str = self.format_time_since(last_backup_time) + f' ({size})'
         if verbose:
             return f"Latest backup: {latest_backup_file.stem} at {last_backup_time.strftime('%Y-%m-%d %H:%M:%S')} ({elapsed_time_str})"
         else:
