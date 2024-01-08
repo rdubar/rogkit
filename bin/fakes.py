@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
+from typing import Optional
 import argparse
 from faker import Faker
 from clipboard import copy_to_clipboard
 
-def fake_data(mode=None):
+def fake_data(mode: Optional[str] = None) -> str:
     fake = Faker()
 
     match mode:
@@ -26,7 +27,7 @@ def main():
     args = parser.parse_args()
 
     if args.list:
-        print('name\naddress\nsentence\nphone')
+        print('name\naddress\nsentence\nphone\ntext')
         return
     
     for i in range(args.number):
