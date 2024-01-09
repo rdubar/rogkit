@@ -50,6 +50,7 @@ source ~/bashrc  # or source ~/.zshrc
 | pw      | Generate password | from pw import PasswordGenerator    |
 | fakes   | Generate text etc | from fakes import fake_data         |
 | rcase   | rANdoMcAse text   | from randomcase import randomcase   |
+| search  | search for text   | from searh import search_folder     |
 | seconds | Seconds to H/M/S  | from seconds import convert_seconds |
 | strike  | Strikethru text   | from strike import strikethru       |
 | tim     | Sync system clock |                                     |
