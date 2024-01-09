@@ -3,7 +3,7 @@ import os
 import time
 import argparse
 
-DEFAULT_DIRECTORIES = ["/home/rdubar/projects/pythonProject/openerp-addons/src"]
+DEFAULT_DIRECTORIES = ["/home/rdubar/projects/pythonProject/openerp-addons/src", "/mnt/expansion/Media/Movies/"]
 
 def check_directory(directory, file_limit):
     """

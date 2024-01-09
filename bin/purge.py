@@ -3,8 +3,7 @@ import argparse
 import os
 from dataclasses import dataclass, field
 
-DEFAULT_FOLDER_LIST = ["/home/rdubar/projects/pythonProject/openerp-addons"]
-DEFAULT_PATTERN = ["Zone.Identifier"]
+DEFAULT_FOLDER_LIST = ["/home/rdubar/projects/pythonProject/openerp-addons", "/mnt/expansion/Media/Movies/"]
 
 def process_purge_list(raw_list):
     """
@@ -16,6 +15,7 @@ def process_purge_list(raw_list):
 
 # Use the function to process PURGE_LIST and PURGE_INCLUDE
 PURGE_LIST = process_purge_list("""
+Zone.Identifier
 RARBG_DO_NOT_MIRROR.exe
 RARBG.txt
 WWW.YIFY-TORRENTS.COM.jpg
@@ -68,7 +68,7 @@ def delete_files(file_list):
 
 def main():
     parser = argparse.ArgumentParser(description='Search and delete files based on a pattern.')
-    parser.add_argument('pattern', nargs='?', default=DEFAULT_PATTERN, help='Pattern to search for.')
+    parser.add_argument('pattern', nargs='?', default=PURGE_LIST, help='Pattern to search for.')
     parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
     parser.add_argument('--confirm', action='store_true', help='Confirm deletion of files.')
     args = parser.parse_args()
@@ -78,7 +78,7 @@ def main():
         print("No valid folder found. Exiting.")
         return
     
-    print(f"Searching {folder} for {args.pattern}...")
+    print(f"Searching {folder} for files to purge...")
 
     results = search_and_collect_files(folder, args.pattern)
     print(f"Found {len(results.files_to_delete):,} files to delete out of {results.total_files:,} files scanned.")
