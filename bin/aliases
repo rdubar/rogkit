@@ -3,10 +3,11 @@ ROGKIT_BIN="$INSTALL/rogkit/bin"
 
 alias backup='$ROGKIT_BIN/backup.py "$@"'
 alias bignum='$ROGKIT_BIN/bignum.py "$@"'
+alias bytes='$ROGKIT_BIN/bytes.py "$@"'
 alias clean='$ROGKIT_BIN/clean.py "$@"'
 alias clip='$ROGKIT_BIN/clipboard.py "$@"'
 alias clipboard='$ROGKIT_BIN/clipboard.py "$@"'
-alias bytes='$ROGKIT_BIN/bytes.py "$@"'
+alias empties='$ROGKIT_BIN/empties.py "$@"'
 alias fakes='$ROGKIT_BIN/fakes.py "$@"'
 alias pw='$ROGKIT_BIN/pw.py "$@"'
 alias purge='$ROGKIT_BIN/purge.py "$@"'

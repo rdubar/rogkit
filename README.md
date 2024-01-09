@@ -46,11 +46,12 @@ source ~/bashrc  # or source ~/.zshrc
 | backup  | Backup files      |                                     |
 | bignum  | Show big numbers  | from bignum import bignum           |
 | bytes   | Bytes to KB/MB/GB | from bytes import byte_size         |
-| clean   | Clean translation |     |
+| clean   | Clean translation |                                     |
 | clip    | Copy to clipboard | from clipboard import clipboard     |
-| pw      | Generate password | from pw import PasswordGenerator    |
+| empties | Check for empties |                                     |
 | fakes   | Generate text etc | from fakes import fake_data         |
 | purge   | Purge files       | from purge import delete_files      |
+| pw      | Generate password | from pw import PasswordGenerator    |
 | rcase   | rANdoMcAse text   | from randomcase import randomcase   |
 | search  | search for text   | from searh import search_folder     |
 | seconds | Seconds to H/M/S  | from seconds import convert_seconds |
