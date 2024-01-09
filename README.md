@@ -53,7 +53,7 @@ source ~/bashrc  # or source ~/.zshrc
 | purge   | Purge files       | from purge import delete_files      |
 | pw      | Generate password | from pw import PasswordGenerator    |
 | rcase   | rANdoMcAse text   | from randomcase import randomcase   |
-| search  | search for text   | from searh import search_folder     |
+| search  | Search for text   | from search import search_folder    |
 | seconds | Seconds to H/M/S  | from seconds import convert_seconds |
 | strike  | Strikethru text   | from strike import strikethru       |
 | tim     | Sync system clock |                                     |
