@@ -58,6 +58,8 @@ source ~/bashrc  # or source ~/.zshrc
 | strike  | Strikethru text   | from strike import strikethru       |
 | tim     | Sync system clock |                                     |
 | update  | Update system     |                                     |
+|         |                   |                                     |
+| rogkit  | Display this info |                                     |
 
 
 ### Notes:

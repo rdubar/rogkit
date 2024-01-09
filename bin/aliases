@@ -1,5 +1,8 @@
 INSTALL=~/opt
+ROGKIT="$INSTALL/rogkit"
 ROGKIT_BIN="$INSTALL/rogkit/bin"
+
+alias rogkit='cat "$ROGKIT/README.md" | grep "[|]"'
 
 alias backup='$ROGKIT_BIN/backup.py "$@"'
 alias bignum='$ROGKIT_BIN/bignum.py "$@"'
