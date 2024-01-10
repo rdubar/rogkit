@@ -1,5 +1,6 @@
 certifi==2023.11.17
 charset-normalizer==3.3.2
+Faker==22.1.0
 idna==3.6
 PlexAPI==4.15.7
 pyclip==0.7.0
