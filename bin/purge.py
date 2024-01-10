@@ -30,12 +30,6 @@ TSYifyUP... (TOR).txt
 YIFYStatus.com.txt
 """)
 
-PURGE_INCLUDE = process_purge_list("""
-DTS-JYK.mkv.jpg
-www.yts.
-.nfo
-""")
-
 @dataclass
 class PurgeResults:
     files_to_delete: list = field(default_factory=list)

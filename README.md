@@ -50,6 +50,7 @@ source ~/bashrc  # or source ~/.zshrc
 | clip    | Copy to clipboard | from clipboard import clipboard     |
 | empties | Check for empties |                                     |
 | fakes   | Generate text etc | from fakes import fake_data         |
+| files   | Find files & dirs | from files import find_files        |
 | purge   | Purge files       | from purge import delete_files      |
 | pw      | Generate password | from pw import PasswordGenerator    |
 | rcase   | rANdoMcAse text   | from randomcase import randomcase   |
