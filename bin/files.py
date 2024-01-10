@@ -4,6 +4,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from typing import List, Tuple
+from bytes import byte_size
 
 DEFAULT_FOLDER_LIST = [
     "/home/rdubar/projects/pythonProject/openerp-addons",
@@ -17,6 +18,18 @@ class SearchReport:
     folders : List[str] = field(default_factory=list)
     results: List[str] = field(default_factory=list)
     total_files_searched: int = 0
+    search_time: float = 0.0
+
+    def display_files(self, number=10, all=False):
+        matches = "match" if len(self.results) == 1 else "matches"
+        print(f"Found {len(self.results):,} {matches} in {self.total_files_searched:,} files in {self.search_time:.2f} seconds.")
+        if all:
+            number = len(self.results)
+        for result in self.results[:number]:
+            size = byte_size(os.path.getsize(result))
+            print(f'{size:>9}  {result}')
+        if len(self.results) > number:
+            print("...and more")
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Search for files and folders containing all specified texts.')
@@ -29,6 +42,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def find_files(folders: List[str], texts: List[str]) -> SearchReport:
+    start_time = time.perf_counter()
     report = SearchReport(search_terms=texts)
     texts = [text.lower() for text in texts]
     for folder in folders:
@@ -36,9 +50,10 @@ def find_files(folders: List[str], texts: List[str]) -> SearchReport:
         for root, dirs, files in os.walk(folder):
             for file in files:
                 report.total_files_searched += 1
-                filepath = os.path.join(root, file).lower()
-                if all(text in filepath for text in texts):
+                filepath = os.path.join(root, file)
+                if all(text in filepath.lower() for text in texts):
                     report.results.append(filepath)
+    report.search_time = time.perf_counter() - start_time
     return report
 
 def main():
@@ -54,16 +69,7 @@ def main():
 
     clock = time.perf_counter()
     report = find_files(folders, args.texts)
-    search_time = time.perf_counter() - clock
-
-    matches = "match" if len(report.results) == 1 else "matches"
-    print(f"Found {len(report.results):,} {matches} in {report.total_files_searched:,} files in {search_time:.2f} seconds.")
-    if args.all:
-        args.number = len(report.results)
-    for result in report.results[:args.number]:  # Limit the results printed
-        print(result)
-    if len(report.results) > args.number:
-        print("...and more")
+    report.display_files(number=args.number, all=args.all)
 
 if __name__ == "__main__":
     main()

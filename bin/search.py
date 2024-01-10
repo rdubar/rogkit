@@ -3,35 +3,36 @@ import argparse
 import os
 import time
 from dataclasses import dataclass, field
+from typing import List
 
 DEFAULT_FOLDER_LIST = ["/home/rdubar/projects/pythonProject/openerp-addons"]
-EXCLUDE_PATTERNS = ["/.idea/"]
+EXCLUDE_PATTERNS = ["/.idea/",'__pycache__', '.git']
 
 @dataclass
 class SearchResults:
-    matched_files: list = field(default_factory=list)
-    skipped_files: list = field(default_factory=list)
-    errors: list = field(default_factory=list)
+    matched_files: List[str] = field(default_factory=list)
+    skipped_files: List[str] = field(default_factory=list)
+    errors: List[str] = field(default_factory=list)
     total_files: int = 0
 
-def is_valid_file(file):
+def is_valid_file(file: str) -> bool:
     return os.path.splitext(file)[1] in ['.py', '.xml', '.js', '.css', '.txt', '.md', '.log', '.po', '.pot']
 
-def is_excluded_path(filepath):
+def is_excluded_path(filepath: str) -> bool:
     return any(excluded in filepath for excluded in EXCLUDE_PATTERNS)
 
-def file_contains_text(filepath, search_terms, whole_phrase):
+def file_contains_text(filepath: str, search_terms: List[str], whole_phrase: bool) -> bool:
     try:
         with open(filepath, 'r') as f:
             content = f.read().lower()
             if whole_phrase:
-                return search_terms in content
+                return ' '.join(search_terms) in content
             else:
                 return all(term in content for term in search_terms)
     except Exception as e:
         raise IOError(f"Error reading file {filepath}: {e}")
 
-def search_folder(folder, search_terms, whole_phrase):
+def search_folder(folder: str, search_terms: List[str], whole_phrase: bool) -> SearchResults:
     results = SearchResults()
     for root, dirs, files in os.walk(folder):
         for file in files:

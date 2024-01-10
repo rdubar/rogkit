@@ -1,18 +1,23 @@
 #!/usr/bin/env python3
 import argparse
 
-def byte_size(size, base=1024):
+def byte_size(size: int, base: int = 1000) -> str:
     if base not in [1000, 1024]:
         raise ValueError("Base must be 1000 or 1024")
 
-    if base == 1000:
+    if base == 1024:
         units = ["bytes", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"]
     else:
         units = ["bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
+
     for unit in units:
         if size < base or unit == units[-1]:  # Stop at the last unit
+            if unit == "bytes":
+                return f"{size} {unit}"
             return f"{size:,.2f} {unit}"
         size /= base
+
+    return f"{size:,.2f} {unit}"  # Fallback for very large numbers
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert bytes to human-readable format.')
