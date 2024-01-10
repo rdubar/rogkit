@@ -14,6 +14,7 @@ DEFAULT_FOLDER_LIST = [
 @dataclass
 class SearchReport:
     search_terms: List[str]
+    folders : List[str]
     results: List[str] = field(default_factory=list)
     total_files_searched: int = 0
 
@@ -31,6 +32,7 @@ def find_files(folders, texts):
     report = SearchReport(search_terms=texts)
     texts = [text.lower() for text in texts]
     for folder in folders:
+        report.folders.append(folder)
         for root, dirs, files in os.walk(folder):
             for file in files:
                 report.total_files_searched += 1
