@@ -15,7 +15,7 @@ class SearchResults:
     total_files: int = 0
 
 def is_valid_file(file):
-    return os.path.splitext(file)[1] in ['.py', '.xml', '.js', '.css', '.txt', '.md', '.log']
+    return os.path.splitext(file)[1] in ['.py', '.xml', '.js', '.css', '.txt', '.md', '.log', '.po', '.pot']
 
 def is_excluded_path(filepath):
     return any(excluded in filepath for excluded in EXCLUDE_PATTERNS)
