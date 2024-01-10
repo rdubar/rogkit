@@ -3,7 +3,7 @@ import argparse
 import os
 import time
 from dataclasses import dataclass, field
-from typing import List
+from typing import List, Tuple
 
 DEFAULT_FOLDER_LIST = [
     "/home/rdubar/projects/pythonProject/openerp-addons",
@@ -14,11 +14,11 @@ DEFAULT_FOLDER_LIST = [
 @dataclass
 class SearchReport:
     search_terms: List[str]
-    folders : List[str]
+    folders : List[str] = field(default_factory=list)
     results: List[str] = field(default_factory=list)
     total_files_searched: int = 0
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Search for files and folders containing all specified texts.')
     parser.add_argument('-a', '--all', action='store_true', help='Show all matching results.')
     parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
@@ -28,7 +28,7 @@ def parse_args():
     parser.add_argument('texts', nargs='+', help='Texts to search for (all must match).')
     return parser.parse_args()
 
-def find_files(folders, texts):
+def find_files(folders: List[str], texts: List[str]) -> SearchReport:
     report = SearchReport(search_terms=texts)
     texts = [text.lower() for text in texts]
     for folder in folders:
