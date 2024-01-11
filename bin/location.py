@@ -21,6 +21,9 @@ class WeatherData:
 
 def fetch_location_data(api_key):
     """Fetches location data using IPinfo or similar service."""
+    if not api_key:
+        print("No API key provided.")
+        return None
     try:
         response = requests.get("http://ipinfo.io/json?token=" + api_key)
         response.raise_for_status()
