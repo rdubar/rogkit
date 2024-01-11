@@ -41,27 +41,28 @@ source ~/bashrc  # or source ~/.zshrc
 ```
 ### Commands
 
-| Command | Description       | Python Imports                        |
-|---------|-------------------|---------------------------------------|
-| backup  | Backup files      |                                       |
-| bignum  | Show big numbers  | from bignum import bignum             |
-| bytes   | Bytes to KB/MB/GB | from bytes import byte_size           |
-| clean   | Clean translation |                                       |
-| clip    | Copy to clipboard | from clipboard import clipboard       |
-| empties | Check for empties |                                       |
-| fakes   | Generate text etc | from fakes import fake_data           |
-| files   | Find files & dirs | from files import find_files          |
-| loc     | Show locale info  | from location import get_weather_data |
-| purge   | Purge files       | from purge import delete_files        |
-| pw      | Generate password | from pw import PasswordGenerator      |
-| rcase   | rANdoMcAse text   | from randomcase import randomcase     |
-| search  | Search for text   | from search import search_folder      |
-| seconds | Seconds to H/M/S  | from seconds import convert_seconds   |
-| strike  | Strikethru text   | from strike import strikethru         |
-| tim     | Sync system clock |                                       |
-| update  | Update system     |                                       |
-|         |                   |                                       |
-| rogkit  | Display this info |                                       |
+| Command  | Description       | Python Imports                        |
+|----------|-------------------|---------------------------------------|
+| backup   | Backup files      |                                       |
+| bignum   | Show big numbers  | from bignum import bignum             |
+| bytes    | Bytes to KB/MB/GB | from bytes import byte_size           |
+| clean    | Clean translation |                                       |
+| clip     | Copy to clipboard | from clipboard import clipboard       |
+| empties  | Check for empties |                                       |
+| fakes    | Generate text etc | from fakes import fake_data           |
+| files    | Find files & dirs | from files import find_files          |
+| loc      | Show locale info  | from location import get_weather_data |
+| purge    | Purge files       | from purge import delete_files        |
+| pw       | Generate password | from pw import PasswordGenerator      |
+| replacer | Replace text      |                                       |
+| rcase    | rANdoMcAse text   | from randomcase import randomcase     |
+| search   | Search for text   | from search import search_folder      |
+| seconds  | Seconds to H/M/S  | from seconds import convert_seconds   |
+| strike   | Strikethru text   | from strike import strikethru         |
+| tim      | Sync system clock |                                       |
+| update   | Update system     |                                       |
+|          |                   |                                       |
+| rogkit   | Display this info |                                       |
 
 ### Notes:
 
