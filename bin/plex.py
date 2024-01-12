@@ -4,9 +4,11 @@ import os
 import argparse
 import time
 import datetime
+import csv
+
 from plexapi.server import PlexServer as PlexAPIServer
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, String, or_, func, DateTime, Integer
+from sqlalchemy import create_engine, Column, Integer, Boolean, String, or_, func, DateTime, Integer
 from sqlalchemy.orm import sessionmaker, declarative_base
 from tqdm import tqdm
 from seconds import convert_seconds
@@ -43,6 +45,8 @@ class PlexRecord:
     originally_available_at: str = None
     platform: str = None
     full_title: str = None
+    extras: bool = None
+    resolution: str = None
 
     def __post_init__(self):
         # Set full_title to 'title (year)' if year is present, otherwise just 'title'
@@ -83,6 +87,8 @@ class PlexRecordORM(Base):
     originally_available_at = Column(String)
     platform = Column(String)
     full_title = Column(String)
+    extras = Column(Boolean)
+    resolution = Column(String)
 
     def __str__(self):
         # Customize the string representation of PlexRecord
@@ -94,6 +100,12 @@ db_path = os.path.join(script_dir, 'plexlibrary.db')  # Construct the path to th
 engine = create_engine(f'sqlite:///{db_path}')  # Use the full path for the database
 Session = sessionmaker(bind=engine)
 Base.metadata.create_all(engine)
+
+def update_database_schema(engine=engine, Base=Base):
+    # Drop all tables
+    Base.metadata.drop_all(engine)
+    # Create all tables
+    Base.metadata.create_all(engine)
 
 @dataclasses.dataclass
 class PlexServer:
@@ -126,14 +138,13 @@ class PlexServer:
 class PlexLibrary:
     plex_server: PlexServer = None
     session: Session = Session()
-    plex_server: PlexServer = None
     libraries: list = dataclasses.field(init=False, default_factory=list)
     sections: list = dataclasses.field(init=False, default_factory=list)
 
     def __post_init__(self):
         if self.is_database_empty():
             print("No data found in the database. Populating...")
-            self.plex_server = PlexServer()
+            self.connect_to_plex()
             self.populate_database()
         else:
             self.load_data_from_db()
@@ -159,6 +170,7 @@ class PlexLibrary:
         self.populate_database()
 
     def update_database(self):
+        self.connect_to_plex()
         if not self.plex_server or not self.plex_server.connection:
             raise Exception("Plex server is not connected. Cannot populate database.")
         print('Updating database with Plex library data...')
@@ -226,10 +238,12 @@ class PlexLibrary:
         return value
 
     def populate_database(self):
+        self.load_additional_media()
+        self.connect_to_plex()
         if not self.plex_server or not self.plex_server.connection:
             raise Exception("Plex server is not connected. Cannot populate database.")
-        print('Populating database with Plex library data...')
         clock = time.perf_counter()
+        print('Populating database with Plex library data...')
         possible_attributes = get_possible_attributes()
         libraries = self.get_libraries()
         for library in libraries:  # Loop over each library
@@ -242,6 +256,7 @@ class PlexLibrary:
                 attributes['platform'] = 'plex'
                 attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
                 attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
+                attributes['extras'] = hasattr(item, 'extras')
                 record = PlexRecord(**attributes)
                 self.save_record_to_db(record)
         
@@ -289,8 +304,34 @@ class PlexLibrary:
     
     def latest(self, number=10):
         return self.session.query(PlexRecordORM).order_by(PlexRecordORM.added_at.desc()).limit(number).all()
-
     
+    @staticmethod
+    def _load_csv_to_dict(file_path):
+        with open(file_path, mode='r', encoding='utf-8') as csvfile:
+            reader = csv.DictReader(csvfile)
+            return [row for row in reader]  # This creates a list of dictionaries
+
+    def load_additional_media(self):
+        data_file = os.path.join(script_dir, 'data/media.csv')
+        try:
+            media = self._load_csv_to_dict(data_file)
+        except Exception as e:
+            print(f"Error loading additional media: {e}")
+            return
+        skipped = 0
+        loaded = 0
+        for item in media:
+            # check if the record already exists in the db
+            if self.session.query(PlexRecordORM).filter_by(title=item['title']).first():
+                skipped += 1
+                continue
+            loaded += 1
+            item['extras'] = True if item.get('extras', 'False').lower() == 'true' else False
+            record = PlexRecord(**item)
+            self.save_record_to_db(record)
+        skipped = f' ({skipped:,} skipped)' if skipped else ''
+        print(f'Loaded {loaded} items from {data_file}{skipped}')
+
 def process_arguments():
     parser = argparse.ArgumentParser(description='Process arguments')
 
@@ -309,6 +350,7 @@ def process_arguments():
     # Mode options
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
     parser.add_argument('--debug', action='store_true', help='Debug mode')
+    parser.add_argument('--schema', action='store_true', help='Update database schema')
 
     args, search_terms = parser.parse_known_args()
     return args, ' '.join(search_terms)
@@ -323,6 +365,8 @@ def main():
         plex_library.connect_to_plex()
 
     if args.reset:
+        if args.schema:
+            update_database_schema()
         plex_library.reset_database()
     elif args.update:
         plex_library.update_database()
@@ -342,7 +386,7 @@ def main():
     if results:
 
         if args.year:
-            print("Sorted by year...")
+            print("Sort by year...")
             results = sorted(results, key=lambda x: x.year, reverse=True)
 
         for result in results:
@@ -359,7 +403,9 @@ def main():
         print(f"First result: {results[0]}")
         print(vars(results[0]))
 
-    # TODO: Integrate other media sources
+    if args.debug:
+        # TODO: Integrate other media sources
+        plex_library.load_additional_media()
 
 if __name__ == "__main__":
     main()
