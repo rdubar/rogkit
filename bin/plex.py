@@ -42,6 +42,14 @@ class PlexRecord:
     last_viewed_at: datetime.datetime = None
     originally_available_at: str = None
     platform: str = None
+    full_title: str = None
+
+    def __post_init__(self):
+        # Set full_title to 'title (year)' if year is present, otherwise just 'title'
+        if self.year:
+            self.full_title = f"{self.title} ({self.year})"
+        else:
+            self.full_title = self.title
 
 def get_possible_attributes():
     return [f.name for f in dataclasses.fields(PlexRecord)]
@@ -74,6 +82,7 @@ class PlexRecordORM(Base):
     last_viewed_at = Column(DateTime)
     originally_available_at = Column(String)
     platform = Column(String)
+    full_title = Column(String)
 
     def __str__(self):
         # Customize the string representation of PlexRecord
@@ -160,6 +169,8 @@ class PlexLibrary:
             for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
                 attributes = {attr: self.process_list(getattr(item, attr, None)) 
                             for attr in possible_attributes if hasattr(item, attr)}
+                attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
+                attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
                 self.update_or_create_record(attributes)
         clock = time.perf_counter() - clock
         total_records = self.session.query(PlexRecordORM).count()
@@ -266,10 +277,12 @@ class PlexLibrary:
         return self.session.query(PlexRecordORM).filter(
             or_(
                 PlexRecordORM.title.ilike(search_pattern),
+                PlexRecordORM.year.ilike(search_pattern),
                 PlexRecordORM.genres.ilike(search_pattern),
                 PlexRecordORM.actors.ilike(search_pattern),
                 PlexRecordORM.directors.ilike(search_pattern),
                 PlexRecordORM.summary.ilike(search_pattern),
+                PlexRecordORM.full_title.ilike(search_pattern),
                 # Add other fields as necessary
             )
         ).all()
@@ -287,9 +300,11 @@ def process_arguments():
     parser.add_argument('-d', '--duplicates', action='store_true', help='Remove duplicates')
 
     # Display options
-    parser.add_argument('-l', '--latest', action='store_true', help='Show latest additions')
     parser.add_argument('-a', '--all', action='store_true', help='Show all records')
+    parser.add_argument('-l', '--latest', action='store_true', help='Show latest additions')
+    parser.add_argument('-s', '--summary', action='store_true', help='Show a summary for each title')
     parser.add_argument('-n', '--number', type=int, default=10, help='Number of results to return')
+    parser.add_argument('-y', '--year', action='store_true', help='Sort by year of release') 
 
     # Mode options
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
@@ -325,8 +340,15 @@ def main():
         results = plex_library.latest(number=args.number)
         print(f"Showing {len(results):,} latest updates from {total_records:,} total records:")
     if results:
+
+        if args.year:
+            print("Sorted by year...")
+            results = sorted(results, key=lambda x: x.year, reverse=True)
+
         for result in results:
             print(result)  
+            if args.summary:
+                print(result.summary)
             if args.verbose:
                 print(vars(result))      
         # get the total duration of all results
