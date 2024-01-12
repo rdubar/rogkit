@@ -9,6 +9,9 @@ import csv
 from plexapi.server import PlexServer as PlexAPIServer
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, Boolean, String, or_, func, DateTime, Integer
+from sqlalchemy import text
+from sqlalchemy_utils import database_exists, create_database
+
 from sqlalchemy.orm import sessionmaker, declarative_base
 from tqdm import tqdm
 from seconds import convert_seconds
@@ -16,6 +19,20 @@ from seconds import convert_seconds
 load_dotenv()
 
 Base = declarative_base()
+
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
+db_path = os.path.join(script_dir, 'plexlibrary.db')  # Construct the path to the database file
+engine = create_engine(f'sqlite:///{db_path}')  # Use the full path for the database
+Session = sessionmaker(bind=engine)
+Base.metadata.create_all(engine)
+
+def initialize_database(engine, Base):
+    """
+    Initialize the database: create the database and tables if they don't exist.
+    """
+    if not database_exists(engine.url):
+        create_database(engine.url)
+    Base.metadata.create_all(engine)
 
 @dataclasses.dataclass
 class PlexRecord:
@@ -47,6 +64,8 @@ class PlexRecord:
     full_title: str = None
     extras: bool = None
     resolution: str = None
+    bitrate: int = None
+    # codec: str = None
 
     def __post_init__(self):
         # Set full_title to 'title (year)' if year is present, otherwise just 'title'
@@ -89,17 +108,15 @@ class PlexRecordORM(Base):
     full_title = Column(String)
     extras = Column(Boolean)
     resolution = Column(String)
+    bitrate = Column(Integer)
+    # codec = Column(String)
 
     def __str__(self):
         # Customize the string representation of PlexRecord
          year = f" ({self.year})" if self.year else ""
-         return f"{self.section:8}  {self.title}{year}"
+         resolution = f" {self.resolution}" if self.resolution else ""
+         return f"{self.platform:7}  {resolution:<6}    {self.title}{year}"
 
-script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
-db_path = os.path.join(script_dir, 'plexlibrary.db')  # Construct the path to the database file
-engine = create_engine(f'sqlite:///{db_path}')  # Use the full path for the database
-Session = sessionmaker(bind=engine)
-Base.metadata.create_all(engine)
 
 def update_database_schema(engine=engine, Base=Base):
     # Drop all tables
@@ -142,12 +159,24 @@ class PlexLibrary:
     sections: list = dataclasses.field(init=False, default_factory=list)
 
     def __post_init__(self):
-        if self.is_database_empty():
-            print("No data found in the database. Populating...")
-            self.connect_to_plex()
-            self.populate_database()
-        else:
-            self.load_data_from_db()
+        self.ensure_database_ready()
+        self.load_data_from_db()
+
+    def ensure_database_ready(self):
+        # Check if the database is properly initialized
+        if not self.database_initialized():
+            print("Initializing database...")
+            initialize_database(engine, Base)  # Function to create and initialize the database
+        self.load_data_from_db()
+
+    def database_initialized(self):
+        try:
+            # Use text() for the raw SQL query
+            return self.session.execute(text("SELECT 1 FROM plex_records LIMIT 1")).scalar() is not None
+        except Exception as e:
+            print(f"Error checking if database is initialized: {e}")
+            return False
+
 
     def connect_to_plex(self):
         if not self.plex_server:
@@ -156,21 +185,32 @@ class PlexLibrary:
             self.plex_server.get_connection()
 
     def is_database_empty(self):
-        # Check if the database is empty
-        count = self.session.query(PlexRecordORM).count()
-        return count == 0
+        try:
+            # Use text() for the raw SQL query
+            count = self.session.execute(text("SELECT COUNT(*) FROM plex_records")).scalar()
+            return count == 0
+        except Exception as e:
+            print(f"Error checking if database is empty: {e}")
+            return True
+
+
+    def database_exists(self):
+        try:
+            # Check if any table exists in the database
+            return self.session.execute(text("SELECT 1")).scalar() is not None
+        except Exception as e:
+            print(f"Error checking if database exists: {e}")
+            return False
 
     def load_data_from_db(self):
-        self.libraries = self.session.query(PlexRecordORM).all()    
+        if self.database_exists():
+            self.libraries = self.session.query(PlexRecordORM).all()
 
     def reset_database(self):
-        # Clear existing data
         self.session.query(PlexRecordORM).delete()
-        # Repopulate database
         self.populate_database()
 
     def update_database(self):
-        self.connect_to_plex()
         if not self.plex_server or not self.plex_server.connection:
             raise Exception("Plex server is not connected. Cannot populate database.")
         print('Updating database with Plex library data...')
@@ -238,8 +278,8 @@ class PlexLibrary:
         return value
 
     def populate_database(self):
-        self.load_additional_media()
         self.connect_to_plex()
+        self.load_additional_media()
         if not self.plex_server or not self.plex_server.connection:
             raise Exception("Plex server is not connected. Cannot populate database.")
         clock = time.perf_counter()
@@ -257,6 +297,14 @@ class PlexLibrary:
                 attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
                 attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
                 attributes['extras'] = hasattr(item, 'extras')
+                
+                # Extract video resolution and bitrate
+                if hasattr(item, 'media'):
+                    media = item.media[0]  # Assuming we take the first media object
+                    attributes['resolution'] = f"{media.videoResolution}"  
+                    attributes['bitrate'] = media.bitrate
+                    # attributes['codec'] = media.videoCodec
+
                 record = PlexRecord(**attributes)
                 self.save_record_to_db(record)
         
@@ -320,17 +368,28 @@ class PlexLibrary:
             return
         skipped = 0
         loaded = 0
+
+        # Check if the database is empty before proceeding
+        if self.is_database_empty():
+            print("Database is empty, skipping duplicate check.")
+            db_empty = True
+        else:
+            db_empty = False
+
         for item in media:
-            # check if the record already exists in the db
-            if self.session.query(PlexRecordORM).filter_by(title=item['title']).first():
+            # If the database is not empty, check for duplicates
+            if not db_empty and self.session.query(PlexRecordORM).filter_by(title=item['title']).first():
                 skipped += 1
                 continue
+
             loaded += 1
             item['extras'] = True if item.get('extras', 'False').lower() == 'true' else False
             record = PlexRecord(**item)
             self.save_record_to_db(record)
+
         skipped = f' ({skipped:,} skipped)' if skipped else ''
         print(f'Loaded {loaded} items from {data_file}{skipped}')
+
 
 def process_arguments():
     parser = argparse.ArgumentParser(description='Process arguments')
@@ -358,22 +417,23 @@ def process_arguments():
 def main():
     print("Rog's Plex Library Utility")
     args, search_text = process_arguments()
+
     plex_library = PlexLibrary()
-    total_records = plex_library.session.query(PlexRecordORM).count()
 
     if args.reset or args.update:
         plex_library.connect_to_plex()
 
     if args.reset:
-        if args.schema:
-            update_database_schema()
+        update_database_schema()
         plex_library.reset_database()
     elif args.update:
         plex_library.update_database()
 
     if args.duplicates: 
         removed = plex_library.remove_duplicates()
-        print(f"Removed {removed:,} duplicates.")   
+        print(f"Removed {removed:,} duplicates.") 
+
+    total_records = plex_library.session.query(PlexRecordORM).count()
 
     if args.all:
         results = plex_library.libraries
