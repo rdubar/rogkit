@@ -3,11 +3,13 @@ import dataclasses
 import os
 import argparse
 import time
+import datetime
 from plexapi.server import PlexServer as PlexAPIServer
 from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, String, or_
+from sqlalchemy import create_engine, Column, Integer, String, or_, func, DateTime, Integer
 from sqlalchemy.orm import sessionmaker, declarative_base
 from tqdm import tqdm
+from seconds import convert_seconds
 
 load_dotenv()
 
@@ -21,10 +23,10 @@ class PlexRecord:
     year: int = None
     rating: float = None
     duration: int = None
-    genres: list = dataclasses.field(default_factory=list)
-    actors: list = dataclasses.field(default_factory=list)
-    directors: list = dataclasses.field(default_factory=list)
-    writers: list = dataclasses.field(default_factory=list)
+    genres: str = None
+    actors: str = None
+    directors: str = None
+    writers: str = None
     thumb: str = None
     art: str = None
     summary: str = None
@@ -34,22 +36,12 @@ class PlexRecord:
     rating_key: str = None
     guid: str = None
     media_type: str = None
-    added_at: str = None
-    updated_at: str = None
-    viewed_at: str = None
-    last_viewed_at: str = None
+    added_at: datetime.datetime = None
+    updated_at: datetime.datetime = None
+    viewed_at: datetime.datetime = None
+    last_viewed_at: datetime.datetime = None
     originally_available_at: str = None
-    
-    def __post_init__(self):
-        self.genres = ', '.join(str(genre) for genre in self.genres) if self.genres else ''
-        self.actors = ', '.join(str(actor) for actor in self.actors) if self.actors else ''
-        self.directors = ', '.join(str(director) for director in self.directors) if self.directors else ''
-        self.writers = ', '.join(str(writer) for writer in self.writers) if self.writers else ''
-
-    def __str__(self):
-        # Customize the string representation of PlexRecord
-         year = f" ({self.year})" if self.year else ""
-         return f"{self.title}{year}"
+    platform: str = None
 
 def get_possible_attributes():
     return [f.name for f in dataclasses.fields(PlexRecord)]
@@ -76,18 +68,21 @@ class PlexRecordORM(Base):
     rating_key = Column(String)
     guid = Column(String)
     media_type = Column(String)
-    added_at = Column(String)
-    updated_at = Column(String)
-    viewed_at = Column(String)
-    last_viewed_at = Column(String)
+    added_at = Column(DateTime)
+    updated_at = Column(DateTime)
+    viewed_at = Column(DateTime)
+    last_viewed_at = Column(DateTime)
     originally_available_at = Column(String)
+    platform = Column(String)
 
     def __str__(self):
         # Customize the string representation of PlexRecord
          year = f" ({self.year})" if self.year else ""
-         return f"{self.title}{year}"
+         return f"{self.section:8}  {self.title}{year}"
 
-engine = create_engine('sqlite:///plexlibrary.db')
+script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
+db_path = os.path.join(script_dir, 'plexlibrary.db')  # Construct the path to the database file
+engine = create_engine(f'sqlite:///{db_path}')  # Use the full path for the database
 Session = sessionmaker(bind=engine)
 Base.metadata.create_all(engine)
 
@@ -127,14 +122,18 @@ class PlexLibrary:
     sections: list = dataclasses.field(init=False, default_factory=list)
 
     def __post_init__(self):
-        if not self.plex_server:
-            self.plex_server = PlexServer()
-
         if self.is_database_empty():
             print("No data found in the database. Populating...")
+            self.plex_server = PlexServer()
             self.populate_database()
         else:
             self.load_data_from_db()
+
+    def connect_to_plex(self):
+        if not self.plex_server:
+            self.plex_server = PlexServer()
+        if not self.plex_server.connection:
+            self.plex_server.get_connection()
 
     def is_database_empty(self):
         # Check if the database is empty
@@ -151,6 +150,8 @@ class PlexLibrary:
         self.populate_database()
 
     def update_database(self):
+        if not self.plex_server or not self.plex_server.connection:
+            raise Exception("Plex server is not connected. Cannot populate database.")
         print('Updating database with Plex library data...')
         clock = time.perf_counter()
         possible_attributes = get_possible_attributes()
@@ -165,17 +166,22 @@ class PlexLibrary:
         print(f'Found {total_records:,} records in {clock:.2f} seconds.')
 
     def update_or_create_record(self, attributes):
-        # Using 'plex_guid' from Plex as the unique identifier
-        record = self.session.query(PlexRecordORM).filter_by(plex_guid=attributes['guid']).first()
+        # Extract plex_guid from attributes, assuming it's always present
+        plex_guid = attributes['plex_guid']
+        
+        # Check for an existing record with the same plex_guid
+        record = self.session.query(PlexRecordORM).filter_by(plex_guid=plex_guid).first()
+        
         if record:
             # Update existing record
             for attr, value in attributes.items():
                 setattr(record, attr, value)
         else:
-            # Create new record
-            attributes['plex_guid'] = attributes['guid']
-            record = PlexRecordORM(**attributes)
-            self.session.add(record)
+            # Create a new record
+            new_record = PlexRecordORM(**attributes)
+            self.session.add(new_record)
+        
+        # Commit the changes
         self.session.commit()
 
     def get_libraries(self):
@@ -205,23 +211,29 @@ class PlexLibrary:
     @staticmethod
     def process_list(value):
         if isinstance(value, list):
-            return ', '.join(str(item) for item in value if item is not None)
-        elif callable(value):
-            # If the value is a method or callable, ignore it or transform it appropriately
-            return None
+            return ', '.join(item.tag if hasattr(item, 'tag') else item.role for item in value)
         return value
 
     def populate_database(self):
+        if not self.plex_server or not self.plex_server.connection:
+            raise Exception("Plex server is not connected. Cannot populate database.")
         print('Populating database with Plex library data...')
         clock = time.perf_counter()
         possible_attributes = get_possible_attributes()
         libraries = self.get_libraries()
-        for library in tqdm(libraries, desc="Processing libraries"):
+        for library in libraries:  # Loop over each library
             for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
                 attributes = {attr: self.process_list(getattr(item, attr, None)) 
                             for attr in possible_attributes if hasattr(item, attr)}
+                attributes['library'] = library.title
+                attributes['section'] = library.title 
+                attributes['plex_guid'] = getattr(item, 'guid', None)
+                attributes['platform'] = 'plex'
+                attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
+                attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
                 record = PlexRecord(**attributes)
                 self.save_record_to_db(record)
+        
         clock = time.perf_counter() - clock
         total_records = self.session.query(PlexRecordORM).count()
         print(f'Found {total_records:,} records in {clock:.2f} seconds.')
@@ -234,6 +246,20 @@ class PlexLibrary:
         except Exception as e:
             print(f"Error saving record to database: {e}")
             self.session.rollback()
+
+    def remove_duplicates(self):
+        # Find duplicates based on 'plex_guid'
+        removed = 0
+        duplicates = self.session.query(PlexRecordORM.plex_guid).group_by(PlexRecordORM.plex_guid).having(func.count() > 1).all()
+        for dup in duplicates:
+            # Keep only the first record and remove others
+            dup_records = self.session.query(PlexRecordORM).filter_by(plex_guid=dup.plex_guid).all()
+            for record in dup_records[1:]:
+                self.session.delete(record)
+                removed += 1
+        self.session.commit()
+        return removed
+
     
     def search(self, text):
         search_pattern = f"%{text.lower()}%"
@@ -254,38 +280,64 @@ class PlexLibrary:
     
 def process_arguments():
     parser = argparse.ArgumentParser(description='Process arguments')
+
+    # Database management options
     parser.add_argument('-u', '--update', action='store_true', help='Update database')
     parser.add_argument('-r', '--reset', action='store_true', help='Reset database')
-    parser.add_argument('-l', '--latest', action='store_true', help='Latest additions')
+    parser.add_argument('-d', '--duplicates', action='store_true', help='Remove duplicates')
+
+    # Display options
+    parser.add_argument('-l', '--latest', action='store_true', help='Show latest additions')
+    parser.add_argument('-a', '--all', action='store_true', help='Show all records')
     parser.add_argument('-n', '--number', type=int, default=10, help='Number of results to return')
+
+    # Mode options
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
+    parser.add_argument('--debug', action='store_true', help='Debug mode')
+
     args, search_terms = parser.parse_known_args()
     return args, ' '.join(search_terms)
 
-
 def main():
+    print("Rog's Plex Library Utility")
     args, search_text = process_arguments()
-    plex_library = PlexLibrary(plex_server=PlexServer())
+    plex_library = PlexLibrary()
+    total_records = plex_library.session.query(PlexRecordORM).count()
+
+    if args.reset or args.update:
+        plex_library.connect_to_plex()
 
     if args.reset:
         plex_library.reset_database()
     elif args.update:
         plex_library.update_database()
-    elif args.latest:
-        results = plex_library.latest(number=args.number)
-        print(f"Showing {len(results):,} lasest additions:")
-        for result in results:
-            print(result)
+
+    if args.duplicates: 
+        removed = plex_library.remove_duplicates()
+        print(f"Removed {removed:,} duplicates.")   
+
+    if args.all:
+        results = plex_library.libraries
     elif search_text:
         results = plex_library.search(search_text)
-        print(f"Found {len(results):,} results for '{search_text}':" )
-        for result in results:
-            print(result)  # or print other relevant fields
+        print(f"Found {len(results):,} results in {total_records:,} total records for '{search_text}':" )
     else:
         results = plex_library.latest(number=args.number)
-        print(f"Showing {len(results):,} lasest additions:")
+        print(f"Showing {len(results):,} latest updates from {total_records:,} total records:")
+    if results:
         for result in results:
-            print(result)        
+            print(result)  
+            if args.verbose:
+                print(vars(result))      
+        # get the total duration of all results
+        total_duration = convert_seconds((sum([result.duration for result in results if result.duration]) or 0) / 1000)
+        print(f"{len(results):,} items, {total_duration}")
 
+    if args.debug and results:
+        print(f"First result: {results[0]}")
+        print(vars(results[0]))
+
+    # TODO: Integrate other media sources
 
 if __name__ == "__main__":
     main()

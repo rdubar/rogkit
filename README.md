@@ -52,6 +52,7 @@ source ~/bashrc  # or source ~/.zshrc
 | fakes    | Generate text etc | from fakes import fake_data           |
 | files    | Find files & dirs | from files import find_files          |
 | loc      | Show locale info  | from location import get_weather_data |
+| pl       | Plex server tools |                                       |
 | purge    | Purge files       | from purge import delete_files        |
 | pw       | Generate password | from pw import PasswordGenerator      |
 | replacer | Replace text      |                                       |
