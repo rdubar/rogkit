@@ -13,8 +13,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 from typing import List, Set
 from time import perf_counter
-from seconds import convert_seconds
-from bytes import byte_size
+from .seconds import convert_seconds
+from .bytes import byte_size
 
 DEFAULT_CONFIG = {
     "base_dirs": [os.path.expanduser("~")],

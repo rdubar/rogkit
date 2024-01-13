@@ -3,8 +3,8 @@ import argparse
 import secrets
 import string
 from dataclasses import dataclass
-from bignum import bignum, seconds_time
-from clipboard import copy_to_clipboard
+from .bignum import bignum, seconds_time
+from .clipboard import copy_to_clipboard
 
 @dataclass
 class PasswordGenerator:

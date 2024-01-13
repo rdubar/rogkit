@@ -7,7 +7,7 @@ import logging
 import argparse
 from dateutil.parser import parse
 from dateutil import tz
-from seconds import convert_seconds
+from .seconds import convert_seconds
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 log_file_path = os.path.join(script_dir, 'time_check.log')

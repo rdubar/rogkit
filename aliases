@@ -1,0 +1,30 @@
+INSTALL=~/opt
+ROGKIT="$INSTALL/rogkit"
+ROGKIT_PACKAGE="$ROGKIT/rogkit_package" # The root of your Python package
+
+# Set PYTHONPATH to include your package
+export PYTHONPATH="$ROGKIT_PACKAGE:$PYTHONPATH"
+
+alias rogkit='cat "$ROGKIT/README.md" | grep "[|]"'
+alias backup='python -m rogkit_package.bin.backup "$@"'
+alias bignum='python -m rogkit_package.bin.bignum "$@"'
+alias bytes='python -m rogkit_package.bin.bytes "$@"'
+alias clean='python -m rogkit_package.bin.clean "$@"'
+alias clip='python -m rogkit_package.bin.clipboard "$@"'
+alias clipboard='python -m rogkit_package.bin.clipboard "$@"'
+alias empties='python -m rogkit_package.bin.empties "$@"'
+alias fakes='python -m rogkit_package.bin.fakes "$@"'
+alias files='python -m rogkit_package.bin.files "$@"'
+alias location='python -m rogkit_package.bin.location "$@"'
+alias loc='python -m rogkit_package.bin.location "$@"'
+alias media='python -m rogkit_package.media.media_main "$@"'
+alias m='python -m rogkit_package.media.media_main "$@"'
+alias pw='python -m rogkit_package.bin.pw "$@"'
+alias purge='python -m rogkit_package.bin.purge "$@"'
+alias randomcase='python -m rogkit_package.bin.randomcase "$@"'
+alias replacer='python -m rogkit_package.bin.replacer "$@"'
+alias rcase='python -m rogkit_package.bin.randomcase "$@"'
+alias search='python -m rogkit_package.bin.search "$@"'
+alias seconds='python -m rogkit_package.bin.seconds "$@"'
+alias strike='python -m rogkit_package.bin.strike "$@"'
+alias tim='python -m rogkit_package.bin.time_check "$@"'

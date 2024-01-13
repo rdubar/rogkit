@@ -18,7 +18,7 @@ rm get-pip.py
 pip install -r requirements.txt
 
 # Make scripts executable
-chmod +x "$INSTALL/rogkit/bin/*"
+chmod +x "$INSTALL/rogkit/rogkit_package/bin/*"
 
 # install for clipboard functionality
 sudo apt install wl-clipboard
@@ -27,12 +27,13 @@ Add this to your `~/bashrc` (or `~/.zshrc`):
 ```
 # RogKit
 INSTALL=~/opt
+ROGKIT="$INSTALL/rogkit"
 ROGKIT_BIN="$INSTALL/rogkit/bin"
 if [ -d "$ROGKIT_BIN" ] && [[ ":$PATH:" != *":$ROGKIT_BIN:"* ]]; then
     export PATH="$PATH:$ROGKIT_BIN"
 fi
-if [ -f "$ROGKIT_BIN/aliases" ]; then
-    source "$ROGKIT_BIN/aliases"
+if [ -f "$ROGKIT/aliases" ]; then
+    source "$ROGKIT/aliases"
 fi
 ```
 Then reload your `~/bashrc` (or `~/.zshrc`):
@@ -52,7 +53,7 @@ source ~/bashrc  # or source ~/.zshrc
 | fakes    | Generate text etc | from fakes import fake_data           |
 | files    | Find files & dirs | from files import find_files          |
 | loc      | Show locale info  | from location import get_weather_data |
-| pl       | Plex server tools |                                       |
+| media    | Media Libary      |                                       |
 | purge    | Purge files       | from purge import delete_files        |
 | pw       | Generate password | from pw import PasswordGenerator      |
 | replacer | Replace text      |                                       |

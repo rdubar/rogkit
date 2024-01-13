@@ -2,7 +2,7 @@
 from typing import Optional
 import argparse
 from faker import Faker
-from clipboard import copy_to_clipboard
+from .clipboard import copy_to_clipboard
 
 def fake_data(mode: Optional[str] = None) -> str:
     fake = Faker()

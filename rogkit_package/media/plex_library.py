@@ -1,30 +1,38 @@
 #!/usr/bin/env python3
 import dataclasses
 import os
-import argparse
 import time
-import datetime
 import csv
 
 from plexapi.server import PlexServer as PlexAPIServer
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, Boolean, String, or_, func, DateTime, Integer
 from sqlalchemy import text
-from sqlalchemy_utils import database_exists, create_database
 
 from sqlalchemy.orm import sessionmaker, declarative_base
 from tqdm import tqdm
-from seconds import convert_seconds
+
+from .plex_server import PlexServer
+
+from .plex_record import PlexRecord, get_possible_attributes
+from .models import PlexRecordORM
 
 load_dotenv()
 
 Base = declarative_base()
 
 script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
-db_path = os.path.join(script_dir, 'plexlibrary.db')  # Construct the path to the database file
+db_path = os.path.join(script_dir, 'media_library.db')  # Construct the path to the database file
 engine = create_engine(f'sqlite:///{db_path}')  # Use the full path for the database
 Session = sessionmaker(bind=engine)
 Base.metadata.create_all(engine)
+
+def update_database_schema(engine=engine, Base=Base):
+    print("Updating database schema...")
+    # Drop all tables
+    Base.metadata.drop_all(engine)
+    # Create all tables
+    Base.metadata.create_all(engine)
 
 def initialize_database(engine, Base):
     """
@@ -33,123 +41,6 @@ def initialize_database(engine, Base):
     if not database_exists(engine.url):
         create_database(engine.url)
     Base.metadata.create_all(engine)
-
-@dataclasses.dataclass
-class PlexRecord:
-    id: int = None
-    plex_guid: str = None  # The unique identifier from Plex
-    title: str = None
-    year: int = None
-    rating: float = None
-    duration: int = None
-    genres: str = None
-    actors: str = None
-    directors: str = None
-    writers: str = None
-    thumb: str = None
-    art: str = None
-    summary: str = None
-    library: str = None
-    section: str = None
-    key: str = None
-    rating_key: str = None
-    guid: str = None
-    media_type: str = None
-    added_at: datetime.datetime = None
-    updated_at: datetime.datetime = None
-    viewed_at: datetime.datetime = None
-    last_viewed_at: datetime.datetime = None
-    originally_available_at: str = None
-    platform: str = None
-    full_title: str = None
-    extras: bool = None
-    resolution: str = None
-    bitrate: int = None
-    # codec: str = None
-
-    def __post_init__(self):
-        # Set full_title to 'title (year)' if year is present, otherwise just 'title'
-        if self.year:
-            self.full_title = f"{self.title} ({self.year})"
-        else:
-            self.full_title = self.title
-
-def get_possible_attributes():
-    return [f.name for f in dataclasses.fields(PlexRecord)]
-
-@dataclasses.dataclass
-class PlexRecordORM(Base):
-    __tablename__ = 'plex_records'
-    id = Column(Integer, primary_key=True)
-    plex_guid = Column(String, unique=True)  # Unique identifier from Plex
-    title = Column(String)
-    year = Column(Integer)
-    rating = Column(Integer)
-    duration = Column(Integer)
-    genres = Column(String)
-    actors = Column(String)
-    directors = Column(String)
-    writers = Column(String)
-    summary = Column(String)
-    library = Column(String)
-    thumb = Column(String)
-    art = Column(String)
-    section = Column(String)
-    key = Column(String)
-    rating_key = Column(String)
-    guid = Column(String)
-    media_type = Column(String)
-    added_at = Column(DateTime)
-    updated_at = Column(DateTime)
-    viewed_at = Column(DateTime)
-    last_viewed_at = Column(DateTime)
-    originally_available_at = Column(String)
-    platform = Column(String)
-    full_title = Column(String)
-    extras = Column(Boolean)
-    resolution = Column(String)
-    bitrate = Column(Integer)
-    # codec = Column(String)
-
-    def __str__(self):
-        # Customize the string representation of PlexRecord
-         year = f" ({self.year})" if self.year else ""
-         resolution = f" {self.resolution}" if self.resolution else ""
-         return f"{self.platform:7}  {resolution:<6}    {self.title}{year}"
-
-
-def update_database_schema(engine=engine, Base=Base):
-    # Drop all tables
-    Base.metadata.drop_all(engine)
-    # Create all tables
-    Base.metadata.create_all(engine)
-
-@dataclasses.dataclass
-class PlexServer:
-    url: str = None
-    token: str = None
-    port: int = None
-    connection: PlexAPIServer = dataclasses.field(init=False, default=None)
-
-    def __post_init__(self):
-        self.url = self.url or os.environ.get("PLEX_SERVER_URL", "localhost")
-        self.token = self.token or os.environ.get("PLEX_SERVER_TOKEN")
-        self.port = int(self.port or os.environ.get("PLEX_SERVER_PORT", 32400))
-        if not self.url.startswith("http"):
-            self.url = f"http://{self.url}"
-        self.full_url = f"{self.url}:{self.port}"
-        # Establish connection to the Plex server
-        self.get_connection()
-
-    def get_connection(self):
-        # Ensure the connection is established and return it
-        if not self.connection:
-            print(f"Connecting to Plex server: {self.url}:{self.port}")
-            try:
-                self.connection = PlexAPIServer(self.full_url, self.token)
-            except Exception as e:
-                print(f"Error connecting to Plex server: {e}")
-        return self.connection
 
 @dataclasses.dataclass
 class PlexLibrary:
@@ -177,7 +68,6 @@ class PlexLibrary:
             print(f"Error checking if database is initialized: {e}")
             return False
 
-
     def connect_to_plex(self):
         if not self.plex_server:
             self.plex_server = PlexServer()
@@ -193,7 +83,6 @@ class PlexLibrary:
             print(f"Error checking if database is empty: {e}")
             return True
 
-
     def database_exists(self):
         try:
             # Check if any table exists in the database
@@ -204,7 +93,12 @@ class PlexLibrary:
 
     def load_data_from_db(self):
         if self.database_exists():
-            self.libraries = self.session.query(PlexRecordORM).all()
+            try:
+                self.libraries = self.session.query(PlexRecordORM).all()
+            except Exception as e:
+                print(f"Error loading data from database: {e}. Resetting database with new schema.")
+                update_database_schema()
+                self.populate_database()
 
     def reset_database(self):
         self.session.query(PlexRecordORM).delete()
@@ -298,12 +192,14 @@ class PlexLibrary:
                 attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
                 attributes['extras'] = hasattr(item, 'extras')
                 
-                # Extract video resolution and bitrate
+                # Extract video media information
                 if hasattr(item, 'media'):
                     media = item.media[0]  # Assuming we take the first media object
                     attributes['resolution'] = f"{media.videoResolution}"  
                     attributes['bitrate'] = media.bitrate
-                    # attributes['codec'] = media.videoCodec
+                    attributes['codec'] = media.videoCodec
+                    if attributes['codec'] == 'mpeg2video':
+                        attributes['resolution'] += '*'
 
                 record = PlexRecord(**attributes)
                 self.save_record_to_db(record)
@@ -353,6 +249,9 @@ class PlexLibrary:
     def latest(self, number=10):
         return self.session.query(PlexRecordORM).order_by(PlexRecordORM.added_at.desc()).limit(number).all()
     
+    def sort_by_video_resolution(self, number=10, reverse=True):
+        return sorted(self.libraries, key=lambda x: x.resolution, reverse=reverse)[:number]
+    
     @staticmethod
     def _load_csv_to_dict(file_path):
         with open(file_path, mode='r', encoding='utf-8') as csvfile:
@@ -360,112 +259,33 @@ class PlexLibrary:
             return [row for row in reader]  # This creates a list of dictionaries
 
     def load_additional_media(self):
-        data_file = os.path.join(script_dir, 'data/media.csv')
+        data_file = os.path.join(script_dir, 'media.csv')
         try:
             media = self._load_csv_to_dict(data_file)
         except Exception as e:
             print(f"Error loading additional media: {e}")
             return
-        skipped = 0
+        updated = 0
         loaded = 0
 
-        # Check if the database is empty before proceeding
-        if self.is_database_empty():
-            print("Database is empty, skipping duplicate check.")
-            db_empty = True
-        else:
-            db_empty = False
-
         for item in media:
-            # If the database is not empty, check for duplicates
-            if not db_empty and self.session.query(PlexRecordORM).filter_by(title=item['title']).first():
-                skipped += 1
-                continue
+            existing = self.session.query(PlexRecordORM).filter_by(platform=item['platform'], title=item['title']).first()
+            if existing:
+                # Update existing record
+                for key, value in item.items():
+                    if key in ['extras']:  # Add other fields as needed
+                        setattr(existing, key, value)
+                self.session.commit()
+                updated += 1
+            else:
+                # Create and add new record
+                item['extras'] = True if item.get('extras', 'False').lower() == 'true' else False
+                record = PlexRecord(**item)
+                self.save_record_to_db(record)
+                loaded += 1
 
-            loaded += 1
-            item['extras'] = True if item.get('extras', 'False').lower() == 'true' else False
-            record = PlexRecord(**item)
-            self.save_record_to_db(record)
-
-        skipped = f' ({skipped:,} skipped)' if skipped else ''
-        print(f'Loaded {loaded} items from {data_file}{skipped}')
+        print(f'Updated {updated} existing items and loaded {loaded} new items from {data_file}')
 
 
-def process_arguments():
-    parser = argparse.ArgumentParser(description='Process arguments')
 
-    # Database management options
-    parser.add_argument('-u', '--update', action='store_true', help='Update database')
-    parser.add_argument('-r', '--reset', action='store_true', help='Reset database')
-    parser.add_argument('-d', '--duplicates', action='store_true', help='Remove duplicates')
 
-    # Display options
-    parser.add_argument('-a', '--all', action='store_true', help='Show all records')
-    parser.add_argument('-l', '--latest', action='store_true', help='Show latest additions')
-    parser.add_argument('-s', '--summary', action='store_true', help='Show a summary for each title')
-    parser.add_argument('-n', '--number', type=int, default=10, help='Number of results to return')
-    parser.add_argument('-y', '--year', action='store_true', help='Sort by year of release') 
-
-    # Mode options
-    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose mode')
-    parser.add_argument('--debug', action='store_true', help='Debug mode')
-    parser.add_argument('--schema', action='store_true', help='Update database schema')
-
-    args, search_terms = parser.parse_known_args()
-    return args, ' '.join(search_terms)
-
-def main():
-    print("Rog's Plex Library Utility")
-    args, search_text = process_arguments()
-
-    plex_library = PlexLibrary()
-
-    if args.reset or args.update:
-        plex_library.connect_to_plex()
-
-    if args.reset:
-        update_database_schema()
-        plex_library.reset_database()
-    elif args.update:
-        plex_library.update_database()
-
-    if args.duplicates: 
-        removed = plex_library.remove_duplicates()
-        print(f"Removed {removed:,} duplicates.") 
-
-    total_records = plex_library.session.query(PlexRecordORM).count()
-
-    if args.all:
-        results = plex_library.libraries
-    elif search_text:
-        results = plex_library.search(search_text)
-        print(f"Found {len(results):,} results in {total_records:,} total records for '{search_text}':" )
-    else:
-        results = plex_library.latest(number=args.number)
-        print(f"Showing {len(results):,} latest updates from {total_records:,} total records:")
-    if results:
-
-        if args.year:
-            print("Sort by year...")
-            results = sorted(results, key=lambda x: x.year, reverse=True)
-
-        for result in results:
-            print(result)  
-            if args.summary:
-                print(result.summary)
-            if args.verbose:
-                print(vars(result))      
-        # get the total duration of all results
-        total_duration = convert_seconds((sum([result.duration for result in results if result.duration]) or 0) / 1000)
-        print(f"{len(results):,} items, {total_duration}")
-
-    if args.debug and results:
-        print(f"First result: {results[0]}")
-        print(vars(results[0]))
-
-    if args.debug:
-        # TODO: Integrate other media sources
-        plex_library.load_additional_media()
-
-if __name__ == "__main__":
-    main()

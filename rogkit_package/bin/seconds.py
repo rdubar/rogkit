@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import sys
-from bignum import bignum
+from .bignum import bignum
 
 def convert_seconds(seconds, long=False, end='.'):
     # Return immediately for 0 seconds
