@@ -240,8 +240,13 @@ class PlexLibrary:
                 PlexRecordORM.genres.ilike(search_pattern),
                 PlexRecordORM.actors.ilike(search_pattern),
                 PlexRecordORM.directors.ilike(search_pattern),
+                PlexRecordORM.writers.ilike(search_pattern),
                 PlexRecordORM.summary.ilike(search_pattern),
                 PlexRecordORM.full_title.ilike(search_pattern),
+                PlexRecordORM.platform.ilike(search_pattern),
+                PlexRecordORM.library.ilike(search_pattern),
+                PlexRecordORM.section.ilike(search_pattern),
+                PlexRecordORM.resolution.ilike(search_pattern),
                 # Add other fields as necessary
             )
         ).all()
