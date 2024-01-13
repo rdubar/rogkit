@@ -43,6 +43,7 @@ def main():
 
         if args.dvd:
             print("Filtering for uncompressed DVDs...")
+            results = plex_library.libraries
             results = [result for result in results if result.codec == 'mpeg2video']
 
         if args.year:
@@ -91,11 +92,6 @@ def main():
     if args.debug and results:
         print(f"First result: {results[0]}")
         print(vars(results[0]))
-
-    if args.debug and results:
-        print(f"First result: {results[0]}")
-        print(vars(results[0]))
-        print(results[0].codec)
 
 
 if __name__ == "__main__":
