@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 import datetime
-from .models import PlexRecordORM
+from .media_records import PlexRecordORM
 from .plex_library import PlexLibrary, update_database_schema, engine
+
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
 from .utils import process_arguments, sort_by_resolution, should_show_latest_results
@@ -59,6 +60,9 @@ def main():
     if search_text:
         results = plex_library.search(search_text)
         print(f"Found {len(results):,} results in {total_records:,} total records for '{search_text}':" )
+        matches_text = f' of {len(results):,} matches' 
+    else:
+        matches_text = ''
         
     if args.dvd:
         print("Filtering for uncompressed DVDs...")
@@ -70,6 +74,8 @@ def main():
     
     if args.video:
         sort_by = 'resolution'
+        # remove results that don't have a resolution value
+        results = [result for result in results if getattr(result, 'resolution', None)]
         results = sort_by_resolution(results)
     
     if args.size:
@@ -90,7 +96,7 @@ def main():
             args.number = len(results)
         number_text = f'{args.number:,}'
     results_text = 'results' if len(results) > 1 else 'result'
-    print(f"Showing {number_text} {results_text} from {total_records:,} total records. Sort order: {sort_by} {reverse_text}")
+    print(f"Showing {number_text} {results_text}{matches_text} from {total_records:,} total records. Sort order: {sort_by} {reverse_text}")
     for result in results[:args.number]:
         print(result)  
         if args.summary:

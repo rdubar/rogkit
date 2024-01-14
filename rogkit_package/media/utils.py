@@ -24,8 +24,7 @@ def process_arguments():
     # Mode options
     parser.add_argument('-V', '--verbose', action='store_true', help='Verbose mode')
     parser.add_argument('--debug', action='store_true', help='Debug mode')
-    parser.add_argument('--schema', action='store_true', help='Update database schema')
-
+    
     args, search_terms = parser.parse_known_args()
     return args, ' '.join(search_terms)
 
@@ -34,7 +33,7 @@ def sort_by_resolution(results):
     """
     Sort the results by resolution  4k > 1080p > 720p > 480p > 0
     """
-    resolutions = {'4k': 2160, '1080p': 1080, '720p': 720, 'hd': 1080, '480p': 480, 'sd': 480}
+    resolutions = {'4k': 2160, '2k': 2000, '1080p': 1080, '720p': 720, 'hd': 1080, '480p': 480, 'sd': 480}
 
     def resolution_to_int(result):
         res_string = result.resolution.lower() if result.resolution else ''

@@ -10,8 +10,7 @@ from dotenv import load_dotenv
 from sqlalchemy import text, or_
 
 from .plex_server import PlexServer
-from .plex_record import PlexRecord, get_possible_attributes
-from .models import PlexRecordORM
+from .media_records import PlexRecordORM, PlexRecord, get_possible_attributes
 from .database_utils import Base, initialize_database, update_database_schema, engine, Session
 
 load_dotenv()
