@@ -86,8 +86,11 @@ def main():
         args.number = len(results)
         number_text = 'all'
     else:
+        if args.number > len(results):
+            args.number = len(results)
         number_text = f'{args.number:,}'
-    print(f"Showing {number_text} results from {total_records:,} total records. Sort order: {sort_by} {reverse_text}")
+    results_text = 'results' if len(results) > 1 else 'result'
+    print(f"Showing {number_text} {results_text} from {total_records:,} total records. Sort order: {sort_by} {reverse_text}")
     for result in results[:args.number]:
         print(result)  
         if args.summary:
@@ -98,7 +101,8 @@ def main():
     # get the total duration of all results
     total_duration = convert_seconds((sum([getattr(result, 'duration', 0) or 0 for result in results]) or 0) / 1000)
     total_size = byte_size(sum([getattr(result, 'size', 0) or 0 for result in results]) or 0)
-    print(f"{len(results):,} items, {total_duration} ({total_size})")
+    item_text = 'items' if len(results) > 1 else 'item'
+    print(f"{len(results):,} {item_text}, {total_duration} ({total_size})")
 
 
 if __name__ == "__main__":
