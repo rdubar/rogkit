@@ -11,6 +11,7 @@ pytz==2023.3.post1
 requests==2.31.0
 six==1.16.0
 SQLAlchemy==2.0.25
+SQLAlchemy-Utils==0.41.1
 tqdm==4.66.1
 typing_extensions==4.9.0
 urllib3==2.1.0

@@ -176,10 +176,12 @@ class PlexLibrary:
         self.load_additional_media()
         if not self.plex_server or not self.plex_server.connection:
             raise Exception("Plex server is not connected. Cannot populate database.")
-        clock = time.perf_counter()
         print('Populating database with Plex library data...')
         possible_attributes = get_possible_attributes()
+        clock = time.perf_counter()
         libraries = self.get_libraries()
+        print(f"Retrieved {len(libraries):,} libraries in {time.perf_counter() - clock:.2f} seconds.")
+        clock = time.perf_counter()
         for library in libraries:  # Loop over each library
             for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
                 attributes = {attr: self.process_list(getattr(item, attr, None)) 
@@ -229,7 +231,6 @@ class PlexLibrary:
                 removed += 1
         self.session.commit()
         return removed
-
     
     def search(self, text):
         search_pattern = f"%{text.lower()}%"
@@ -290,7 +291,3 @@ class PlexLibrary:
                 loaded += 1
 
         print(f'Updated {updated} existing items and loaded {loaded} new items from {data_file}')
-
-
-
-

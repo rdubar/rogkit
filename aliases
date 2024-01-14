@@ -1,9 +1,10 @@
 INSTALL=~/opt
 ROGKIT="$INSTALL/rogkit"
+# ROGKIT_PACKAGE variable seems not needed for PYTHONPATH, but can be kept if used elsewhere
 ROGKIT_PACKAGE="$ROGKIT/rogkit_package" # The root of your Python package
 
-# Set PYTHONPATH to include your package
-export PYTHONPATH="$ROGKIT_PACKAGE:$PYTHONPATH"
+# Set PYTHONPATH to include the directory containing your package
+export PYTHONPATH="$ROGKIT:$PYTHONPATH"
 
 alias rogkit='cat "$ROGKIT/README.md" | grep "[|]"'
 alias backup='python -m rogkit_package.bin.backup "$@"'
