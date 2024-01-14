@@ -7,7 +7,7 @@ import csv
 from tqdm import tqdm
 from dotenv import load_dotenv
 
-from sqlalchemy import text, or_
+from sqlalchemy import text, or_, func
 
 from .plex_server import PlexServer
 from .media_records import PlexRecordORM, PlexRecord, get_possible_attributes, common_schema
@@ -258,12 +258,6 @@ class PlexLibrary:
                 # Add other fields as necessary
             )
         ).all()
-    
-    def latest(self, number=10):
-        return self.session.query(PlexRecordORM).order_by(PlexRecordORM.added_at.desc()).limit(number).all()
-    
-    def sort_by_video_resolution(self, number=10, reverse=True):
-        return sorted(self.libraries, key=lambda x: x.resolution, reverse=reverse)[:number]
     
     @staticmethod
     def _load_csv_to_dict(file_path):

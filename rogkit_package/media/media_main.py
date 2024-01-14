@@ -115,3 +115,14 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+"""
+TODO: 
+
+duplicates in db?
+update in plex_library.py
+Rename PlexRecord, PlexRecordORM to MediaRecord, MediaRecordORM 
+Rename PlexLibrary to MediaLibrary
+Rename plex_library.py to media_library.py
+Refactor plex_library.py
+"""
