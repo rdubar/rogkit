@@ -1,13 +1,7 @@
 #!/usr/bin/env python3
 import dataclasses
-
-from plexapi.server import PlexServer as PlexAPIServer
-from dotenv import load_dotenv
-from sqlalchemy import create_engine, Column, Integer, Boolean, String, or_, func, DateTime, Integer
-from sqlalchemy import text
-
-from .base import Base  # Import Base from the base module
-
+from sqlalchemy import Column, Integer, Boolean, String, DateTime, Integer
+from .database_utils import Base 
 from ..bin.bytes import byte_size
 
 @dataclasses.dataclass

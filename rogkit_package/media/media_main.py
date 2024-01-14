@@ -1,6 +1,4 @@
 #!/usr/bin/env python3
-from .plex_record import PlexRecord
-from .plex_server import PlexServer
 from .models import PlexRecordORM
 from .plex_library import PlexLibrary, update_database_schema, engine
 from ..bin.seconds import convert_seconds
@@ -12,6 +10,11 @@ def main():
     args, search_text = process_arguments()
 
     plex_library = PlexLibrary()
+
+    if args.debug:
+        # Do debug stuff here
+        results = plex_library.test_connection()
+        return
 
     if args.reset or args.update:
         plex_library.connect_to_plex()
@@ -72,9 +75,6 @@ def main():
     total_duration = convert_seconds((sum([getattr(result, 'duration', 0) or 0 for result in results]) or 0) / 1000)
     total_size = byte_size(sum([getattr(result, 'size', 0) or 0 for result in results]) or 0)
     print(f"{len(results):,} items, {total_duration} ({total_size})")
-
-    if args.debug and results:
-        plex_library.test_connection()
 
 
 if __name__ == "__main__":

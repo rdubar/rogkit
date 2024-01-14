@@ -1,19 +1,7 @@
 #!/usr/bin/env python3
 import dataclasses
 import os
-
 from plexapi.server import PlexServer as PlexAPIServer
-from dotenv import load_dotenv
-from sqlalchemy import create_engine
-from sqlalchemy import text
-
-from sqlalchemy.orm import declarative_base
-from tqdm import tqdm
-
-from ..bin.seconds import convert_seconds
-from .utils import process_arguments
-from .plex_record import PlexRecord
-
 
 
 @dataclasses.dataclass
