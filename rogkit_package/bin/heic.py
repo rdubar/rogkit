@@ -74,12 +74,11 @@ def main():
     parser.add_argument("directory", nargs='?', default=".", help="Directory to process (default: current directory)")
     parser.add_argument("-c", "--confirm", action="store_true", help="Confirm processing of files")
     args = parser.parse_args()
-    process_images(args.directory, args.confirm)
 
+    print("Convert all HEIC files in the directory to JPEG.")
+    process_images(args.directory, args.confirm)
     if not args.confirm:
         print("Use -c or --confirm to process the files.")
-        print()
-        print("This will convert all HEIC files in the given directory to JPEG.")
 
 if __name__ == "__main__":
     main()
