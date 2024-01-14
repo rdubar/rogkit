@@ -30,3 +30,4 @@ class PlexServer:
             except Exception as e:
                 print(f"Error connecting to Plex server: {e}")
         return self.connection
+

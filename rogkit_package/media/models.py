@@ -45,3 +45,4 @@ class PlexRecordORM(Base):
          resolution = f" {self.resolution}" if self.resolution else ""
          size = f" {byte_size(self.size)}" if self.size else ""
          return f"{self.platform:7} {size:10} {resolution:<6}    {self.title}{year}"
+    

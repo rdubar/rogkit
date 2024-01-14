@@ -7,7 +7,7 @@ import csv
 from tqdm import tqdm
 from dotenv import load_dotenv
 
-from sqlalchemy import text
+from sqlalchemy import text, or_
 
 from .plex_server import PlexServer
 from .plex_record import PlexRecord, get_possible_attributes

@@ -14,11 +14,13 @@ def process_arguments():
     parser.add_argument('-d', '--dvd', action='store_true', help='Show uncompressed DVDs')
     parser.add_argument('-l', '--latest', action='store_true', help='Show latest additions')
     parser.add_argument('-r', '--reverse', action='store_true', help='Show reverse order')
-    parser.add_argument('-s', '--summary', action='store_true', help='Show a summary for each title')
+    parser.add_argument('-t', '--title', action='store_true', help='sort by title')
     parser.add_argument('-n', '--number', type=int, default=10, help='Number of results to return')
     parser.add_argument('-v', '--video', action='store_true', help='Sort by video resolution')
     parser.add_argument('-y', '--year', action='store_true', help='Sort by year of release') 
-
+    parser.add_argument('-s', '--size', action='store_true', help='Sort by file size')
+    parser.add_argument('-S', '--summary', action='store_true', help='Show a summary for each title')
+    
     # Mode options
     parser.add_argument('-V', '--verbose', action='store_true', help='Verbose mode')
     parser.add_argument('--debug', action='store_true', help='Debug mode')

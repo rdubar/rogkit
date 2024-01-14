@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+import datetime
 from .models import PlexRecordORM
 from .plex_library import PlexLibrary, update_database_schema, engine
 from ..bin.seconds import convert_seconds
@@ -36,6 +37,21 @@ def main():
     total_records = plex_library.session.query(PlexRecordORM).count()
 
     results = plex_library.libraries
+
+    if True or args.latest: # or should_show_latest_results(args, search_text):
+        # go thru results, setting addded at to 01/01/2000 if it's None
+        for result in results:
+            if not result.added_at:
+                result.added_at = datetime.datetime(2000, 1, 1)
+        # sort by added at
+        results = sorted(results, key=lambda x: x.added_at, reverse=True)
+        # results = plex_library.latest()
+        sort_by = 'added_at'
+
+    if args.title:
+        sort_by = 'title'
+        results = sorted(results, key=lambda x: x.title)
+
     if not results:
         print("No results.")
         return
@@ -43,28 +59,36 @@ def main():
     if search_text:
         results = plex_library.search(search_text)
         print(f"Found {len(results):,} results in {total_records:,} total records for '{search_text}':" )
-
-    if args.latest or should_show_latest_results(args, search_text):
-        results = plex_library.latest(number=args.number)
-        print(f"Showing {len(results):,} latest updates from {total_records:,} total records:")
         
     if args.dvd:
         print("Filtering for uncompressed DVDs...")
         results = [result for result in results if result.codec == 'mpeg2video']
 
     if args.year:
-        print("Sort by year...")
+        sort_by = 'year'
         results = sorted(results, key=lambda x: x.year, reverse=True)
     
     if args.video:
-        print("Sorting by video resolution...")
+        sort_by = 'resolution'
         results = sort_by_resolution(results)
+    
+    if args.size:
+        sort_by = 'size'
+        # get results that have a size value only
+        results = [result for result in results if getattr(result, 'size', None)]
+        results = sorted(results, key=lambda x: x.size or 0, reverse=args.reverse)
 
+    reverse_text = 'reversed' if args.reverse else ''
     if args.reverse:
-        print("Reversing order...")
         results = list(reversed(results))
 
-    for result in results:
+    if args.all:
+        args.number = len(results)
+        number_text = 'all'
+    else:
+        number_text = f'{args.number:,}'
+    print(f"Showing {number_text} results from {total_records:,} total records. Sort order: {sort_by} {reverse_text}")
+    for result in results[:args.number]:
         print(result)  
         if args.summary:
             print(result.summary)
