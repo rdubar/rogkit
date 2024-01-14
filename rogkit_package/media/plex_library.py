@@ -8,8 +8,9 @@ from plexapi.server import PlexServer as PlexAPIServer
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, Boolean, String, or_, func, DateTime, Integer
 from sqlalchemy import text
+from sqlalchemy.exc import SQLAlchemyError
 
-from sqlalchemy.orm import sessionmaker, declarative_base
+from sqlalchemy.orm import sessionmaker
 from tqdm import tqdm
 
 from .plex_server import PlexServer
@@ -19,28 +20,55 @@ from .models import PlexRecordORM
 
 load_dotenv()
 
-Base = declarative_base()
+import os
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker, declarative_base
+from .base import Base
 
-script_dir = os.path.dirname(os.path.abspath(__file__))  # Get the directory of the current script
-db_path = os.path.join(script_dir, 'media_library.db')  # Construct the path to the database file
-engine = create_engine(f'sqlite:///{db_path}')  # Use the full path for the database
-Session = sessionmaker(bind=engine)
-Base.metadata.create_all(engine)
 
-def update_database_schema(engine=engine, Base=Base):
+def create_database(engine_url):
+    """
+    Create the database file and initialize tables if it doesn't exist.
+    """
+    db_file_path = engine_url[len('sqlite:///'):]
+    if not os.path.exists(db_file_path):
+        os.makedirs(os.path.dirname(db_file_path), exist_ok=True)
+    engine = create_engine(engine_url)
+    Base.metadata.create_all(engine)
+
+def update_database_schema(engine):
+    """
+    Update the database schema by dropping all tables and recreating them.
+    """
     print("Updating database schema...")
-    # Drop all tables
     Base.metadata.drop_all(engine)
-    # Create all tables
     Base.metadata.create_all(engine)
 
-def initialize_database(engine, Base):
+def initialize_database(engine_url):
     """
-    Initialize the database: create the database and tables if they don't exist.
+    Initialize the database by creating it if it doesn't exist,
+    or updating the schema if needed.
     """
-    if not database_exists(engine.url):
-        create_database(engine.url)
-    Base.metadata.create_all(engine)
+    engine = create_engine(engine_url)
+    if not os.path.exists(engine_url[len('sqlite:///'):]):
+        create_database(engine_url)
+    else:
+        try:
+            Base.metadata.create_all(engine)
+        except Exception as e:
+            print(f"Error during table creation: {e}")
+            update_database_schema(engine)
+    return engine
+
+# Define the path for your database
+script_dir = os.path.dirname(os.path.abspath(__file__))
+db_path = os.path.join(script_dir, 'media_library.db')
+db_url = f'sqlite:///{db_path}'
+
+# Initialize the database and create a session factory
+engine = initialize_database(db_url)
+Session = sessionmaker(bind=engine)
+
 
 @dataclasses.dataclass
 class PlexLibrary:
@@ -54,11 +82,30 @@ class PlexLibrary:
         self.load_data_from_db()
 
     def ensure_database_ready(self):
-        # Check if the database is properly initialized
-        if not self.database_initialized():
-            print("Initializing database...")
-            initialize_database(engine, Base)  # Function to create and initialize the database
-        self.load_data_from_db()
+        try:
+            self.session.execute(text("SELECT 1 FROM plex_records LIMIT 1"))
+        except Exception as e:
+            print(f"Database error encountered: {e}")
+            print("Reinitializing database schema...")
+            update_database_schema(engine)
+
+    def load_data_from_db(self):
+        try:
+            self.libraries = self.session.query(PlexRecordORM).all()
+        except Exception as e:
+            print(f"Error loading data from database: {e}")
+            print("Attempting to reset and populate the database...")
+            self.reset_database()
+
+    def reset_database(self):
+        try:
+            # Drop all existing data and recreate the tables
+            Base.metadata.drop_all(engine)
+            Base.metadata.create_all(engine)
+            self.populate_database()
+        except Exception as e:
+            print(f"Critical error resetting the database: {e}")
+            raise
 
     def database_initialized(self):
         try:
@@ -90,19 +137,6 @@ class PlexLibrary:
         except Exception as e:
             print(f"Error checking if database exists: {e}")
             return False
-
-    def load_data_from_db(self):
-        if self.database_exists():
-            try:
-                self.libraries = self.session.query(PlexRecordORM).all()
-            except Exception as e:
-                print(f"Error loading data from database: {e}. Resetting database with new schema.")
-                update_database_schema()
-                self.populate_database()
-
-    def reset_database(self):
-        self.session.query(PlexRecordORM).delete()
-        self.populate_database()
 
     def update_database(self):
         if not self.plex_server or not self.plex_server.connection:
@@ -170,6 +204,20 @@ class PlexLibrary:
         if isinstance(value, list):
             return ', '.join(item.tag if hasattr(item, 'tag') else item.role for item in value)
         return value
+    
+    def test_connection(self):
+        self.connect_to_plex()
+        libraries = self.get_libraries()
+        for library in libraries:
+            print(f"Library: {library.title}")
+            for item in library.all():
+                if hasattr(item, 'media'):
+                    media = item.media[0]
+                    if hasattr(media, 'parts'):
+                        part = media.parts[0]
+                        print(f"  {item.title} - {part.file} - {part.size}")
+                        size = getattr(part, 'size', None) 
+                        print(size)
 
     def populate_database(self):
         self.connect_to_plex()
@@ -202,6 +250,16 @@ class PlexLibrary:
                     attributes['codec'] = media.videoCodec
                     if attributes['codec'] == 'mpeg2video':
                         attributes['resolution'] += '*'
+
+                    if hasattr(media, 'parts'):
+                        part = media.parts[0]
+                        attributes['size'] = getattr(part, 'size', None)   
+
+                # get the file size from parts
+                if hasattr(item, 'parts'):
+                    part = item.parts[0]  # Assuming we take the first part
+                    attributes['size'] = getattr(part, 'size', None)
+                    
 
                 record = PlexRecord(**attributes)
                 self.save_record_to_db(record)

@@ -5,10 +5,10 @@ from plexapi.server import PlexServer as PlexAPIServer
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, Column, Integer, Boolean, String, or_, func, DateTime, Integer
 from sqlalchemy import text
-from sqlalchemy_utils import database_exists, create_database
 
-from sqlalchemy.ext.declarative import declarative_base
-Base = declarative_base()
+from .base import Base  # Import Base from the base module
+
+from ..bin.bytes import byte_size
 
 @dataclasses.dataclass
 class PlexRecordORM(Base):
@@ -43,9 +43,11 @@ class PlexRecordORM(Base):
     resolution = Column(String)
     bitrate = Column(Integer)
     codec = Column(String)
+    size = Column(Integer)
 
     def __str__(self):
         # Customize the string representation of PlexRecord
          year = f" ({self.year})" if self.year else ""
          resolution = f" {self.resolution}" if self.resolution else ""
-         return f"{self.platform:7}  {resolution:<6}    {self.title}{year}"
+         size = f" {byte_size(self.size)}" if self.size else ""
+         return f"{self.platform:7} {size:10} {resolution:<6}    {self.title}{year}"

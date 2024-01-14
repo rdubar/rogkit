@@ -35,6 +35,7 @@ class PlexRecord:
     resolution: str = None
     bitrate: int = None
     codec: str = None
+    size: int = None
 
     def __post_init__(self):
         # Set full_title to 'title (year)' if year is present, otherwise just 'title'

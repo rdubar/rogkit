@@ -2,8 +2,9 @@
 from .plex_record import PlexRecord
 from .plex_server import PlexServer
 from .models import PlexRecordORM
-from .plex_library import PlexLibrary, update_database_schema
+from .plex_library import PlexLibrary, update_database_schema, engine
 from ..bin.seconds import convert_seconds
+from ..bin.bytes import byte_size
 from .utils import process_arguments, sort_by_resolution, should_show_latest_results
 
 def main():
@@ -20,7 +21,7 @@ def main():
         if not confirm.lower() in ['y', 'yes']:
             print("Aborting reset.")
             return
-        update_database_schema()
+        update_database_schema(engine)
         plex_library.reset_database()
     elif args.update:
         plex_library.update_database()
@@ -68,12 +69,12 @@ def main():
             print(vars(result))     
 
     # get the total duration of all results
-    total_duration = convert_seconds((sum([result.duration for result in results if result.duration]) or 0) / 1000)
-    print(f"{len(results):,} items, {total_duration}")
+    total_duration = convert_seconds((sum([getattr(result, 'duration', 0) or 0 for result in results]) or 0) / 1000)
+    total_size = byte_size(sum([getattr(result, 'size', 0) or 0 for result in results]) or 0)
+    print(f"{len(results):,} items, {total_duration} ({total_size})")
 
     if args.debug and results:
-        print(f"First result: {results[0]}")
-        print(vars(results[0]))
+        plex_library.test_connection()
 
 
 if __name__ == "__main__":
