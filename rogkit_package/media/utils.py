@@ -31,7 +31,7 @@ def process_arguments():
 
 def sort_by_resolution(results):
     """
-    Sort the results by resolution  4k > 1080p > 720p > 480p > 0
+    Sort the results by resolution  4k > 2k > 1080p > 720p > 480p > 0
     """
     resolutions = {'4k': 2160, '2k': 2000, '1080p': 1080, '720p': 720, 'hd': 1080, '480p': 480, 'sd': 480}
 

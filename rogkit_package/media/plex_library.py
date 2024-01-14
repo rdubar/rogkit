@@ -10,8 +10,8 @@ from dotenv import load_dotenv
 from sqlalchemy import text, or_
 
 from .plex_server import PlexServer
-from .media_records import PlexRecordORM, PlexRecord, get_possible_attributes
-from .database_utils import Base, initialize_database, update_database_schema, engine, Session
+from .media_records import PlexRecordORM, PlexRecord, get_possible_attributes, common_schema
+from .database_utils import Base, initialize_database, update_database_schema, engine, Session, script_dir
 
 load_dotenv()
 
@@ -181,6 +181,8 @@ class PlexLibrary:
             for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
                 attributes = {attr: self.process_list(getattr(item, attr, None)) 
                             for attr in possible_attributes if hasattr(item, attr)}
+                for key in common_schema.keys():
+                    attributes.setdefault(key, None)
                 attributes['library'] = library.title
                 attributes['section'] = library.title 
                 attributes['plex_guid'] = getattr(item, 'guid', None)
@@ -280,17 +282,21 @@ class PlexLibrary:
         loaded = 0
 
         for item in media:
+            # Ensure all required fields are present, set to None if missing
+            for field in PlexRecord.__annotations__.keys():
+                item.setdefault(field, None)
+
             existing = self.session.query(PlexRecordORM).filter_by(platform=item['platform'], title=item['title']).first()
             if existing:
                 # Update existing record
                 for key, value in item.items():
-                    if key in ['extras']:  # Add other fields as needed
+                    if key in PlexRecord.__annotations__:  # Update only if the key is a valid field
                         setattr(existing, key, value)
                 self.session.commit()
                 updated += 1
             else:
                 # Create and add new record
-                item['extras'] = True if item.get('extras', 'False').lower() == 'true' else False
+                item['extras'] = item.get('extras', 'False').lower() == 'true'
                 record = PlexRecord(**item)
                 self.save_record_to_db(record)
                 loaded += 1
