@@ -5,7 +5,7 @@ from .plex_library import PlexLibrary, update_database_schema, engine
 
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
-from .utils import process_arguments, sort_by_resolution, should_show_latest_results
+from .utils import process_arguments, sort_by_resolution
 
 def main():
     print("Rog's Plex Library Utility")

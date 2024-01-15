@@ -7,11 +7,11 @@ import csv
 from tqdm import tqdm
 from dotenv import load_dotenv
 
-from sqlalchemy import text, or_, func
+from sqlalchemy import func, text, or_
 
 from .plex_server import PlexServer
-from .media_records import PlexRecordORM, PlexRecord, get_possible_attributes, common_schema
-from .database_utils import Base, initialize_database, update_database_schema, engine, Session, script_dir
+from .media_records import PlexRecordORM, PlexRecord, common_schema, get_possible_attributes 
+from .database_utils import Base, engine, Session, script_dir, update_database_schema
 
 load_dotenv()
 
@@ -258,6 +258,7 @@ class PlexLibrary:
                 # Add other fields as necessary
             )
         ).all()
+
     
     @staticmethod
     def _load_csv_to_dict(file_path):

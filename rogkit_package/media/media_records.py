@@ -1,5 +1,4 @@
 import dataclasses
-from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import Column, Integer, Boolean, String, DateTime, Integer
 from .database_utils import Base
 from ..bin.bytes import byte_size

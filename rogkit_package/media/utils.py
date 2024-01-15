@@ -54,22 +54,3 @@ def sort_by_resolution(results):
             return 0
 
     return sorted(results, key=resolution_to_int, reverse=True)
-
-def should_show_latest_results(args, search_text):
-    """
-    Determine if the latest results should be shown based on the provided arguments and search text.
-
-    Args:
-        args: The parsed command line arguments.
-        search_text: The search text input by the user.
-
-    Returns:
-        A boolean indicating whether the latest results should be shown.
-    """
-    # Check if any flag other than '--latest' is set
-    any_other_flag_set = any(
-        value for key, value in vars(args).items() if key != 'latest' and isinstance(value, bool)
-    )
-
-    # Return True if -l is set, or if no search text and no other options are selected
-    return args.latest or (not search_text and not any_other_flag_set)
