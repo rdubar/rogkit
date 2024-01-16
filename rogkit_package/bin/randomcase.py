@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import random
-from clipboard import copy_to_clipboard
+from .clipboard import copy_to_clipboard
 
 def randomcase(string):
     return ''.join(random.choice([c.upper(), c.lower()]) for c in string)

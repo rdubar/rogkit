@@ -4,7 +4,7 @@ import os
 import time
 from dataclasses import dataclass, field
 from typing import List, Tuple
-from bytes import byte_size
+from .bytes import byte_size
 
 DEFAULT_FOLDER_LIST = [
     "/home/rdubar/projects/pythonProject/openerp-addons",
