@@ -66,7 +66,7 @@ def main():
     script_dir_config_path = os.path.join(script_dir, rog_kit_ini)
     user_home_rogkit_ini = get_user_config_path()
 
-    print('Ri=ogkit Config Tool')
+    print('Rogkit Config Tool')
 
     if args.reset:
         reset_config(user_home_rogkit_ini, script_dir_config_path)
