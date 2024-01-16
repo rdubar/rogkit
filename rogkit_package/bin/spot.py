@@ -113,13 +113,18 @@ def get_liked_songs(sp):
 def main():
     args = get_args()
     # Usage example
-    client = SpotifyClient(
-        client_id=os.getenv('SPOTIFY_CLIENT_ID'),
-        client_secret=os.getenv('SPOTIFY_CLIENT_SECRET'),
-        redirect_uri=os.getenv('SPOTIFY_REDIRECT_URI')
-    )
 
     print("Rog's Experimental Spotify Playlist Tool")
+    try:
+        client = SpotifyClient(
+            client_id=os.getenv('SPOTIFY_CLIENT_ID'),
+            client_secret=os.getenv('SPOTIFY_CLIENT_SECRET'),
+            redirect_uri=os.getenv('SPOTIFY_REDIRECT_URI')
+        )
+    except Exception as e:
+        print(f"Error creating Spotify client: {e}")
+        exit(1)
+
     client.authenticate()
     liked_songs = client.get_liked_songs()
 
