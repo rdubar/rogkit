@@ -67,8 +67,15 @@ source ~/bashrc  # or source ~/.zshrc
 |          |                   |                                       |
 | rogkit   | Display this info |                                       |
 
-### Notes:
+### Known Issues:
 
-* More utilities to come
+* backup: not excluding files correctly? Add test showing what would be archived
+* media: adding duplicate entries? Not handling multiple platforms correctly?
+
+### Experimental Commands:
+
+* config.py - deal with configuration files
+* spot.py - attempt to use the Spotify API
+
 
 Roger D.

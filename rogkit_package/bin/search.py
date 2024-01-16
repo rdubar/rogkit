@@ -31,13 +31,13 @@ def file_contains_text(filepath: str, search_terms: List[str], whole_phrase: boo
     except Exception as e:
         raise IOError(f"Error reading file {filepath}: {e}")
 
-def search_folder(folder: str, search_terms: List[str], whole_phrase: bool) -> SearchResults:
+def search_folder(folder: str, search_terms: List[str], whole_phrase: bool, skip_po=False) -> SearchResults:
     results = SearchResults()
     for root, dirs, files in os.walk(folder):
         for file in files:
             results.total_files += 1
             filepath = os.path.join(root, file)
-            if is_excluded_path(filepath) or not is_valid_file(file):
+            if is_excluded_path(filepath) or not is_valid_file(file) or (skip_po and file.endswith('.po') or file.endswith('.pot')):
                 results.skipped_files.append(filepath)
                 continue
             try:
@@ -51,10 +51,13 @@ def search_folder(folder: str, search_terms: List[str], whole_phrase: bool) -> S
 def main():
     parser = argparse.ArgumentParser(description='Search a folder for text.')
     parser.add_argument('text', nargs='+', help='Text to search for.')
-    parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
-    parser.add_argument('-s', '--show-skipped', action='store_true', help='Show skipped files.')
-    parser.add_argument('-e', '--show-errors', action='store_true', help='Show errors.')
     parser.add_argument('-m', '--show-matches', action='store_true', help='Show matches.')
+    parser.add_argument('-p', '--skip-po', action='store_true', help='Skip po/pit files.')
+    parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
+    parser.add_argument('-errors', '--show-errors', action='store_true', help='Show errors.')
+    parser.add_argument('-skipped', '--show-skipped', action='store_true', help='Show skipped files.')
+
+
     args = parser.parse_args()
 
     folder = args.folder or next((f for f in DEFAULT_FOLDER_LIST if os.path.exists(f)), '')
@@ -67,7 +70,10 @@ def main():
 
     print(f"Searching for '{args.text}' in {folder}...")
 
-    results = search_folder(folder, search_terms, whole_phrase)
+    if args.skip_po:
+        print("Skipping po/pot files.")
+
+    results = search_folder(folder, search_terms, whole_phrase, skip_po = args.skip_po)
 
     print(f"Found {len(results.matched_files):,} matches in {results.total_files:,} files. "
           f"(Skipped {len(results.skipped_files):,} files, Encountered {len(results.errors):,} errors.)")

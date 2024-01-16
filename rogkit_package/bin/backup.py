@@ -19,7 +19,7 @@ from .bytes import byte_size
 DEFAULT_CONFIG = {
     "base_dirs": [os.path.expanduser("~")],
     "include_patterns": [".bash_aliases", ".bashrc"],
-    "exclude_patterns": ["__pycache__", ".git", "venv/", "Dropbox-Uploader", ".tar.gz", ".pyc", ".rst", "/usr/include", "/usr/lib"],
+    "exclude_patterns": ["__pycache__", ".git", "venv", "pyenv", "vscodes", "python-", "virtualenv", "site-packages", "Dropbox-Uploader", ".tar.gz", ".pyc", ".rst", "/usr/include", "/usr/lib", ".git"],
     "archive_dirs": ["/mnt/expansion/Archive/pi", 
                      "/mnt/archive/Archive/pi", 
                      "/mnt/c/Users/RogerDubar/Dropbox/Archive/wsl2",
@@ -43,10 +43,12 @@ class BackupUtility:
     report_text: str = 'Backup report not initialised'
 
     def __post_init__(self):
-        self.exclude_regex = re.compile("|".join(re.escape(p) for p in self.exclude_patterns), re.IGNORECASE)
+        joined_patterns = "|".join(self.exclude_patterns)
+        self.exclude_regex = re.compile(joined_patterns, re.IGNORECASE)
         self.set_backup_directories()  # sets up primary_archive_dir & secondary_archive_dirs
         self.backup_log = os.path.join(self.primary_archive_dir, 'backup.log')
         self.backup_text = os.path.join(self.primary_archive_dir, 'backup.txt')
+        self.exclude_regex = re.compile("|".join(self.exclude_patterns), re.IGNORECASE)
     
     def set_backup_directories(self):
         if not self.archive_dirs:
@@ -92,8 +94,7 @@ class BackupUtility:
             os.remove(temp_file_name)
 
     def should_include(self, file_path, base_dir):
-        # Determine if a file should be included
-        # Updated logic to use base_dir
+        # Determine if a file should be included with improved logic
         if os.path.basename(file_path) in self.include_files:
             return True
         for pattern in self.include_patterns:
@@ -306,6 +307,10 @@ class BackupUtility:
         if len(files_) > 5:
             print(self.report_text)       
         
+    def show_test(self):
+        print('Showing how many files would be backed up.')
+        self.init_backup()
+
     def show_include(self):
         self.init_backup()
         files_ = self.files_to_include
@@ -325,6 +330,7 @@ def main():
 
     # Common and important options are typically placed at the top
     parser.add_argument("-b", "--backup", action="store_true", help="Perform a backup")
+    parser.add_argument("-t", "--test", action="store_true", help="Test the backup utility")
     parser.add_argument("-x", "--extract", action="store_true", help="Extract the latest archive to test")
     parser.add_argument("--history", action="store_true", help="Show the history of the backup directory")
     parser.add_argument("-p", "--path", type=str, help="Specify a custom backup directory")
@@ -334,8 +340,9 @@ def main():
     parser.add_argument("-e", "--exclude", action="store_true", help="Show the files that would be excluded from the archives")
     parser.add_argument("-i", "--include", action="store_true", help="Show the files that would be incuded in the archive")
     parser.add_argument("-s", "--settings", action="store_true", help="Report current backup settings")
-    parser.add_argument("-t", "--text", action="store_true", help="Show the last backup.txt file")
     parser.add_argument("-l", "--log", action="store_true", help="Show the backup log")
+    parser.add_argument("--text", action="store_true", help="Show the last backup.txt file")
+    parser.add_argument("--add-exclude", nargs='*', help="Add additional exclude patterns")
     parser.add_argument("--debug", action="store_true", help="Run in debug mode.")
     short_help = 'Use: backup -b to run backup, backup -h for help.'
     args = parser.parse_args()
@@ -343,7 +350,14 @@ def main():
     print("Rog's New Backup Utility")
     backup_util = BackupUtility()
     print(backup_util.last_backup())
+
+    if args.add_exclude:
+        backup_util.exclude_patterns.extend(args.add_exclude)
+        backup_util.exclude_regex = re.compile("|".join(backup_util.exclude_patterns), re.IGNORECASE)
     
+    if args.test:
+        backup_util.show_test()
+
     if args.include:
         backup_util.show_include()
         
