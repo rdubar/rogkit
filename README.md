@@ -49,7 +49,6 @@ source ~/bashrc  # or source ~/.zshrc
 | bytes    | Bytes to KB/MB/GB | from bytes import byte_size           |
 | clean    | Clean translation |                                       |
 | clip     | Copy to clipboard | from clipboard import clipboard       |
-| config   | config .ini tool  | from config import read_config        |
 | empties  | Check for empties |                                       |
 | fakes    | Generate text etc | from fakes import fake_data           |
 | files    | Find files & dirs | from files import find_files          |
@@ -65,6 +64,7 @@ source ~/bashrc  # or source ~/.zshrc
 | spot     | Spotify cli tool  |                                       |
 | strike   | Strikethru text   | from strike import strikethru         |
 | tim      | Sync system clock |                                       |
+| tomltool | Display this info | from tomltool import load_rogkit_toml |
 | update   | Update system     |                                       |
 |          |                   |                                       |
 | rogkit   | Display this info |                                       |
