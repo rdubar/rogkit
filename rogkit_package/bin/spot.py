@@ -1,40 +1,97 @@
+import os
+import base64
+import requests
+from dataclasses import dataclass
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
-import os
 
 # Load environment variables
 load_dotenv()
 
+@dataclass
+class SpotifyClient:
+    client_id: str
+    client_secret: str
+    redirect_uri: str
+    scope: str = 'user-library-read'
+    cache_path: str = ".spotify_cache"  # Path for caching the token
 
-# Set your Spotify API credentials from the .env file
-CLIENT_ID = os.getenv('SPOTIFY_CLIENT_ID')
-CLIENT_SECRET = os.getenv('SPOTIFY_CLIENT_SECRET')
-REDIRECT_URI = os.getenv('SPOTIFY_REDIRECT_URI')
-SCOPE = os.getenv('SPOTIFY_SCOPE')
+    def __post_init__(self):
+        self.auth_manager = SpotifyOAuth(client_id=self.client_id,
+                                         client_secret=self.client_secret,
+                                         redirect_uri=self.redirect_uri,
+                                         scope=self.scope,
+                                         cache_path=self.cache_path)
 
-# Authenticate with Spotify
-try:
-    sp = spotipy.Spotify(auth_manager=SpotifyOAuth(client_id=CLIENT_ID,
-                                                   client_secret=CLIENT_SECRET,
-                                                   redirect_uri=REDIRECT_URI,
-                                                   scope=SCOPE))
-except Exception as e:
-    print(f"Error authenticating with Spotify: {e}")
-    exit(1)
+    def authenticate(self):
+        if not self.auth_manager.get_cached_token():
+            print('Please open the following URL in your browser to authorize access:')
+            print(self.auth_manager.get_authorize_url())
 
-# Function to get track names from a playlist
-def get_tracks_from_playlist(playlist_id):
-    tracks = []
-    results = sp.playlist_items(playlist_id)
-    while results:
-        for item in results['items']:
-            track = item['track']
-            tracks.append(track['name'] + ' - ' + track['artists'][0]['name'])
-        results = sp.next(results)
-    return tracks
+            try:
+                response = input('Enter the URL you were redirected to: ')
+                code = self.auth_manager.parse_response_code(response)
+                self.auth_manager.get_access_token(code)
+            except Exception as e:
+                print(f"Error during authentication: {e}")
+                exit(1)
+        
+        self.sp = spotipy.Spotify(auth_manager=self.auth_manager)
 
-def get_liked_songs():
+    def get_tracks_from_playlist(self, playlist_id):
+        tracks = []
+        results = self.sp.playlist_items(playlist_id)
+        while results:
+            for item in results['items']:
+                track = item['track']
+                tracks.append(track['name'] + ' - ' + track['artists'][0]['name'])
+            results = self.sp.next(results)
+        return tracks
+
+    def get_liked_songs(self):
+        tracks = []
+        results = self.sp.current_user_saved_tracks()
+        while results:
+            for item in results['items']:
+                track = item['track']
+                tracks.append(track['name'] + ' - ' + track['artists'][0]['name'])
+            results = self.sp.next(results)
+        return tracks
+
+    def refresh_token(self):
+        url = "https://accounts.spotify.com/api/token"
+        headers = {'Authorization': f'Basic {self.encoded_credentials}'}
+        payload = {'grant_type': 'refresh_token', 'refresh_token': self.refresh_token}
+        response = requests.post(url, headers=headers, data=payload)
+
+        if response.status_code == 200:
+            self.access_token = response.json()['access_token']
+            print("New access token obtained:", self.access_token)
+        else:
+            raise Exception(f"Token refresh failed: {response.text}")
+        
+    def get_access_token(self, authorization_code):
+        """Exchange the authorization code for an access token."""
+        url = "https://accounts.spotify.com/api/token"
+        headers = {'Authorization': f'Basic {self.encoded_credentials}'}
+        data = {
+            'grant_type': 'authorization_code',
+            'code': authorization_code,
+            'redirect_uri': self.redirect_uri
+        }
+        response = requests.post(url, headers=headers, data=data)
+        if response.status_code == 200:
+            self.access_token = response.json()['access_token']
+            self.refresh_token = response.json().get('refresh_token')
+            print("Access token obtained:", self.access_token)
+            return self.access_token
+        else:
+            raise Exception(f"Failed to get access token: {response.text}")
+
+
+# Function to get liked songs
+def get_liked_songs(sp):
     tracks = []
     results = sp.current_user_saved_tracks()
     while results:
@@ -44,16 +101,15 @@ def get_liked_songs():
         results = sp.next(results)
     return tracks
 
+# Usage example
+client = SpotifyClient(
+    client_id=os.getenv('SPOTIFY_CLIENT_ID'),
+    client_secret=os.getenv('SPOTIFY_CLIENT_SECRET'),
+    redirect_uri=os.getenv('SPOTIFY_REDIRECT_URI')
+)
+
 print("Rog's Experimental Spotify Playlist Duplicator")
-
-# Get liked songs
-try:
-    liked_songs = get_liked_songs()
-except Exception as e:
-    print(f"Error fetching liked songs: {e}")
-    exit(1)
-
-# Find duplicates
+client.authenticate()
+liked_songs = client.get_liked_songs()
 duplicates = set([song for song in liked_songs if liked_songs.count(song) > 1])
-
 print("Duplicated songs in Liked Songs:", duplicates)
