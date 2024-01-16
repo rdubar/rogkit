@@ -26,20 +26,18 @@ def resize_image(img, max_size):
     img.thumbnail((max_size, max_size))
     return img
 
-def compress_image(image):
+def compress_image(image, max_size):
     """Compress the image to a file size less than 110KB."""
     quality = 85
     buffer = io.BytesIO()
     image.save(buffer, format="JPEG", quality=quality)
-    while buffer.getbuffer().nbytes > 110000 and quality > 10:
+    while buffer.getbuffer().nbytes > max_size and quality > 10:
         buffer = io.BytesIO()
         quality -= 5
         image.save(buffer, format="JPEG", quality=quality)
-        if quality <= 10:
-            break
     return buffer
 
-def process_images(directory, confirm):
+def process_images(directory, confirm, max_size):
     """Process each image file in the directory."""
     files = list_image_files(directory)
     if not confirm:
@@ -59,7 +57,7 @@ def process_images(directory, confirm):
         else:
             img = Image.open(path)
         resized_img = resize_image(img, 800)
-        compressed_img = compress_image(resized_img)
+        compressed_img = compress_image(resized_img, max_size)
 
         output_filename = file.rsplit('.', 1)[0] + "-imager.jpg"
         output_path = os.path.join(directory, output_filename)
@@ -78,15 +76,16 @@ def main():
     parser.add_argument("directory", nargs='?', default=".", help="Directory to process (default: current directory)")
     parser.add_argument("-c", "--confirm", action="store_true", help="Confirm processing of files")
     parser.add_argument("-d", "--debug", action="store_true", help="Run in debug mode (show full errors)")
+    parse_args = parser.add_argument("-s", "--size", nargs='?', default=110, help="Set the max size of the image in KB (default: 110KB)")
     args = parser.parse_args()
 
     print("Resize image files in a directory and convert them to JPEG.")
     if args.debug:
         print("Debug mode enabled.")
-        process_images(args.directory, args.confirm)
+        process_images(args.directory, args.confirm, args.size)
     else:
         try:
-            process_images(args.directory, args.confirm)
+            process_images(args.directory, args.confirm, args.size)
         except Exception as e:
             print("An error occurred:", e)
             print("Use -d or --debug to see the full error.")
