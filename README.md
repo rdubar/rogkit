@@ -70,7 +70,6 @@ source ~/bashrc  # or source ~/.zshrc
 ### Known Issues:
 
 * backup: not excluding files correctly? Add test showing what would be archived
-* media: adding duplicate entries? Not handling multiple platforms correctly?
 
 ### Experimental Commands:
 

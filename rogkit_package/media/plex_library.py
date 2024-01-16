@@ -227,9 +227,9 @@ class PlexLibrary:
             self.session.rollback()
 
     def remove_duplicates(self):
-        # Find duplicates based on 'plex_guid'
+        # Find duplicates based on 'plex_guid' but ignore records with no plex_guid
+        duplicates = self.session.query(PlexRecordORM.plex_guid).filter(PlexRecordORM.plex_guid != None).group_by(PlexRecordORM.plex_guid).having(func.count() > 1).all()
         removed = 0
-        duplicates = self.session.query(PlexRecordORM.plex_guid).group_by(PlexRecordORM.plex_guid).having(func.count() > 1).all()
         for dup in duplicates:
             # Keep only the first record and remove others
             dup_records = self.session.query(PlexRecordORM).filter_by(plex_guid=dup.plex_guid).all()
