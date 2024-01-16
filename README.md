@@ -54,6 +54,7 @@ source ~/bashrc  # or source ~/.zshrc
 | fakes    | Generate text etc | from fakes import fake_data           |
 | files    | Find files & dirs | from files import find_files          |
 | heic     | Fix heics to jpgs |                                       |
+| imager   | Resize images     |                                       |
 | loc      | Show locale info  | from location import get_weather_data |
 | media    | Media Libary      |                                       |
 | purge    | Purge files       | from purge import delete_files        |
