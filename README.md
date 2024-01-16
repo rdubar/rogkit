@@ -49,6 +49,7 @@ source ~/bashrc  # or source ~/.zshrc
 | bytes    | Bytes to KB/MB/GB | from bytes import byte_size           |
 | clean    | Clean translation |                                       |
 | clip     | Copy to clipboard | from clipboard import clipboard       |
+| config   | config .ini tool  | from config import read_config        |
 | empties  | Check for empties |                                       |
 | fakes    | Generate text etc | from fakes import fake_data           |
 | files    | Find files & dirs | from files import find_files          |
@@ -61,6 +62,7 @@ source ~/bashrc  # or source ~/.zshrc
 | rcase    | rANdoMcAse text   | from randomcase import randomcase     |
 | search   | Search for text   | from search import search_folder      |
 | seconds  | Seconds to H/M/S  | from seconds import convert_seconds   |
+| spot     | Spotify cli tool  |                                       |
 | strike   | Strikethru text   | from strike import strikethru         |
 | tim      | Sync system clock |                                       |
 | update   | Update system     |                                       |
@@ -71,10 +73,8 @@ source ~/bashrc  # or source ~/.zshrc
 
 * backup: not excluding files correctly? Add test showing what would be archived
 
-### Experimental Commands:
+### Experimental
 
-* config.py - deal with configuration files
-* spot.py - attempt to use the Spotify API
-
+* bac: a better, simpler backup. Test code. 
 
 Roger D.

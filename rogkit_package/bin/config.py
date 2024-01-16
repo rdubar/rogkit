@@ -9,6 +9,7 @@ def create_default_config(config_file_path):
     config = configparser.ConfigParser(allow_no_value=True)
     config['BackupFrom'] = { 'primary' : '~/' }  # Add default directories if needed
     config['BackupTo'] = {'primary' : '~/archive/' }  # Add default directories if needed
+    print(f'Creating default config file at {config_file_path}')
     with open(config_file_path, 'w') as configfile:
         config.write(configfile)
 
@@ -56,8 +57,7 @@ def read_config(config_file_path):
         print(f'Error reading config file {config_file_path}: {e}')
         return None
 
-    print(vars(config))
-    return config
+    return config.items()
 
 
 def main():
@@ -66,12 +66,18 @@ def main():
     script_dir_config_path = os.path.join(script_dir, rog_kit_ini)
     user_home_rogkit_ini = get_user_config_path()
 
+    print('Ri=ogkit Config Tool')
+
     if args.reset:
         reset_config(user_home_rogkit_ini, script_dir_config_path)
     else:
         setup_config(script_dir_config_path, user_home_rogkit_ini)
 
-    read_config(user_home_rogkit_ini)
+    config = read_config(user_home_rogkit_ini)
+
+    print('Config:')
+    for items in config:
+        print(items)
 
 if __name__ == '__main__':
     main()

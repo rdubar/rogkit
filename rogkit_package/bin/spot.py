@@ -1,5 +1,6 @@
 import os
 import base64
+import argparse
 import requests
 from dataclasses import dataclass
 import spotipy
@@ -88,6 +89,14 @@ class SpotifyClient:
             return self.access_token
         else:
             raise Exception(f"Failed to get access token: {response.text}")
+        
+def get_args():
+    parser = argparse.ArgumentParser(description='Rog Kit Spotify Playlist Tool')
+    parser.add_argument('-p', '--playlist', help='Playlist ID')
+    parser.add_argument('-l', '--liked', action='store_true', help='Get liked songs')
+    parser.add_argument('-d', '--duplicates', action='store_true', help='List duplicates')
+    parser.add_argument('--list', action='store_true', help='List liked songs')
+    return parser.parse_args()
 
 
 # Function to get liked songs
@@ -101,15 +110,33 @@ def get_liked_songs(sp):
         results = sp.next(results)
     return tracks
 
-# Usage example
-client = SpotifyClient(
-    client_id=os.getenv('SPOTIFY_CLIENT_ID'),
-    client_secret=os.getenv('SPOTIFY_CLIENT_SECRET'),
-    redirect_uri=os.getenv('SPOTIFY_REDIRECT_URI')
-)
+def main():
+    args = get_args()
+    # Usage example
+    client = SpotifyClient(
+        client_id=os.getenv('SPOTIFY_CLIENT_ID'),
+        client_secret=os.getenv('SPOTIFY_CLIENT_SECRET'),
+        redirect_uri=os.getenv('SPOTIFY_REDIRECT_URI')
+    )
 
-print("Rog's Experimental Spotify Playlist Duplicator")
-client.authenticate()
-liked_songs = client.get_liked_songs()
-duplicates = set([song for song in liked_songs if liked_songs.count(song) > 1])
-print("Duplicated songs in Liked Songs:", duplicates)
+    print("Rog's Experimental Spotify Playlist Tool")
+    client.authenticate()
+    liked_songs = client.get_liked_songs()
+
+    print("Total songs in Liked Songs:", len(liked_songs))
+
+    if args.duplicates:
+        duplicates = set([song for song in liked_songs if liked_songs.count(song) > 1])
+        if len(duplicates) > 0:
+            print(f'Found {len(duplicates)} duplicates:')
+            for song in duplicates:
+                print(song)
+        else:
+            print('No duplicates found.')
+
+    if args.list:
+        for song in liked_songs:
+            print(song)
+
+if __name__ == '__main__':
+    main()
