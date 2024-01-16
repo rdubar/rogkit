@@ -77,10 +77,20 @@ def main():
     parser = argparse.ArgumentParser(description="Resize and convert HEIC files to JPEG.")
     parser.add_argument("directory", nargs='?', default=".", help="Directory to process (default: current directory)")
     parser.add_argument("-c", "--confirm", action="store_true", help="Confirm processing of files")
+    parser.add_argument("-d", "--debug", action="store_true", help="Run in debug mode (show full errors)")
     args = parser.parse_args()
 
     print("Resize image files in a directory and convert them to JPEG.")
-    process_images(args.directory, args.confirm)
+    if args.debug:
+        print("Debug mode enabled.")
+        process_images(args.directory, args.confirm)
+    else:
+        try:
+            process_images(args.directory, args.confirm)
+        except Exception as e:
+            print("An error occurred:", e)
+            print("Use -d or --debug to see the full error.")
+            exit(1)
     if not args.confirm:
         print("Use -c or --confirm to process the files.")
 
