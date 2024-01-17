@@ -46,6 +46,11 @@ def main():
         return
 
     script_path = '/home/rdubar/projects/pythonProject/openerp-addons/src/scripts/translation_clean.sh'
+
+    if not os.path.exists(script_path):
+        print(f"Script path {script_path} does not exist. Exiting.")
+        return
+
     for path in recent_files:
         print(f'Running translation_clean.sh on {path}')
         command = f'{script_path} {path}'
