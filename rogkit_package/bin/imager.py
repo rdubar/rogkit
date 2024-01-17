@@ -59,8 +59,12 @@ def process_images(directory, confirm, max_size):
         resized_img = resize_image(img, 800)
         compressed_img = compress_image(resized_img, max_size)
 
-        output_filename = file.rsplit('.', 1)[0] + "-imager.jpg"
+        output_filename = file.rsplit('.', 1)[0] + "-{max_size}.jpg"
         output_path = os.path.join(directory, output_filename)
+
+        if os.path.exists(output_path):
+            print(f'Skipping:{output_path} already exists.')
+            continue
 
         with open(output_path, 'wb') as f:
             f.write(compressed_img.getvalue())
