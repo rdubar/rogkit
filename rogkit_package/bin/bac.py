@@ -1,6 +1,8 @@
 
 import os
 
+from ..bin.tomlr import load_rogkit_toml
+
 EXCLUDE_PATTERNS = [
         'Library',
         '.DS_Store',

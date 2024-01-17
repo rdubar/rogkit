@@ -4,6 +4,8 @@ import os
 from dotenv import load_dotenv
 from plexapi.server import PlexServer as PlexAPIServer
 
+from ..bin.tomlr import load_rogkit_toml
+
 load_dotenv()
 
 @dataclasses.dataclass
@@ -14,8 +16,9 @@ class PlexServer:
     connection: PlexAPIServer = dataclasses.field(init=False, default=None)
 
     def __post_init__(self):
-        self.url = self.url or os.environ.get("PLEX_SERVER_URL", "localhost")
-        self.token = self.token or os.environ.get("PLEX_SERVER_TOKEN")
+        toml = load_rogkit_toml()
+        self.url = self.url or toml.get('plex', {}).get('plex_server_url', '') or os.environ.get("PLEX_SERVER_URL", "localhost")
+        self.token = self.token or toml.get('plex', {}).get('plex_server_token', '') or os.environ.get("PLEX_SERVER_TOKEN")
         self.port = int(self.port or os.environ.get("PLEX_SERVER_PORT", 32400))
         if not self.url.startswith("http"):
             self.url = f"http://{self.url}"

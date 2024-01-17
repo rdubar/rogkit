@@ -7,6 +7,10 @@ from dataclasses import dataclass
 import argparse
 from dotenv import load_dotenv
 
+from ..bin.tomlr import load_rogkit_toml
+
+TOML = load_rogkit_toml()
+
 # Load environment variables
 load_dotenv()
 
@@ -43,14 +47,14 @@ def fetch_weather_data(city, api_key):
         return None
 
 def get_weather_data(api_key='', options=['weather', 'pressure']):
-    location_api_key = os.getenv('IPINFO_API_KEY', api_key)
+    location_api_key = TOML.get('location', {}).get('ipinfo_api_key', '') or os.getenv('IPINFO_API_KEY', api_key)
     location_data = fetch_location_data(location_api_key)
     
     if not location_data:
         return None
 
     city = location_data['city']
-    weather_api_key = os.getenv('OPENWEATHER_API_KEY', api_key)
+    weather_api_key = TOML.get('weather', {}).get('openweather_api_key', '') or os.getenv('OPENWEATHER_API_KEY', api_key)
     weather_data = fetch_weather_data(city, weather_api_key)
 
     if not weather_data:

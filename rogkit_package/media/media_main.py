@@ -2,6 +2,7 @@
 import datetime
 from .media_records import PlexRecordORM
 from .plex_library import PlexLibrary, update_database_schema, engine
+from .plex_server import PlexServer
 
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
@@ -12,6 +13,10 @@ def main():
     args, search_text = process_arguments()
 
     plex_library = PlexLibrary()
+
+    if args.conn:
+        server = PlexServer()
+        print(server.get_connection())
 
     if args.debug:
         # Do debug stuff here

@@ -7,6 +7,8 @@ import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
 
+from ..bin.tomlr import load_rogkit_toml
+
 # Load environment variables
 load_dotenv()
 
@@ -114,12 +116,17 @@ def main():
     args = get_args()
     # Usage example
 
+    toml = load_rogkit_toml()
+    client_id = toml.get('spotify', {}).get('spotify_client_id', '') 
+    client_secret = toml.get('spotify', {}).get('spotify_client_secret', '')
+    redirect_uri = toml.get('spotify', {}).get('spotify_redirect_uri', '')
+
     print("Rog's Experimental Spotify Playlist Tool")
     try:
         client = SpotifyClient(
-            client_id=os.getenv('SPOTIFY_CLIENT_ID'),
-            client_secret=os.getenv('SPOTIFY_CLIENT_SECRET'),
-            redirect_uri=os.getenv('SPOTIFY_REDIRECT_URI')
+            client_id = client_id or os.getenv('SPOTIFY_CLIENT_ID'),
+            client_secret = client_secret or os.getenv('SPOTIFY_CLIENT_SECRET'),
+            redirect_uri = redirect_uri or os.getenv('SPOTIFY_REDIRECT_URI')
         )
     except Exception as e:
         print(f"Error creating Spotify client: {e}")

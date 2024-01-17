@@ -23,6 +23,7 @@ def process_arguments():
     
     # Mode options
     parser.add_argument('-V', '--verbose', action='store_true', help='Verbose mode')
+    parser.add_argument('--conn', action='store_true', help='Test Plex server connection')
     parser.add_argument('--debug', action='store_true', help='Debug mode')
     
     args, search_terms = parser.parse_known_args()

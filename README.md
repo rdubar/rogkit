@@ -76,7 +76,7 @@ source ~/bashrc  # or source ~/.zshrc
 * media: on update only commit when upgrade is complete?
 * media: use ~/.rogkit.toml
 * media: rename plex_library  / PlexLibrary to media_library / MediaLibrary
-* toml: use in media, loc, backup, spot
+* toml: use in backup
 
 ### Experimental
 
