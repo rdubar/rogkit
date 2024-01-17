@@ -18,7 +18,7 @@ from .bytes import byte_size
 
 DEFAULT_CONFIG = {
     "base_dirs": [os.path.expanduser("~")],
-    "include_patterns": [".bash_aliases", ".bashrc"],
+    "include_patterns": [".bash_aliases", ".bashrc", "/rogkit.toml", ".ssh"],
     "exclude_patterns": ["__pycache__", ".git", "venv", "pyenv", "vscodes", "python-", "virtualenv", "site-packages", "Dropbox-Uploader", ".tar.gz", ".pyc", ".rst", "/usr/include", "/usr/lib", ".git"],
     "archive_dirs": ["/mnt/expansion/Archive/pi", 
                      "/mnt/archive/Archive/pi", 
