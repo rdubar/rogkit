@@ -4,11 +4,13 @@ import argparse
 import sys
 
 DEFAULT_ROGKIT_TOML = {
-    "BackupFrom": {"primary": "~/"},
-    "BackupTo": {"primary": "~/archive/"},
-    "Plex": {"PLEX_SERVER_URL": "", "PLEX_SERVER_TOKEN": ""},
-    "OpenWeather": {"OPENWEATHER_API_KEY": ""},
-    "ipinfo": {"IPINFO_API_KEY": ""}
+    "backup" : { 
+        "backup_from": ["~/"],
+        "backup_to": ["~/archive/"],
+    },
+    "plex": {"plex_server_url": "", "plex_server_token": ""},
+    "openweather": {"openweather_api_key": ""},
+    "ipinfo": {"ipinfo_api_key": ""}
 }
 
 def user_rogkit_toml_path():
