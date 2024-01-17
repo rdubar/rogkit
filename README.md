@@ -72,6 +72,7 @@ source ~/bashrc  # or source ~/.zshrc
 ### Known Issues:
 
 * backup: not excluding files correctly? Add test showing what would be archived
+* media -R throws warnings, --update not implemented
 
 ### Experimental
 
