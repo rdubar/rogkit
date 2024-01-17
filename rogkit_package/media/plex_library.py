@@ -5,15 +5,11 @@ import time
 import csv
 
 from tqdm import tqdm
-from dotenv import load_dotenv
-
 from sqlalchemy import func, text, or_
 
 from .plex_server import PlexServer
 from .media_records import PlexRecordORM, PlexRecord, common_schema, get_possible_attributes 
 from .database_utils import Base, engine, Session, script_dir, update_database_schema
-
-load_dotenv()
 
 
 @dataclasses.dataclass

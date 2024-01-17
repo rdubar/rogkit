@@ -64,15 +64,19 @@ source ~/bashrc  # or source ~/.zshrc
 | spot     | Spotify cli tool  |                                       |
 | strike   | Strikethru text   | from strike import strikethru         |
 | tim      | Sync system clock |                                       |
-| tomltool | Display this info | from tomltool import load_rogkit_toml |
+| tomlr    | Rogkit TOML tools | from tomlr import load_rogkit_toml    |
 | update   | Update system     |                                       |
 |          |                   |                                       |
 | rogkit   | Display this info |                                       |
 
-### Known Issues:
+### TODO
 
 * backup: not excluding files correctly? Add test showing what would be archived
-* media -R throws warnings, --update not implemented
+* media: -R throws warnings, --update not implemented
+* media: on update only commit when upgrade is complete?
+* media: use ~/.rogkit.toml
+* media: rename plex_library  / PlexLibrary to media_library / MediaLibrary
+* toml: use in media, loc, backup, spot
 
 ### Experimental
 

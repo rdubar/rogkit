@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 import dataclasses
 import os
+from dotenv import load_dotenv
 from plexapi.server import PlexServer as PlexAPIServer
 
+load_dotenv()
 
 @dataclasses.dataclass
 class PlexServer:
