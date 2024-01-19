@@ -7,7 +7,11 @@ from .bytes import byte_size
 
 def list_image_files(directory):
     """List all HEIC, webp, jpg and jpeg files in the given directory."""
-    return [file for file in os.listdir(directory) if file.lower().endswith(('.heic', '.webp', '.jpg', '.jpeg'))]
+    try:
+        return [file for file in os.listdir(directory) if file.lower().endswith(('.heic', '.webp', '.jpg', '.jpeg'))]
+    except Exception as e:
+        print(f"Error listing files in {directory}: {e}")
+        exit(1)
 
 def read_heic_file(input_image_path):
     """Read a HEIC file and convert it to a PIL Image object."""
@@ -23,8 +27,12 @@ def read_heic_file(input_image_path):
 
 def resize_image(img, max_size):
     """Resize the image to the given maximum size."""
-    img.thumbnail((max_size, max_size))
-    return img
+    try:
+        img.thumbnail((max_size, max_size))
+        return img
+    except Exception as e:
+        print(f"Error resizing image: {e}")
+        exit(1)
 
 def compress_image(image, max_size):
     """Compress the image to a file size less than 110KB."""
@@ -40,6 +48,9 @@ def compress_image(image, max_size):
 def process_images(directory, confirm, max_size):
     """Process each image file in the directory."""
     files = list_image_files(directory)
+    if confirm and not files:
+        print("No image files found in the directory.")
+        return
     if not confirm:
         print("Files to be processed:", files)
         return
@@ -57,7 +68,11 @@ def process_images(directory, confirm, max_size):
         else:
             img = Image.open(path)
         resized_img = resize_image(img, 800)
-        compressed_img = compress_image(resized_img, max_size)
+        try:
+            compressed_img = compress_image(resized_img, max_size)
+        except Exception as e:
+            print(f"Error compressing image: {e}")
+            exit(1)
 
         output_filename = file.rsplit('.', 1)[0] + f"-{max_size}.jpg"
         output_path = os.path.join(directory, output_filename)
@@ -83,7 +98,7 @@ def main():
     parse_args = parser.add_argument("-s", "--size", nargs='?', default=110, help="Set the max size of the image in KB (default: 110KB)")
     args = parser.parse_args()
 
-    print("Resize image files in a directory and convert them to JPEG.")
+    print(f"Resize image files in a directory and convert them to JPEGs with a maxium size of {args.size}kb.")
     if args.debug:
         print("Debug mode enabled.")
         process_images(args.directory, args.confirm, args.size)
