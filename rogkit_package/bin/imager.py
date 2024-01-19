@@ -59,7 +59,7 @@ def process_images(directory, confirm, max_size):
         resized_img = resize_image(img, 800)
         compressed_img = compress_image(resized_img, max_size)
 
-        output_filename = file.rsplit('.', 1)[0] + "-{max_size}.jpg"
+        output_filename = file.rsplit('.', 1)[0] + f"-{max_size}.jpg"
         output_path = os.path.join(directory, output_filename)
 
         if os.path.exists(output_path):
