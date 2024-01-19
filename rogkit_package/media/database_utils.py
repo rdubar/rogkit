@@ -4,6 +4,8 @@ from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
+from .media_settings import db_url
+
 Base = declarative_base()
 
 def create_database(engine_url):
@@ -39,11 +41,6 @@ def initialize_database(engine_url):
             print(f"Error during table creation: {e}")
             update_database_schema(engine)
     return engine
-
-# Define the path for your database
-script_dir = os.path.dirname(os.path.abspath(__file__))
-db_path = os.path.join(script_dir, 'media_library.db')
-db_url = f'sqlite:///{db_path}'
 
 # Initialize the database and create a session factory
 engine = initialize_database(db_url)

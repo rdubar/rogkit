@@ -9,7 +9,8 @@ from sqlalchemy import func, text, or_
 
 from .plex_server import PlexServer
 from .media_records import PlexRecordORM, PlexRecord, common_schema, get_possible_attributes 
-from .database_utils import Base, engine, Session, script_dir, update_database_schema
+from .database_utils import Base, engine, Session, update_database_schema
+from .media_settings import additional_media_csv
 
 
 @dataclasses.dataclass
@@ -263,9 +264,8 @@ class PlexLibrary:
             return [row for row in reader]  # This creates a list of dictionaries
 
     def load_additional_media(self):
-        data_file = os.path.join(script_dir, 'media.csv')
         try:
-            media = self._load_csv_to_dict(data_file)
+            media = self._load_csv_to_dict(additional_media_csv)
         except Exception as e:
             print(f"Error loading additional media: {e}")
             return
@@ -292,4 +292,4 @@ class PlexLibrary:
                 self.save_record_to_db(record)
                 loaded += 1
 
-        print(f'Updated {updated} existing items and loaded {loaded} new items from {data_file}')
+        print(f'Updated {updated} existing items and loaded {loaded} new items from {additional_media_csv}')
