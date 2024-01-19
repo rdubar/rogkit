@@ -107,6 +107,9 @@ def main():
     results_text = 'results' if len(results) > 1 else 'result'
     print(f"Showing {number_text} {results_text}{matches_text} from {total_records:,} total records. Sort order: {sort_by} {reverse_text}")
     for result in results[:args.number]:
+        if args.info:
+            print(result.info())
+            continue
         print(result)  
         if args.summary:
             print(result.summary)

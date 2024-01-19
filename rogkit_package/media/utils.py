@@ -12,6 +12,7 @@ def process_arguments():
     # Display options
     parser.add_argument('-a', '--all', action='store_true', help='Show all records')
     parser.add_argument('-d', '--dvd', action='store_true', help='Show uncompressed DVDs')
+    parser.add_argument('-i', '--info', action='store_true', help='Show info for a title')  
     parser.add_argument('-l', '--latest', action='store_true', help='Show latest additions')
     parser.add_argument('-r', '--reverse', action='store_true', help='Show reverse order')
     parser.add_argument('-t', '--title', action='store_true', help='sort by title')

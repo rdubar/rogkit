@@ -2,6 +2,7 @@ import dataclasses
 from sqlalchemy import Column, Integer, Boolean, String, DateTime, Integer
 from .database_utils import Base
 from ..bin.bytes import byte_size
+from ..bin.seconds import convert_seconds
 
 common_schema = {
     'id': (Integer, {'primary_key': True, 'default': None}),
@@ -68,6 +69,21 @@ class PlexRecordORM(Base):
         resolution_str = f" {self.resolution}" if self.resolution else ""
         size_str = f" {byte_size(self.size)}" if self.size else ""
         return f"{self.platform:7}{size_str:>10} {resolution_str:<6}    {self.title}{year_str}"
+    
+    def info(self):
+        # Customize the string representation of PlexRecord
+        year_str = f" ({self.year})" if self.year else ""
+        resolution_str = f" {self.resolution}" if self.resolution else ""
+        size_str = f" {byte_size(self.size)}" if self.size else ""
+        # Convert duration from milliseconds to seconds, but round to the nearest minute
+        time_str = convert_seconds((self.duration / 1000)) if self.duration else ""
+        information = f'{self.title}{year_str}, d. {self.directors},'
+        information += f'w. {self.writers}, a. {self.actors}, {self.genres}'
+        information += f'\n{self.summary} {time_str} {size_str} {resolution_str}\n'
+        return information
+
+
+        return f"{size_str:>10} {resolution_str:<6}    {self.title}{year_str}"
 
 def get_possible_attributes():
     return [f.name for f in dataclasses.fields(PlexRecord)]

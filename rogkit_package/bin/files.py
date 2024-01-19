@@ -70,6 +70,7 @@ def main():
     clock = time.perf_counter()
     report = find_files(folders, args.texts)
     report.display_files(number=args.number, all=args.all)
+    print(f"Completed in {time.perf_counter() - clock:.2f} seconds.")
 
 if __name__ == "__main__":
     main()
