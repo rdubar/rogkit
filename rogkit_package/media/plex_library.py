@@ -162,6 +162,39 @@ class PlexLibrary:
                         size = getattr(part, 'size', None) 
                         print(size)
         return libraries
+    
+    def _process_attributes(self, item, possible_attributes, library):
+        attributes = {attr: self.process_list(getattr(item, attr, None)) 
+                    for attr in possible_attributes if hasattr(item, attr)}
+        for key in common_schema.keys():
+            attributes.setdefault(key, None)
+        attributes['library'] = library.title
+        attributes['section'] = library.title 
+        attributes['plex_guid'] = getattr(item, 'guid', None)
+        attributes['platform'] = 'plex'
+        attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
+        attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
+        attributes['extras'] = hasattr(item, 'extras')
+        
+        # Extract video media information
+        if hasattr(item, 'media'):
+            media = item.media[0]  # Assuming we take the first media object
+            attributes['resolution'] = f"{media.videoResolution}"  
+            attributes['bitrate'] = media.bitrate
+            attributes['codec'] = media.videoCodec
+            if attributes['codec'] == 'mpeg2video':
+                attributes['resolution'] += '*'
+
+            if hasattr(media, 'parts'):
+                part = media.parts[0]
+                attributes['size'] = getattr(part, 'size', None)   
+
+        # get the file size from parts
+        if hasattr(item, 'parts'):
+            part = item.parts[0]  # Assuming we take the first part
+            attributes['size'] = getattr(part, 'size', None)
+            
+        return attributes
 
     def populate_database(self):
         self.connect_to_plex()
@@ -176,37 +209,7 @@ class PlexLibrary:
         clock = time.perf_counter()
         for library in libraries:  # Loop over each library
             for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
-                attributes = {attr: self.process_list(getattr(item, attr, None)) 
-                            for attr in possible_attributes if hasattr(item, attr)}
-                for key in common_schema.keys():
-                    attributes.setdefault(key, None)
-                attributes['library'] = library.title
-                attributes['section'] = library.title 
-                attributes['plex_guid'] = getattr(item, 'guid', None)
-                attributes['platform'] = 'plex'
-                attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
-                attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
-                attributes['extras'] = hasattr(item, 'extras')
-                
-                # Extract video media information
-                if hasattr(item, 'media'):
-                    media = item.media[0]  # Assuming we take the first media object
-                    attributes['resolution'] = f"{media.videoResolution}"  
-                    attributes['bitrate'] = media.bitrate
-                    attributes['codec'] = media.videoCodec
-                    if attributes['codec'] == 'mpeg2video':
-                        attributes['resolution'] += '*'
-
-                    if hasattr(media, 'parts'):
-                        part = media.parts[0]
-                        attributes['size'] = getattr(part, 'size', None)   
-
-                # get the file size from parts
-                if hasattr(item, 'parts'):
-                    part = item.parts[0]  # Assuming we take the first part
-                    attributes['size'] = getattr(part, 'size', None)
-                    
-
+                attributes = self._process_attributes(item, possible_attributes, library)
                 record = PlexRecord(**attributes)
                 self.save_record_to_db(record)
         

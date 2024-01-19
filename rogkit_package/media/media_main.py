@@ -33,6 +33,8 @@ def main():
             return
         update_database_schema(engine)
         plex_library.reset_database()
+        print("Database reset.")
+        return
     elif args.update:
         plex_library.update_database()
 
