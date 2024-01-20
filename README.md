@@ -66,6 +66,7 @@ source ~/bashrc  # or source ~/.zshrc
 | tim      | Sync system clock |                                       |
 | tomlr    | Rogkit TOML tools | from tomlr import load_rogkit_toml    |
 | update   | Update system     |                                       |
+| yout     | Youtube download  |                                       |
 |          |                   |                                       |
 | rogkit   | Display this info |                                       |
 

@@ -60,6 +60,15 @@ def convert_seconds(seconds, long=False, end='.'):
     else:
         return "0 seconds" + end
 
+def hours_minutes_seconds(seconds):
+    # return H:M:S for seconds
+    seconds = int(seconds)
+    hours = seconds // 3600
+    seconds %= 3600
+    minutes = seconds // 60
+    seconds %= 60
+    return f"{hours}:{minutes:02}:{seconds:02}"
+
 if __name__ == "__main__":
     if len(sys.argv) > 1:
         try:
