@@ -1,184 +1,121 @@
 #!/home/pi/.env/bin/python
 
-import os, argparse, time, datetime
+import os
+import argparse
+import time
+import datetime
+import toml
 from yt_dlp import YoutubeDL
 from requests_html import HTMLSession
 from colorama import init, Fore
 
-init(autoreset=True)  # colorama
+# Initialize colorama
+init(autoreset=True)
 
-ytdlp_options = {
-    "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-    "outtmpl": "%(title)s-%(id)s.%(ext)s",
-}
+class Config:
+    def __init__(self, config_file):
+        try:
+            self.config = toml.load(config_file)
+            self.temp_folder = self.config['yout']['temp_folder']
+            self.download_folder = self.config['yout']['download_folder']
+            self.default_input_file = self.config['yout']['default_input_file']
+        except Exception as e:
+            print(Fore.RED + f"Failed to load config file: {e}")
+            exit(1)
 
+    def get_download_options(self):
+        return {
+            "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
+            "outtmpl": "%(title)s-%(id)s.%(ext)s",
+        }
 
 def get_title_from_url(url):
-    return HTMLSession().get(url).html.find("title", first=True).text
+    try:
+        return HTMLSession().get(url).html.find("title", first=True).text
+    except Exception as e:
+        print(Fore.RED + f"Error fetching title: {e}")
+        return None
 
-
-SAVE_TO = [
-    ("/mnt/expansion/Incomplete", "/mnt/expansion/Media/Incoming"),
-    ("/Users/Roger/usr/temp", "/Users/roger/Downloads"),
-    ("/home/rdubar/temp", "/home/rdubar/incoming"),
-]
-
-DEFAULT_FILE = "/home/pi/usr/media/data/movies.txt"
-
-
-def set_directory(*dirs, default=False):
-    """
-    Set directory to the first available from the list provided
-    Return the incoming folder
-    """
-    if not default:
-        default = SAVE_TO
-    if not dirs:
-        dirs = default
-    if type(dirs) != list:
-        dirs = [dirs]
-    incoming = None
-    for location in dirs:
-        if isinstance(location, (list, tuple)) and len(location) > 0:
-            directory = location[0]
-        else:
-            directory = location
-        if os.path.isdir(directory):
-            try:
-                os.chdir(directory)
-                incoming = location[1]
-                break
-            except Exception as e:
-                print(Fore.RED + f"Failed to change directory to {directory} {e}")
-    else:
-        print(Fore.RED + f"Unable to set output directory to {directory}")
-    print(Fore.BLUE + "Output directory: ", os.getcwd())
-    return incoming
-
+def set_directory(directory):
+    try:
+        os.chdir(directory)
+        print(Fore.BLUE + "Output directory: ", os.getcwd())
+    except Exception as e:
+        print(Fore.RED + f"Failed to change directory: {e}")
+        return False
+    return True
 
 def showtime(s: float) -> str:
-    """return seconds (s) as H:M:S or seconds < 10"""
     return f"{s:.5f} seconds" if s < 10 else datetime.timedelta(seconds=s)
 
+def process_lines(lines, config):
+    incoming = config.download_folder
+    set_directory(incoming)
 
-def get_movies(search, default=DEFAULT_FILE, verbose=False):
-    # is search term a file?
+    print(lines)
+
+    for line in lines:
+        if "http" in line.lower():
+            process_url(line, config)
+
+def process_url(url, config):
+    title = get_title_from_url(url)
+    if not title:
+        return
+    print(Fore.GREEN + "Downloading:", title)
+    try:
+        with YoutubeDL(config.get_download_options()) as ydl:
+            video_info = ydl.extract_info(url, download=True)
+            output = ydl.prepare_filename(video_info)
+    except Exception as e:
+        print(Fore.RED + f"Error downloading {url}\n{e}")
+        return
+
+    final_output = os.path.join(config.download_folder, output)
+    os.rename(output, final_output)
+    print(Fore.GREEN + f"Downloaded to {final_output}")
+
+def get_movies(search, config):
     clock = time.perf_counter()
-    if verbose:
-        print("Verbose mode. Does not do anything yet.")
-    print(Fore.MAGENTA + f"Getting movies: {search}")
+
+    if isinstance(search, list) and len(search) == 1 and isinstance(search[0], str):
+        search = search[0]
+
     if "-f" in search:
-        search = default
-    if type(search) == str and os.path.exists(search):
+        search = config.default_input_file
+
+    lines = [search]
+    if type(search) == str and os.path.isfile(search):
         with open(search, "r", encoding="utf-8") as f:
             lines = f.readlines()
-            print(Fore.GREEN + f"Processing file {search} ({len(lines)} lines)")
-    elif type(search) != list:
-        lines = [search]
-    else:
-        lines = search
 
-    # set working directory to ensure out in correct place
-    incoming = set_directory()
-
-    # Calculate how many items will be downloaded
-    total = 0
-    completed = 0
-
-    def s(x):
-        if x == 1:
-            return ""
-        else:
-            return "s"
-
-    # print(lines)
-    for i in lines:
-        if "http" in i.lower():
-            total += 1
-    print(Fore.MAGENTA + f"{total} item{s(total)} to download.")
-
-    for item in lines:
-        if item[0] == "#":
-            print(item)
-
-        elif item[:4].lower() == "http":
-            title = get_title_from_url(item)
-            print(Fore.GREEN + "Downloading:", title)
-            try:
-                with YoutubeDL(ytdlp_options) as ydl:
-                    video_info = ydl.extract_info(item, download=True)
-                    output = ydl.prepare_filename(video_info)
-            except Exception as e:
-                print(Fore.RED + f"Error downloading {item}\n{e}")
-                output = None
-
-            if incoming and output:
-                print(f"Moving {output} to {incoming}")
-                os.rename(output, incoming + "/" + output)
-            completed += 1
-            print(Fore.GREEN + f"Downloaded {completed} of {total}.")
-
-        else:
-            s = item.replace(" ", "+")
-            print(Fore.BLUE + f"Search for: {item}")
-            print(
-                Fore.MAGENTA
-                + f"https://duckduckgo.com/?q={s}&iax=videos&ia=videos&iaf=videoDuration%3Along"
-            )
-    clock = time.perf_counter() - clock
-    print(Fore.GREEN + f"Completed tasks in {showtime(clock)}.")
-
-
-def set_get_subtitles():
-    print("Attempting to get subtitles...")
-    ydl_opts = {
-        #'outtmpl': '/Downloads/%(title)s_%(ext)s.mp4',
-        "format": "(bestvideo[width>=1080][ext=mp4])+bestaudio/best",
-        "writesubtitles": True,
-        "subtitle": "--write-sub --sub-lang en",
-    }
-
+    process_lines(lines, config)
+    print(Fore.GREEN + f"Completed tasks in {showtime(time.perf_counter() - clock)}.")
 
 def main():
-    print(Fore.MAGENTA + "Rogkit Yout(ube) Movie Downloader")
-    parser = argparse.ArgumentParser()
-    parser.add_argument(
-        "search",
-        help="Search for movies (URL, filename or search term)",
-        type=str,
-        nargs="*",
-    )
-    parser.add_argument(
-        "-f",
-        "--file",
-        help=f"Search using file (default: {DEFAULT_FILE})",
-        nargs="*",
-        type=get_movies,
-    )
-    parser.add_argument(
-        "-s", "--subs", help="attempt to get subtitles", action="store_true"
-    )
-    parser.add_argument(
-        "-v", "--verbose", help="increase output verbosity", action="store_true"
-    )
+    parser = argparse.ArgumentParser(description="Youtube Movie Downloader")
+    parser.add_argument("search", nargs="*", help="Search term, URL, or filename")
+    parser.add_argument("-c", "--config", default="~/.rogkit.toml", help="Path to config file")
+    parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
-    verbose = args.verbose
-    if verbose:
-        print(args)
 
-    if args.subs:
-        set_get_subtitles()
+    if args.config == "~/.rogkit.toml":
+        # get the users home directory
+        home = os.path.expanduser("~")
+        # get the path to the config file
+        args.config = os.path.join(home, ".rogkit.toml")
 
-    if args.file is not None:
-        search = "-f"
-    elif args.search == []:
-        search = input(Fore.CYAN + "Enter URL, filename or search term: ")
+    config = Config(args.config)
+
+    search = args.search or input(Fore.CYAN + "Enter URL, filename or search term: ")
+
+    if args.debug:
+        get_movies(search, config)
     else:
-        search = args.search
-
-    if search:
-        get_movies(search, verbose=verbose)
-
+        try:
+            get_movies(search, config)
+        except Exception as e:
+            print(Fore.RED + f"Error: {e}")
 
 if __name__ == "__main__":
     main()

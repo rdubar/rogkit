@@ -10,8 +10,11 @@ DEFAULT_ROGKIT_TOML = {
     },
     "plex": {"plex_server_url": "", "plex_server_token": ""},
     "openweather": {"openweather_api_key": ""},
-    "ipinfo": {"ipinfo_api_key": ""}
+    "ipinfo": {"ipinfo_api_key": ""},
+    "yout": { "temp_folder" : "", "download_folder" : "", "default_input_file" : "" } 
 }
+
+
 
 def user_rogkit_toml_path():
     return os.path.join(os.path.expanduser('~'), '.rogkit.toml')
