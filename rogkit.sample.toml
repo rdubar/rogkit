@@ -1,0 +1,21 @@
+# save to ~/rogkit.toml
+
+[backup]
+backup_from = [ "~/",]
+backup_to = [ "~/archive/",]
+
+[plex]
+plex_server_url = ""
+plex_server_token = ""
+
+[openweather]
+openweather_api_key = ""
+
+[ipinfo]
+ipinfo_api_key = ""
+
+[yout]
+temp_folder = ""
+download_folder = ""
+default_input_file = ""
+

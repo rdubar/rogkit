@@ -45,10 +45,6 @@ def load_rogkit_toml():
         print(f"Error reading {rogkit_toml_path}: {e}", file=sys.stderr)
         sys.exit(1)
 
-def print_default_toml():
-    """ Print the default TOML configuration. """
-    print(toml.dumps(DEFAULT_ROGKIT_TOML))
-
 def make_keys_lowercase(d):
     """ Recursively make all keys in a dict lowercase. """
     if isinstance(d, dict):
@@ -69,14 +65,17 @@ def make_cuttent_rogkit_toml_lowercase():
         print(f"Error writing {rogkit_toml_path}: {e}", file=sys.stderr)
         sys.exit(1)
 
+def get_default_toml():
+    return DEFAULT_ROGKIT_TOML
+
 def parse_args():
 
     """ Setup command-line argument parsing. """
     parser = argparse.ArgumentParser(description="Rogkit TOML tool")
     parser.add_argument("-c", "--create", action="store_true", help="Create ~/.rogkit.toml with default settings (if it doesn't exist)")
+    parser.add_argument("-d", "--default", action="store_true", help="Print default rogkit toml")
     parser.add_argument("-s", "--show", action="store_true", help="Show current rogkit toml")
     parser.add_argument("--lowercase", action="store_true", help="Make all keys in the current rogkit toml lowercase")
-    parser.add_argument("--default", action="store_true", help="Print default rogkit toml")
     return parser.parse_args()
 
 def main():
@@ -88,7 +87,8 @@ def main():
     if args.lowercase:
         make_cuttent_rogkit_toml_lowercase()
     if args.default:
-        print_default_toml()
+        toml_string = toml.dumps(get_default_toml())
+        print(toml_string)
     elif args.show:
         print(f'Current rogkit toml: {user_rogkit_toml_path()}')
         config = load_rogkit_toml()

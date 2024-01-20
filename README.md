@@ -16,12 +16,18 @@ curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python get-pip.py
 rm get-pip.py
 pip install -r requirements.txt
+cp rogkit.sample.toml ~/rogkit.toml
 
 # Make scripts executable
 chmod +x "$INSTALL/rogkit/rogkit_package/bin/*"
 
-# install for clipboard functionality
+# additional linux installs
+sudo apt update
+# for clipboard functionality
 sudo apt install wl-clipboard
+# for video downloading with yout
+sudo apt install ffmpeg
+
 ```
 Add this to your `~/bashrc` (or `~/.zshrc`):
 ```
@@ -40,6 +46,8 @@ Then reload your `~/bashrc` (or `~/.zshrc`):
 ```
 source ~/bashrc  # or source ~/.zshrc
 ```
+### Credentials
+Edit `~/rogkit.toml` to add your own credentials and API keys.
 ### Commands
 
 | Command  | Description       | Python Imports                        |
@@ -66,7 +74,7 @@ source ~/bashrc  # or source ~/.zshrc
 | tim      | Sync system clock |                                       |
 | tomlr    | Rogkit TOML tools | from tomlr import load_rogkit_toml    |
 | update   | Update system     |                                       |
-| yout     | Youtube download  |                                       |
+| yout     | Youtube downloadstim |                                       |
 |          |                   |                                       |
 | rogkit   | Display this info |                                       |
 
