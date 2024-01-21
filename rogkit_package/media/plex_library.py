@@ -3,6 +3,7 @@ import dataclasses
 import os
 import time
 import csv
+from typing import List
 
 from tqdm import tqdm
 from sqlalchemy import func, text, or_
@@ -87,42 +88,42 @@ class PlexLibrary:
             print(f"Error checking if database exists: {e}")
             return False
 
-    def update_database(self):
-        if not self.plex_server or not self.plex_server.connection:
-            raise Exception("Plex server is not connected. Cannot populate database.")
-        print('Updating database with Plex library data...')
-        clock = time.perf_counter()
-        possible_attributes = get_possible_attributes()
-        libraries = self.get_libraries()
-        for library in tqdm(libraries, desc="Processing libraries"):
-            for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
-                attributes = {attr: self.process_list(getattr(item, attr, None)) 
-                            for attr in possible_attributes if hasattr(item, attr)}
-                attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
-                attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
-                self.update_or_create_record(attributes)
-        clock = time.perf_counter() - clock
-        total_records = self.session.query(PlexRecordORM).count()
-        print(f'Found {total_records:,} records in {clock:.2f} seconds.')
+    # def update_database(self):
+    #     if not self.plex_server or not self.plex_server.connection:
+    #         raise Exception("Plex server is not connected. Cannot populate database.")
+    #     print('Updating database with Plex library data...')
+    #     clock = time.perf_counter()
+    #     possible_attributes = get_possible_attributes()
+    #     libraries = self.get_libraries()
+    #     for library in tqdm(libraries, desc="Processing libraries"):
+    #         for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
+    #             attributes = {attr: self.process_list(getattr(item, attr, None)) 
+    #                         for attr in possible_attributes if hasattr(item, attr)}
+    #             attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
+    #             attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
+    #             self.update_or_create_record(attributes)
+    #     clock = time.perf_counter() - clock
+    #     total_records = self.session.query(PlexRecordORM).count()
+    #     print(f'Found {total_records:,} records in {clock:.2f} seconds.')
 
-    def update_or_create_record(self, attributes):
-        # Extract plex_guid from attributes, assuming it's always present
-        plex_guid = attributes['plex_guid']
+    # def update_or_create_record(self, attributes):
+    #     # Extract plex_guid from attributes, assuming it's always present
+    #     plex_guid = attributes['plex_guid']
         
-        # Check for an existing record with the same plex_guid
-        record = self.session.query(PlexRecordORM).filter_by(plex_guid=plex_guid).first()
+    #     # Check for an existing record with the same plex_guid
+    #     record = self.session.query(PlexRecordORM).filter_by(plex_guid=plex_guid).first()
         
-        if record:
-            # Update existing record
-            for attr, value in attributes.items():
-                setattr(record, attr, value)
-        else:
-            # Create a new record
-            new_record = PlexRecordORM(**attributes)
-            self.session.add(new_record)
+    #     if record:
+    #         # Update existing record
+    #         for attr, value in attributes.items():
+    #             setattr(record, attr, value)
+    #     else:
+    #         # Create a new record
+    #         new_record = PlexRecordORM(**attributes)
+    #         self.session.add(new_record)
         
-        # Commit the changes
-        self.session.commit()
+    #     # Commit the changes
+    #     self.session.commit()
 
     def get_libraries(self):
         try:
@@ -204,24 +205,48 @@ class PlexLibrary:
 
     def populate_database(self):
         self.connect_to_plex()
-        self.load_additional_media()
         if not self.plex_server or not self.plex_server.connection:
             raise Exception("Plex server is not connected. Cannot populate database.")
         print('Populating database with Plex library data...')
+        
         possible_attributes = get_possible_attributes()
         clock = time.perf_counter()
         libraries = self.get_libraries()
         print(f"Retrieved {len(libraries):,} libraries in {time.perf_counter() - clock:.2f} seconds.")
-        clock = time.perf_counter()
+        
+        record_batch = []
         for library in libraries:  # Loop over each library
             for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
                 attributes = self._process_attributes(item, possible_attributes, library)
                 record = PlexRecord(**attributes)
-                self.save_record_to_db(record)
-        
+                record_batch.append(record)
+
+        # Save all records in a batch
+        if record_batch:
+            try:
+                self.save_record_batch_to_db(record_batch)
+            except Exception as e:
+                print(f"Error saving record batch to database: {e}")
+                # Consider whether you need a rollback here, based on your transaction strategy
+
         clock = time.perf_counter() - clock
         total_records = self.session.query(PlexRecordORM).count()
         print(f'Found {total_records:,} records in {clock:.2f} seconds.')
+
+    def save_record_batch_to_db(self, records: List[PlexRecord]):
+        try:
+            # Convert each PlexRecord in the list to a PlexRecordORM object
+            orm_records = [PlexRecordORM(**dataclasses.asdict(record)) for record in records]
+            
+            # Add all ORM records to the session
+            self.session.add_all(orm_records)
+            
+            # Commit the session once after adding all records
+            self.session.commit()
+        except Exception as e:
+            print(f"Error saving record batch to database: {e}")
+            # Roll back the session if an error occurs
+            self.session.rollback()
 
     def save_record_to_db(self, record: PlexRecord):
         try:
@@ -265,7 +290,6 @@ class PlexLibrary:
             )
         ).all()
 
-    
     @staticmethod
     def _load_csv_to_dict(file_path):
         with open(file_path, mode='r', encoding='utf-8') as csvfile:
@@ -278,8 +302,10 @@ class PlexLibrary:
         except Exception as e:
             print(f"Error loading additional media: {e}")
             return
+
         updated = 0
         loaded = 0
+        record_batch = []
 
         for item in media:
             # Ensure all required fields are present, set to None if missing
@@ -290,15 +316,25 @@ class PlexLibrary:
             if existing:
                 # Update existing record
                 for key, value in item.items():
-                    if key in PlexRecord.__annotations__:  # Update only if the key is a valid field
+                    if key in PlexRecord.__annotations__:
                         setattr(existing, key, value)
-                self.session.commit()
                 updated += 1
             else:
-                # Create and add new record
+                # Prepare new record
                 item['extras'] = item.get('extras', 'False').lower() == 'true'
                 record = PlexRecord(**item)
-                self.save_record_to_db(record)
+                record_batch.append(record)
                 loaded += 1
+
+        # Commit updates for existing records
+        try:
+            self.session.commit()
+        except Exception as e:
+            print(f"Error during committing updates: {e}")
+            self.session.rollback()
+
+        # Save batch of new records
+        if record_batch:
+            self.save_record_batch_to_db(record_batch)
 
         print(f'Updated {updated} existing items and loaded {loaded} new items from {additional_media_csv}')
