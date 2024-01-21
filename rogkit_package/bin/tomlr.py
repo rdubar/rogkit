@@ -2,6 +2,8 @@ import os
 import toml
 import argparse
 import sys
+from ..settings import toml_sample_path
+
 
 DEFAULT_ROGKIT_TOML = {
     "backup" : { 
@@ -68,6 +70,23 @@ def make_cuttent_rogkit_toml_lowercase():
 def get_default_toml():
     return DEFAULT_ROGKIT_TOML
 
+def write_default_toml():
+    toml_string = toml.dumps(get_default_toml())
+    toml_path = toml_sample_path
+    if os.path.exists(toml_path):
+        prompt = input(f"{toml_path} already exists. Press y overwrite, n to cancel: ")
+    if prompt.lower() not in ['y', 'yes']:
+        print("Aborting.")
+        return
+    try:
+        with open(toml_path, 'w') as f:
+            f.write(toml_string)
+        print(f"Wrote {toml_path} with default settings.")
+    except IOError as e:
+        print(f"Error writing {toml_path}: {e}", file=sys.stderr)
+        sys.exit(1)
+
+
 def parse_args():
 
     """ Setup command-line argument parsing. """
@@ -75,6 +94,7 @@ def parse_args():
     parser.add_argument("-c", "--create", action="store_true", help="Create ~/.rogkit.toml with default settings (if it doesn't exist)")
     parser.add_argument("-d", "--default", action="store_true", help="Print default rogkit toml")
     parser.add_argument("-s", "--show", action="store_true", help="Show current rogkit toml")
+    parser.add_argument("-w", "--write", action="store_true", help="Write default rogkit toml to rogkit_sample.toml")
     parser.add_argument("--lowercase", action="store_true", help="Make all keys in the current rogkit toml lowercase")
     return parser.parse_args()
 
@@ -82,6 +102,8 @@ def main():
     args = parse_args()
     print("Rogkit TOML Tool")
 
+    if args.write:
+        write_default_toml()
     if args.create:
         setup_rogkit_toml()
     if args.lowercase:

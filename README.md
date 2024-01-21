@@ -74,7 +74,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | tim      | Sync system clock |                                       |
 | tomlr    | Rogkit TOML tools | from tomlr import load_rogkit_toml    |
 | update   | Update system     |                                       |
-| yout     | Youtube downloadstim |                                       |
+| yout     | Youtube downloads |                                       |
 |          |                   |                                       |
 | rogkit   | Display this info |                                       |
 

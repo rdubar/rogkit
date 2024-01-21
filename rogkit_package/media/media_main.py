@@ -76,6 +76,7 @@ def main():
     if args.dvd:
         print("Filtering for uncompressed DVDs...")
         results = [result for result in results if result.codec == 'mpeg2video']
+        matches_text = f' of {len(results):,} uncompressed DVDs'
 
     if args.year:
         sort_by = 'year'
