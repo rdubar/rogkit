@@ -88,5 +88,6 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 ### Experimental
 
 * bac: a better, simpler backup. Test code. 
+* tmdb: a media module to search tmdb
 
 Roger D.
