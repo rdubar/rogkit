@@ -1,6 +1,5 @@
 import os
 
-# Define the path for your database
 script_dir = os.path.dirname(os.path.abspath(__file__))
 
 # root dir is script dir's less the last folder name

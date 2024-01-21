@@ -80,19 +80,17 @@ def main():
 
     if args.year:
         sort_by = 'year'
-        results = sorted(results, key=lambda x: x.year, reverse=True)
+        # remove results that don't have a year value
+        results = sorted((result for result in results if getattr(result, 'year', None)), key=lambda x: x.year, reverse=True)
     
     if args.video:
         sort_by = 'resolution'
         # remove results that don't have a resolution value
-        results = [result for result in results if getattr(result, 'resolution', None)]
-        results = sort_by_resolution(results)
+        results = sorted((result for result in results if getattr(result, 'resolution', None)), key=lambda x: x.resolution, reverse=True)
     
     if args.size:
         sort_by = 'size'
-        # get results that have a size value only
-        results = [result for result in results if getattr(result, 'size', None)]
-        results = sorted(results, key=lambda x: x.size or 0, reverse=args.reverse)
+        results = sorted((result for result in results if getattr(result, 'size', None)), key=lambda x: x.size, reverse=True)
 
     reverse_text = 'reversed' if args.reverse else ''
     if args.reverse:
