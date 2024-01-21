@@ -88,43 +88,6 @@ class PlexLibrary:
             print(f"Error checking if database exists: {e}")
             return False
 
-    # def update_database(self):
-    #     if not self.plex_server or not self.plex_server.connection:
-    #         raise Exception("Plex server is not connected. Cannot populate database.")
-    #     print('Updating database with Plex library data...')
-    #     clock = time.perf_counter()
-    #     possible_attributes = get_possible_attributes()
-    #     libraries = self.get_libraries()
-    #     for library in tqdm(libraries, desc="Processing libraries"):
-    #         for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
-    #             attributes = {attr: self.process_list(getattr(item, attr, None)) 
-    #                         for attr in possible_attributes if hasattr(item, attr)}
-    #             attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
-    #             attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
-    #             self.update_or_create_record(attributes)
-    #     clock = time.perf_counter() - clock
-    #     total_records = self.session.query(PlexRecordORM).count()
-    #     print(f'Found {total_records:,} records in {clock:.2f} seconds.')
-
-    # def update_or_create_record(self, attributes):
-    #     # Extract plex_guid from attributes, assuming it's always present
-    #     plex_guid = attributes['plex_guid']
-        
-    #     # Check for an existing record with the same plex_guid
-    #     record = self.session.query(PlexRecordORM).filter_by(plex_guid=plex_guid).first()
-        
-    #     if record:
-    #         # Update existing record
-    #         for attr, value in attributes.items():
-    #             setattr(record, attr, value)
-    #     else:
-    #         # Create a new record
-    #         new_record = PlexRecordORM(**attributes)
-    #         self.session.add(new_record)
-        
-    #     # Commit the changes
-    #     self.session.commit()
-
     def get_libraries(self):
         try:
             self.libraries = self.plex_server.connection.library.sections()
@@ -202,36 +165,37 @@ class PlexLibrary:
             attributes['size'] = getattr(part, 'size', None)
             
         return attributes
-
-    def populate_database(self):
+    
+    def populate_database(self, update_changed_only=False):
         self.connect_to_plex()
         if not self.plex_server or not self.plex_server.connection:
             raise Exception("Plex server is not connected. Cannot populate database.")
+        self.load_additional_media()
         print('Populating database with Plex library data...')
-        
-        possible_attributes = get_possible_attributes()
         clock = time.perf_counter()
+        possible_attributes = get_possible_attributes()
         libraries = self.get_libraries()
-        print(f"Retrieved {len(libraries):,} libraries in {time.perf_counter() - clock:.2f} seconds.")
-        
+
         record_batch = []
-        for library in libraries:  # Loop over each library
+        for library in libraries:
             for item in tqdm(library.all(), desc=f"Processing items in {library.title}"):
                 attributes = self._process_attributes(item, possible_attributes, library)
+                if update_changed_only:
+                    existing_record = self.session.query(PlexRecordORM).filter_by(plex_guid=attributes['plex_guid']).first()
+                    # Compare video resolution to determine if the record has changed
+                    if existing_record and existing_record.resolution == attributes['resolution']:
+                        continue  # Skip this record as its resolution hasn't changed
                 record = PlexRecord(**attributes)
                 record_batch.append(record)
 
-        # Save all records in a batch
         if record_batch:
             try:
                 self.save_record_batch_to_db(record_batch)
             except Exception as e:
                 print(f"Error saving record batch to database: {e}")
-                # Consider whether you need a rollback here, based on your transaction strategy
 
-        clock = time.perf_counter() - clock
         total_records = self.session.query(PlexRecordORM).count()
-        print(f'Found {total_records:,} records in {clock:.2f} seconds.')
+        print(f'Found {total_records:,} records in {time.perf_counter() - clock:.2f} seconds.') 
 
     def save_record_batch_to_db(self, records: List[PlexRecord]):
         try:

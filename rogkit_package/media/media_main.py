@@ -23,7 +23,7 @@ def main():
         results = plex_library.test_connection()
         return
 
-    if args.reset or args.update:
+    if args.reset:  # or args.update:
         plex_library.connect_to_plex()
 
     if args.reset:
@@ -35,8 +35,8 @@ def main():
         plex_library.reset_database()
         print("Database reset.")
         return
-    elif args.update:
-        plex_library.update_database()
+    # elif args.update:
+    #     plex_library.populate_database(update_changed_only=True)
 
     if args.duplicates: 
         removed = plex_library.remove_duplicates()
@@ -134,4 +134,5 @@ Rename PlexRecord, PlexRecordORM to MediaRecord, MediaRecordORM
 Rename PlexLibrary to MediaLibrary
 Rename plex_library.py to media_library.py
 Refactor plex_library.py
+--update currenrly not implemented
 """

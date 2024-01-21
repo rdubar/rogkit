@@ -1,6 +1,8 @@
 import dataclasses
+from datetime import datetime
 from sqlalchemy import Column, Integer, Boolean, String, DateTime, Integer
-from .database_utils import Base
+import sqlalchemy as sa
+from .database_utils import Base ,engine
 from ..bin.bytes import byte_size
 from ..bin.seconds import convert_seconds
 
@@ -35,30 +37,25 @@ common_schema = {
     'resolution': (String, {'default': None}),
     'bitrate': (Integer, {'default': None}),
     'codec': (String, {'default': None}),
-    'size': (Integer, {'default': None})
+    'size': (Integer, {'default': None}),
+    'last_modified': (DateTime, {'default': sa.func.now(), 'onupdate': sa.func.now()}),
 }
 
 def create_dataclass_fields(schema):
-    dataclass_fields = {}
+    fields = []
     for field, (dtype, options) in schema.items():
-        # Check if a default is provided in the schema
-        default_value = options.get('default', dataclasses.MISSING)
-        dataclass_field = dataclasses.field(default=default_value)
-        dataclass_fields[field] = (dtype, dataclass_field)
-    return dataclass_fields
+        default_factory = options.get('dataclass_default', lambda: None)
+        fields.append((field, dtype, dataclasses.field(default_factory=default_factory)))
+    return fields
 
 def create_orm_columns(schema):
     orm_columns = {}
-    for field, (col_type, options) in schema.items():
-        # Remove 'default' key as it's not valid for ORM columns
-        options.pop('default', None)
-        orm_columns[field] = Column(col_type, **options)
+    for field, (dtype, options) in schema.items():
+        # Filter out non-SQLAlchemy keys if any
+        column_options = {k: v for k, v in options.items() if k in ['primary_key', 'unique', 'default', 'onupdate']}
+        orm_columns[field] = Column(dtype, **column_options)
     return orm_columns
 
-# Dynamically create PlexRecord as a dataclass with default values
-PlexRecord = dataclasses.make_dataclass('PlexRecord', create_dataclass_fields(common_schema).items())
-
-# Dynamically create the ORM class using the common schema
 class PlexRecordORM(Base):
     __tablename__ = 'plex_records'
     locals().update(create_orm_columns(common_schema))
@@ -82,8 +79,19 @@ class PlexRecordORM(Base):
         information += f'\n{self.summary} {time_str} {size_str} {resolution_str}\n'
         return information
 
+# Dataclass field defaults handling (if required)
+def create_dataclass_fields(schema):
+    fields = []
+    for field, (dtype, options) in schema.items():
+        # Assuming 'default' is used for dataclass default values
+        default = options.get('default', dataclasses.MISSING)
+        fields.append((field, dtype, dataclasses.field(default=default)))
+    return fields
 
-        return f"{size_str:>10} {resolution_str:<6}    {self.title}{year_str}"
+PlexRecord = dataclasses.make_dataclass('PlexRecord', create_dataclass_fields(common_schema))
+
+# After defining PlexRecordORM
+Base.metadata.create_all(engine) 
 
 def get_possible_attributes():
     return [f.name for f in dataclasses.fields(PlexRecord)]
