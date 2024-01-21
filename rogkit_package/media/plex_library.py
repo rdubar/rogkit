@@ -42,9 +42,15 @@ class PlexLibrary:
 
     def reset_database(self):
         try:
-            # Drop all existing data and recreate the tables
+            # Close the current session to clear any existing session state
+            self.session.close()
+            # Drop all existing data
             Base.metadata.drop_all(engine)
+            # Recreate the tables
             Base.metadata.create_all(engine)
+            # Create a new session for the next operations
+            self.session = Session()
+            # Repopulate the database
             self.populate_database()
         except Exception as e:
             print(f"Critical error resetting the database: {e}")
