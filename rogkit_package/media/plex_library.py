@@ -302,3 +302,18 @@ class PlexLibrary:
             self.save_record_batch_to_db(record_batch)
 
         print(f'Updated {updated} existing items and loaded {loaded} new items from {additional_media_csv}')
+
+    def title_list(self, plex=False):
+        if plex:
+            return [record.title for record in self.session.query(PlexRecordORM).all()]
+        else:
+            # exclude titles with no plex_guid
+            return [record.title for record in self.session.query(PlexRecordORM).filter(PlexRecordORM.plex_guid == None).all()]
+        # return [
+        #     f"{record.title} {record.year if record.year else ''}".strip()
+        #     for record in self.session.query(PlexRecordORM).all()
+        # ]
+
+def get_media_list():
+    library = PlexLibrary()
+    return library.title_list()

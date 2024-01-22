@@ -6,3 +6,5 @@ db_path = os.path.join(script_dir, 'media_library.db')
 db_url = f'sqlite:///{db_path}'
 
 additional_media_csv = os.path.join(script_dir, 'media.csv')
+
+tmdb_data_file = os.path.join(script_dir, 'tmdb.json')
