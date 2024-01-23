@@ -23,6 +23,8 @@ chmod +x "$INSTALL/rogkit/rogkit_package/bin/*"
 
 # additional linux installs
 sudo apt update
+# for heic processing by imager
+sudo apt install libheif-dev
 # for clipboard functionality
 sudo apt install wl-clipboard
 # for video downloading with yout
