@@ -5,6 +5,7 @@ import dataclasses
 import os
 import time
 import hashlib
+from pprint import pprint
 from ..bin.tomlr import load_rogkit_toml
 from .plex_library import get_media_list
 from .media_settings import tmdb_data_file
@@ -119,6 +120,7 @@ def get_args():
     parser = argparse.ArgumentParser(description='Get movie details from TMDb')
     parser.add_argument('-m', '--media', help='Process the media list', action='store_true')
     parser.add_argument('-d', '--delete', help='Delete the matching media', action='store_true')
+    parser.add_argument('-p', '--pretty', help='Pretty print the output', action='store_true')
     parser.add_argument('--api_key', help='TMDb API key', default=None)
     args, search_terms = parser.parse_known_args()
     return args, ' '.join(search_terms)
@@ -156,7 +158,10 @@ def main():
             if result not in ["No results found", "Error fetching detailed movie information", "Error searching for movie"]:
                 data_list.info_dict[search_hash] = result
                 data_list.save_to_file()
-            print(result)
+            if args.pretty:
+                pprint(result)
+            else:
+                print(result)
     else:
         print("No search terms provided")
 
