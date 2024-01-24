@@ -2,7 +2,7 @@ import os
 import argparse
 from .bytes import byte_size
 
-default_path_list = ['/', '/mnt/expansion']
+default_path_list = ['/', '/mnt/expansion', '/mnt/archive']
 
 def print_header():
     print(f"{'Path':20} | {'Total Size':10} | {'Used':10} | {'Free':10} | {'Usage':5}")
