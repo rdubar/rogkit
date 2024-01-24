@@ -11,7 +11,8 @@ def display_space(path):
     free_space = os.statvfs(path).f_bfree * os.statvfs(path).f_frsize
     percent_full = (total_space - free_space) / total_space * 100
 
-    print(f'{path} has {byte_size(free_space)} free of {byte_size(total_space)} total, and is {percent_full:.2f}% full.')
+    print(f'{path:20s} Size: {byte_size(total_space):10s} Used: {byte_size(total_space - free_space):10s} Free: {byte_size(free_space):10s} Usage: {percent_full:5.2f}%')
+
 
 def display_paths(path_list=None):
     if path_list is None or not path_list:
