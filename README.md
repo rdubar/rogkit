@@ -72,6 +72,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | spot     | Spotify cli tool  |                                       |
 | strike   | Strikethru text   | from strike import strikethru         |
 | tim      | Sync system clock |                                       |
+| space    | Show free space   |                                       |
 | tomlr    | Rogkit TOML tools | from tomlr import load_rogkit_toml    |
 | update   | Update system     |                                       |
 | yout     | Youtube downloads |                                       |
