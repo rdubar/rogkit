@@ -2,17 +2,19 @@ import os
 import argparse
 from .bytes import byte_size
 
-# TODO: use TOML for setup
-default_path_list = ['/', '/mnt/expansion', '/mnt/archive']
+default_path_list = ['/', '/mnt/expansion']
+
+def print_header():
+    print(f"{'Path':20} | {'Total Size':10} | {'Used':10} | {'Free':10} | {'Usage':5}")
+    print("-" * 70)  # Adjust the length according to the total width of the above header
 
 def display_space(path):
-    # get the free space on the disk
     total_space = os.statvfs(path).f_blocks * os.statvfs(path).f_frsize
     free_space = os.statvfs(path).f_bfree * os.statvfs(path).f_frsize
-    percent_full = (total_space - free_space) / total_space * 100
+    used_space = total_space - free_space
+    percent_full = used_space / total_space * 100
 
-    print(f'{path:20s} Size: {byte_size(total_space):10s} Used: {byte_size(total_space - free_space):10s} Free: {byte_size(free_space):10s} Usage: {percent_full:5.2f}%')
-
+    print(f"{path:20} | {byte_size(total_space):10} | {byte_size(used_space):10} | {byte_size(free_space):10} | {percent_full:5.2f}%")
 
 def display_paths(path_list=None):
     if path_list is None or not path_list:
@@ -23,6 +25,7 @@ def display_paths(path_list=None):
         print(f'No paths found: {path_list}')
         return
 
+    print_header()
     for path in paths_found:
         display_space(path)
 
