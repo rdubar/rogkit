@@ -1,9 +1,6 @@
 import os
 import argparse
 from .bytes import byte_size
-from .tomlr import load_rogkit_toml # TODO: Use this to get default paths
-
-default_path_list = ['/', '/mnt/expansion', '/mnt/archive']
 
 def print_header():
     print(f"{'Path':20} | {'Total Size':10} | {'Used':10} | {'Free':10} | {'Usage':5}")
@@ -17,29 +14,43 @@ def display_space(path):
 
     print(f"{path:20} | {byte_size(total_space):10} | {byte_size(used_space):10} | {byte_size(free_space):10} | {percent_full:5.2f}%")
 
-def display_paths(path_list=None):
-    if path_list is None or not path_list:
-        path_list = default_path_list
+def display_paths(path_list=None, size=False):
+    if path_list is None:
+        path_list = []
 
-    paths_found = [x for x in path_list if os.path.exists(x)]
-    if not paths_found:
-        # Check if args are search terms for paths in /mnt
-        paths_found = [f'/mnt/{x}' for x in os.listdir('/mnt') if any([y in x for y in path_list])]
+    mnt_paths = os.listdir('/mnt')
+    mnt_paths_full = [os.path.join('/mnt', x) for x in mnt_paths]
 
-    if not paths_found:
-        print(f'No paths found: {path_list}')
-        return
+    # Check if paths exist in the filesystem
+    found_paths = [x for x in path_list if os.path.exists(x)]
+
+    # If no paths are found and path_list is not empty, check in '/mnt'
+    if not found_paths and path_list:        
+        # Check if any of the paths in path_list are subdirectories of '/mnt'
+        found_paths = [x for x in mnt_paths_full if any(y in x for y in path_list)]
+
+    # If still no paths are found, display the contents of '/mnt' and root '/'
+    if not found_paths:
+        found_paths = mnt_paths_full + ['/']
+    
+    if size:
+        found_paths.sort(key=lambda x: os.statvfs(x).f_blocks * os.statvfs(x).f_frsize, reverse=True)
+    else:
+        # sort alphabetically
+        found_paths.sort()
 
     print_header()
-    for path in paths_found:
+    for path in found_paths:
         display_space(path)
 
 def get_args():
     parser = argparse.ArgumentParser(description='Display disk space usage')
-    parser.add_argument('paths', nargs='*', default=None, help='List of paths to check (optional)')
+    parser.add_argument('paths', nargs='*', default=[], help='List of paths to check (optional)')
+    parser.add_argument('-s', '--size', action='store_true', help='Sort by size')
     args = parser.parse_args()
-    return args.paths
+    return args
 
 if __name__ == "__main__":
-    args_paths = get_args()
-    display_paths(args_paths)
+    args = get_args()
+    display_paths(args.paths, size=args.size)
+
