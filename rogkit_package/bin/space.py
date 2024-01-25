@@ -1,6 +1,7 @@
 import os
 import argparse
 from .bytes import byte_size
+from .tomlr import load_rogkit_toml # TODO: Use this to get default paths
 
 default_path_list = ['/', '/mnt/expansion', '/mnt/archive']
 
@@ -21,6 +22,10 @@ def display_paths(path_list=None):
         path_list = default_path_list
 
     paths_found = [x for x in path_list if os.path.exists(x)]
+    if not paths_found:
+        # Check if args are search terms for paths in /mnt
+        paths_found = [f'/mnt/{x}' for x in os.listdir('/mnt') if any([y in x for y in path_list])]
+
     if not paths_found:
         print(f'No paths found: {path_list}')
         return
