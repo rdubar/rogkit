@@ -81,6 +81,8 @@ def main():
 
     over_ride = False
 
+    print('Rogkit Replacer: Search and optionally replace text in files.')
+
     if over_ride: 
         # defaults for testing
         args.path = '/home/rdubar/projects/pythonProject/openerp-addons'

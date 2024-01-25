@@ -77,4 +77,4 @@ if __name__ == "__main__":
         except ValueError:
             print("Please provide a valid number of seconds.")
     else:
-        print("Usage: seconds.py [number of seconds]")
+        print("Convert seconds into years, days, minutes etc.\nUsage: seconds.py [number of seconds]")

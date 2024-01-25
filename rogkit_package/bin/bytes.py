@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import sys
 
 def byte_size(size: int, base: int = 1000) -> str:
     if base not in [1000, 1024]:
@@ -21,10 +22,15 @@ def byte_size(size: int, base: int = 1000) -> str:
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Convert bytes to human-readable format.')
-    parser.add_argument('bytes', type=int, help='Number of bytes to convert')
+    parser.add_argument('bytes', type=int, nargs='?', help='Number of bytes to convert')  # Use nargs='?' for optional positional argument
     parser.add_argument('-b', '--base', type=int, default=1024, choices=[1000, 1024], help='Base to use (1000 or 1024)')
 
     args = parser.parse_args()
+
+    # Check if the bytes argument was not provided
+    if args.bytes is None:
+        print('Convert bytes to MB, GB, TB, etc.\nUsage: bytes.py [number of bytes] [-b 1000|1024]')
+        sys.exit(1)
 
     try:
         print(byte_size(args.bytes, base=args.base))
