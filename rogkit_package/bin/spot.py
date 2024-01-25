@@ -34,6 +34,8 @@ class SpotifyClient:
 
             try:
                 response = input('Enter the URL you were redirected to: ')
+                if len(response) < 5:
+                    raise Exception("URL not provided")
                 code = self.auth_manager.parse_response_code(response)
                 self.auth_manager.get_access_token(code)
             except Exception as e:
