@@ -6,13 +6,21 @@ from .plex_server import PlexServer
 
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
-from .utils import process_arguments, sort_by_resolution
+from .utils import process_arguments, sort_by_resolution, freeze_database, restore_database
 
 def main():
     print("Rog's Plex Library Utility")
     args, search_text = process_arguments()
 
     plex_library = PlexLibrary()
+
+    if args.freeze:
+        freeze_database()
+        return
+    
+    if args.restore:
+        restore_database()
+        return
 
     if args.conn:
         server = PlexServer()

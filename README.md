@@ -84,7 +84,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 ### TODO
 
 * backup: not excluding files correctly? Add test showing what would be archived
-* media: --revert, implement tmdb integration
+* media: full tmdb integration
 * media: rename plex_library  / PlexLibrary to media_library / MediaLibrary
 * toml: use in backup
 
