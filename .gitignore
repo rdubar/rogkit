@@ -1,6 +1,7 @@
 *.db
 *.db*
-.bak
+*.bak
+*.pkl
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

@@ -310,8 +310,8 @@ class PlexLibrary:
         if plex:
             return [record.title for record in self.session.query(PlexRecordORM).all()]
         else:
-            # exclude titles with no plex_guid
-            return [record.title for record in self.session.query(PlexRecordORM).filter(PlexRecordORM.plex_guid == None).all()]
+            # exclude titles with no plex_guida
+            return [(x.title, x.year) for x in self.session.query(PlexRecordORM).filter(PlexRecordORM.plex_guid == None).all()]
         # return [
         #     f"{record.title} {record.year if record.year else ''}".strip()
         #     for record in self.session.query(PlexRecordORM).all()
