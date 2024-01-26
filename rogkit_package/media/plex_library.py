@@ -329,7 +329,8 @@ class PlexLibrary:
         libraries = self.get_libraries()
         # show name and updated date of anything that has changed since database_date
         total = 0
-        updated = 0
+        updated = []
+        new = []
         for library in libraries:
             print(f"Checking library: {library.title}")
             for item in library.all():
@@ -345,23 +346,32 @@ class PlexLibrary:
                     if existing_record:
                         # Update existing record
                         for key, value in attributes.items():
-                            setattr(existing_record, key, value)
+                            if value is not None:  # Skip attributes that are None
+                                setattr(existing_record, key, value)
                         print(f"Updated existing record for {item.title}")
+                        updated.append(item.title)
                     else:
                         # Insert new record
                         record = PlexRecord(**attributes)
                         self.save_record_to_db(record)
                         print(f"Added new record for {item.title}")
-                        updated += 1
+                        new.append(item.title)
 
-        clock = time.perf_counter() - clock
-        if updated:
-            # do any necessary tasks to save the database to disk
+        if new or updated:
             self.session.commit()
-            report = f"Updated {updated:,} of"
-        else:
-            report = "No updates found in"
-        print(f"{report} {total:,} items in {clock:.2f} seconds.")
+        if new:
+            print(f"Added {len(new):,} new records:")
+            print('\n'.join(new))
+        if updated:
+            print(f"Updated {len(updated):,}:")
+            print('\n'.join(updated))
+        report = f"New : {len(new):,} " if new else ""
+        report += f"Updated : {len(updated):,} " if updated else ""
+        report += f"Total: {total:,}"
+        clock = time.perf_counter() - clock
+        if not (updated or new):
+            print("No updates found.")
+        print(f"{report} records in {clock:.2f} seconds.")
 
 
 def get_media_list():
