@@ -12,6 +12,7 @@ from .plex_server import PlexServer
 from .media_records import PlexRecordORM, PlexRecord, common_schema, get_possible_attributes 
 from .database_utils import Base, engine, Session, update_database_schema
 from .media_settings import additional_media_csv
+from ..bin.seconds import convert_seconds
 
 
 @dataclasses.dataclass
@@ -317,7 +318,7 @@ class PlexLibrary:
         # ]
 
     def update_test(self):
-        print("Checking for updates...")
+        print("Checking for updates. Please allow 10-20 seconds...")
         clock = time.perf_counter()
         try:
             database_date = self.session.query(func.max(PlexRecordORM.updated_at)).scalar()
@@ -325,6 +326,10 @@ class PlexLibrary:
             print(f"Error getting database date: {e}")
             return
         print(f"Database date: {database_date}")
+        # get time in seconds since database_date
+        seconds_ago = convert_seconds(time.time() - database_date.timestamp())
+        print(f'Last update was {seconds_ago} ago.')
+
         self.connect_to_plex()
         libraries = self.get_libraries()
         # show name and updated date of anything that has changed since database_date
@@ -332,7 +337,7 @@ class PlexLibrary:
         updated = []
         new = []
         for library in libraries:
-            print(f"Checking library: {library.title}")
+            print(f"Checking library: {library.title}: {len(library.all()):,} items")
             for item in library.all():
                 total += 1
                 if hasattr(item, 'updatedAt') and item.updatedAt is not None and item.updatedAt > database_date:
@@ -348,8 +353,7 @@ class PlexLibrary:
                         for key, value in attributes.items():
                             if value is not None:  # Skip attributes that are None
                                 setattr(existing_record, key, value)
-                        print(f"Updated existing record for {item.title}")
-                        updated.append(item.title)
+                        updated.append((item.title, item.updatedAt))
                     else:
                         # Insert new record
                         record = PlexRecord(**attributes)
@@ -359,19 +363,19 @@ class PlexLibrary:
 
         if new or updated:
             self.session.commit()
-        if new:
-            print(f"Added {len(new):,} new records:")
-            print('\n'.join(new))
-        if updated:
-            print(f"Updated {len(updated):,}:")
-            print('\n'.join(updated))
+            if new:
+                print(f"Added {len(new):,} new records:")
+                [print(x) for x in new]
+            if updated:
+                print(f"Updated {len(updated):,}:")
+                [print(f'{x[0]} : {x[1]}') for x in updated]
         report = f"New : {len(new):,} " if new else ""
         report += f"Updated : {len(updated):,} " if updated else ""
         report += f"Total: {total:,}"
         clock = time.perf_counter() - clock
         if not (updated or new):
             print("No updates found.")
-        print(f"{report} records in {clock:.2f} seconds.")
+        print(f"{report} records checked in {clock:.2f} seconds.")
 
 
 def get_media_list():

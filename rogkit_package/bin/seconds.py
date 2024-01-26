@@ -2,7 +2,7 @@
 import sys
 from .bignum import bignum
 
-def convert_seconds(seconds, long=False, end='.'):
+def convert_seconds(seconds, long=False, end=''):
     # Return immediately for 0 seconds
     if seconds <= 5:
         return f"{seconds} seconds."
