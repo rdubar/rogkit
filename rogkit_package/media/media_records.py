@@ -72,11 +72,12 @@ class PlexRecordORM(Base):
         year_str = f" ({self.year})" if self.year else ""
         resolution_str = f" {self.resolution}" if self.resolution else ""
         size_str = f" {byte_size(self.size)}" if self.size else ""
+        rating = f" [{self.rating}/10]" if self.rating else ""
         # Convert duration from milliseconds to seconds, but round to the nearest minute
         time_str = convert_seconds((self.duration / 1000)) if self.duration else ""
         information = f'{self.title}{year_str}, d. {self.directors},'
         information += f'w. {self.writers}, a. {self.actors}, {self.genres}'
-        information += f'\n{self.summary} {time_str} {size_str} {resolution_str}\n'
+        information += f'\n{self.summary} {time_str} {size_str} {resolution_str}{rating}\n'
         return information
 
 # Dataclass field defaults handling (if required)

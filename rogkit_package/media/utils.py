@@ -29,6 +29,7 @@ def process_arguments():
     parser.add_argument('-y', '--year', action='store_true', help='Sort by year of release') 
     parser.add_argument('-s', '--size', action='store_true', help='Sort by file size')
     parser.add_argument('-S', '--summary', action='store_true', help='Show a summary for each title')
+    parser.add_argument('--rating', action='store_true', help='Sort by rating')
     
     # Mode options
     parser.add_argument('-V', '--verbose', action='store_true', help='Verbose mode')
@@ -126,3 +127,12 @@ def restore_database():
         print(f"Error restoring backup file: {e}")
         return
     print(f"Backup file restored: {db_backup_path}.")
+
+def last_updated():
+    """
+    Return the last time the database was updated
+    """
+    try:
+        return f'Library last updated {convert_seconds(time.time() - os.path.getmtime(db_path))} ago.'
+    except FileNotFoundError:
+        return "Library not found."

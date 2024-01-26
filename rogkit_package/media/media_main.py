@@ -6,10 +6,11 @@ from .plex_server import PlexServer
 
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
-from .utils import process_arguments, sort_by_resolution, freeze_database, restore_database
+from .utils import process_arguments, sort_by_resolution, freeze_database, restore_database, last_updated
 
 def main():
     print("Rog's Plex Library Utility")
+    print(last_updated())
     args, search_text = process_arguments()
 
     plex_library = PlexLibrary()
@@ -100,6 +101,10 @@ def main():
     if args.size:
         sort_by = 'size'
         results = sorted((result for result in results if getattr(result, 'size', None)), key=lambda x: x.size, reverse=True)
+    
+    if args.rating:
+        sort_by = 'rating'
+        results = sorted((result for result in results if getattr(result, 'rating', None)), key=lambda x: x.rating, reverse=True)
 
     reverse_text = 'reversed' if args.reverse else ''
     if args.reverse:
@@ -117,6 +122,9 @@ def main():
     for result in results[:args.number]:
         if args.info:
             print(result.info())
+            continue
+        if args.rating:
+            print(f"{result.rating:2}  {result}")
             continue
         print(result)  
         if args.summary:
