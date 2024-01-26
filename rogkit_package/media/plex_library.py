@@ -145,6 +145,8 @@ class PlexLibrary:
         attributes['added_at'] = item.addedAt if hasattr(item, 'addedAt') else None
         attributes['updated_at'] = item.updatedAt if hasattr(item, 'updatedAt') else None
         attributes['extras'] = hasattr(item, 'extras')
+        attributes['thumb'] = item.thumb if hasattr(item, 'thumb') else None
+        attributes['art'] = item.art if hasattr(item, 'art') else None
         
         # Extract video media information
         if hasattr(item, 'media'):
@@ -313,6 +315,54 @@ class PlexLibrary:
         #     f"{record.title} {record.year if record.year else ''}".strip()
         #     for record in self.session.query(PlexRecordORM).all()
         # ]
+
+    def update_test(self):
+        print("Checking for updates...")
+        clock = time.perf_counter()
+        try:
+            database_date = self.session.query(func.max(PlexRecordORM.updated_at)).scalar()
+        except Exception as e:
+            print(f"Error getting database date: {e}")
+            return
+        print(f"Database date: {database_date}")
+        self.connect_to_plex()
+        libraries = self.get_libraries()
+        # show name and updated date of anything that has changed since database_date
+        total = 0
+        updated = 0
+        for library in libraries:
+            print(f"Checking library: {library.title}")
+            for item in library.all():
+                total += 1
+                if hasattr(item, 'updatedAt') and item.updatedAt is not None and item.updatedAt > database_date:
+                    print(f"  {item.title} - {item.updatedAt}")
+                    # uppdate that single item in the database
+                    # Process attributes
+                    attributes = self._process_attributes(item, get_possible_attributes(), library)
+
+                    # Check if record exists, then update or insert
+                    existing_record = self.session.query(PlexRecordORM).filter_by(plex_guid=attributes['plex_guid']).first()
+                    if existing_record:
+                        # Update existing record
+                        for key, value in attributes.items():
+                            setattr(existing_record, key, value)
+                        print(f"Updated existing record for {item.title}")
+                    else:
+                        # Insert new record
+                        record = PlexRecord(**attributes)
+                        self.save_record_to_db(record)
+                        print(f"Added new record for {item.title}")
+                        updated += 1
+
+        clock = time.perf_counter() - clock
+        if updated:
+            # do any necessary tasks to save the database to disk
+            self.session.commit()
+            report = f"Updated {updated:,} of"
+        else:
+            report = "No updates found in"
+        print(f"{report} {total:,} items in {clock:.2f} seconds.")
+
 
 def get_media_list():
     library = PlexLibrary()

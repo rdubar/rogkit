@@ -35,8 +35,9 @@ def main():
         plex_library.reset_database()
         print("Database reset.")
         return
-    # elif args.update:
-    #     plex_library.populate_database(update_changed_only=True)
+    elif args.update:
+        plex_library.update_test()
+        return
 
     if args.duplicates: 
         removed = plex_library.remove_duplicates()

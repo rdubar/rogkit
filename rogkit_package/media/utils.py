@@ -5,7 +5,7 @@ def process_arguments():
     parser = argparse.ArgumentParser(description='Process arguments')
 
     # Database management options
-    # parser.add_argument('--update', action='store_true', help='Update database')
+    parser.add_argument('-u', '--update', action='store_true', help='Update database')  # TODO: confirm working
     parser.add_argument('-R', '--reset', action='store_true', help='Reset database')
     parser.add_argument('-D', '--duplicates', action='store_true', help='Remove duplicates')
 
