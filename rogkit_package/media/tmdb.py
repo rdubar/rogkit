@@ -60,6 +60,10 @@ class MediaRecord:
             self.tmdb = tmdb_dict
             self.media_hash = generate_hash(tmdb_dict)
 
+        # define _eq__ to compare the entry_hash
+        def __eq__(self, other):
+            return self.entry_hash == other.entry_hash
+
 @dataclasses.dataclass
 class DataList:
     records: List[MediaRecord] = dataclasses.field(default_factory=list)
@@ -254,6 +258,7 @@ def process_search(data_list, search_terms, pretty_print):
 
     if existing_record:
         result = existing_record
+        print(f"Found {title} ({year}) in records")
     else:
         # Fetch movie details from TMDB
         result = data_list.get_movie_details(title)
@@ -262,6 +267,7 @@ def process_search(data_list, search_terms, pretty_print):
             media_record = data_list.tmdb_to_media_record(result)
             data_list.add_record(media_record)  # Add the new record
             data_list.save_to_file()
+            print(f"Added {title} ({year}) to records")
 
     # Pretty print or regular print the result
     if pretty_print:
