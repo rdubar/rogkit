@@ -92,5 +92,6 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 ### Experimental
 
 * bac: a better, simpler backup. Test code. 
+* chat: experimental chapgpt client.
 
 Roger D.
