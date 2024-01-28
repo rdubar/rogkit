@@ -62,10 +62,16 @@ class PlexRecordORM(Base):
 
     def __str__(self):
         # Customize the string representation of PlexRecord
-        year_str = f" ({self.year})" if self.year else ""
-        resolution_str = f" {self.resolution}" if self.resolution else ""
-        size_str = f" {byte_size(self.size)}" if self.size else ""
-        return f"{self.platform:7}{size_str:>10} {resolution_str:<6}    {self.title}{year_str}"
+        year_str = f" ({self.year})" if self.year is not None else ""
+        resolution_str = f" {self.resolution}" if self.resolution is not None else ""
+        size_str = f" {byte_size(self.size)}" if self.size is not None else ""
+
+        # Default values for None fields
+        platform_str = self.platform if self.platform is not None else "Unknown"
+        title_str = self.title if self.title is not None else "No Title"
+
+        return f"{platform_str:7}{size_str:>10} {resolution_str:<6}    {title_str}{year_str}"
+
     
     def info(self):
         # Customize the string representation of PlexRecord
@@ -77,7 +83,7 @@ class PlexRecordORM(Base):
         time_str = convert_seconds((self.duration / 1000)) if self.duration else ""
         information = f'{self.title}{year_str}, d. {self.directors},'
         information += f'w. {self.writers}, a. {self.actors}, {self.genres}'
-        information += f'\n{self.summary} {time_str} {size_str} {resolution_str}{rating}\n'
+        information += f'\n{self.summary} {time_str} {size_str} {resolution_str}{rating} {self.platform}\n'
         return information
 
 # Dataclass field defaults handling (if required)

@@ -12,6 +12,7 @@ from .plex_server import PlexServer
 from .media_records import PlexRecordORM, PlexRecord, common_schema, get_possible_attributes 
 from .database_utils import Base, engine, Session, update_database_schema
 from .media_settings import additional_media_csv
+from .tmdb import DataList
 from ..bin.seconds import convert_seconds
 
 
@@ -263,48 +264,73 @@ class PlexLibrary:
             reader = csv.DictReader(csvfile)
             return [row for row in reader]  # This creates a list of dictionaries
 
-    def load_additional_media(self):
+    def load_additional_media(self, tmdb=True):
         try:
             media = self._load_csv_to_dict(additional_media_csv)
         except Exception as e:
             print(f"Error loading additional media: {e}")
             return
+        
+        if tmdb:
+            tmdb_object = DataList()
+            tmdb_object.load_from_file()
+            print(f"Loaded {len(tmdb_object.records)} records from {tmdb_object.data_file}")
+            possible_attributes = get_possible_attributes()
 
         updated = 0
         loaded = 0
-        record_batch = []
 
         for item in media:
             # Ensure all required fields are present, set to None if missing
             for field in PlexRecord.__annotations__.keys():
                 item.setdefault(field, None)
 
+            # Convert 'extras' to boolean
+            item['extras'] = item.get('extras', 'False').lower() == 'true'
+
+            # Fetch TMDB data if needed
+            tmdb_data = tmdb_object.get_media_record(item['title'], item['year']) if tmdb else None
+            if tmdb_data:
+                print(f"Found TMDB data for {item['title']} ({item['year']})")
+
+            # Check for existing record
             existing = self.session.query(PlexRecordORM).filter_by(platform=item['platform'], title=item['title']).first()
             if existing:
                 # Update existing record
-                for key, value in item.items():
-                    if key in PlexRecord.__annotations__:
+                for key in PlexRecord.__annotations__:
+                    if key in ['platform', 'resolution']:
+                        # Prioritize CSV data for platform and resolution
+                        value = item.get(key)
+                    else:
+                        # Use TMDB data if available, otherwise use CSV data
+                        value = tmdb_data.get(key) if tmdb_data and key in tmdb_data else item.get(key)
+                    if value is not None:
                         setattr(existing, key, value)
                 updated += 1
             else:
                 # Prepare new record
-                item['extras'] = item.get('extras', 'False').lower() == 'true'
-                record = PlexRecord(**item)
-                record_batch.append(record)
+                new_record_data = {key: item[key] for key in PlexRecordORM.__table__.columns.keys()}
+                if tmdb_data:
+                    for key, value in tmdb_data.items():
+                        if key in possible_attributes and hasattr(PlexRecordORM, key) and key not in ['platform', 'resolution', 'extras']:
+                            new_record_data[key] = value
+
+                new_record = PlexRecordORM(**new_record_data)
+                self.session.add(new_record)
                 loaded += 1
 
-        # Commit updates for existing records
-        try:
-            self.session.commit()
-        except Exception as e:
-            print(f"Error during committing updates: {e}")
-            self.session.rollback()
-
-        # Save batch of new records
-        if record_batch:
-            self.save_record_batch_to_db(record_batch)
+            # Commit after each record update/addition
+            try:
+                self.session.commit()
+            except Exception as e:
+                print(f"Error committing changes for {item['title']} ({item['year']}): {e}")
+                self.session.rollback()
 
         print(f'Updated {updated} existing items and loaded {loaded} new items from {additional_media_csv}')
+
+        if updated and tmdb:
+            tmdb_object.save_to_file()
+
 
     def title_list(self, plex=False):
         if plex:

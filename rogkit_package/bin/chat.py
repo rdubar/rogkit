@@ -40,3 +40,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+# TODO: creats an input loop for chatgpt & remember the conversation for the next prompt
