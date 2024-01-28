@@ -2,10 +2,17 @@
 import sys
 from .bignum import bignum
 
-def convert_seconds(seconds, long=False, end=''):
+def pluralize(word, count):
+    if count == 1:
+        return word
+    else:
+        return word + 's'
+
+def convert_seconds(seconds, long=False, end='', show_seconds=True):
     # Return immediately for 0 seconds
-    if seconds <= 5:
-        return f"{seconds} seconds."
+    if seconds == 0:
+        return "0 seconds" + end
+
     seconds = int(seconds)
 
     # Define time units in seconds
@@ -17,40 +24,39 @@ def convert_seconds(seconds, long=False, end=''):
     minute = 60  # 1 minute
 
     # Calculate aeons, centuries, years, days, hours, minutes, and seconds
+    time_list = []
     if long:
         aeons = seconds // aeon
         seconds %= aeon
         centuries = seconds // century
         seconds %= century
+        if aeons > 0:
+            time_list.append(f"{aeons:,} {pluralize('aeon', aeons)}")
+        if centuries > 0:
+            time_list.append(f"{centuries:,} {pluralize('century', centuries)}")
+    
     years = seconds // year
     seconds %= year
+    if years > 0:
+        time_list.append(f"{years:,} {pluralize('year', years)}")
+
     days = seconds // day
     seconds %= day
+    if days > 0:
+        time_list.append(f"{days:,} {pluralize('day', days)}")
+
     hours = seconds // hour
     seconds %= hour
+    if hours > 0:
+        time_list.append(f"{hours} {pluralize('hour', hours)}")
+
     minutes = seconds // minute
     seconds %= minute
-
-    # Create a list of time components
-    time_list = []
-    if long:
-        if aeons > 0:
-            time_list.append(f"{aeons:,} aeons")
-        if centuries > 0:
-            time_list.append(f"{centuries:,} centuries")
-    if years > 0:
-        if years > 1e6:
-            time_list.append(f'{bignum(years)} years')
-        else:
-            time_list.append(f"{years:,} years")
-    if days > 0:
-        time_list.append(f"{days:,} days")
-    if hours > 0:
-        time_list.append(f"{hours} hours")
     if minutes > 0:
-        time_list.append(f"{minutes} minutes")
-    if seconds > 0:
-        time_list.append(f"{seconds} seconds")
+        time_list.append(f"{minutes} {pluralize('minute', minutes)}")
+
+    if show_seconds and seconds > 0:
+        time_list.append(f"{seconds} {pluralize('second', seconds)}")
 
     # Construct the time string
     if len(time_list) > 1:
@@ -59,6 +65,7 @@ def convert_seconds(seconds, long=False, end=''):
         return time_list[0] + end
     else:
         return "0 seconds" + end
+
 
 def hours_minutes_seconds(seconds):
     # return H:M:S for seconds

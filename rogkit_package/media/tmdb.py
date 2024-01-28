@@ -67,7 +67,7 @@ class DataList:
             results = response.json().get('results', [])
             if results:
                 movie_id = results[0]['id']
-                detailed_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={self.api_key}"
+                detailed_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={self.api_key}&append_to_response=credits"
                 detailed_response = requests.get(detailed_url)
                 if detailed_response.status_code == 200:
                     return detailed_response.json()
