@@ -71,7 +71,7 @@ class DataList:
                 detailed_response = requests.get(detailed_url)
                 if detailed_response.status_code == 200:
                     return detailed_response.json()
-        print(f"No TMDB details for {title} ({year} or )")
+        print(f"No TMDB match for {title} {year}")
         return None
     
     def delete_record(self, title, year=None):

@@ -5,6 +5,36 @@ import time
 from dataclasses import dataclass, field
 from typing import List, Tuple
 from .bytes import byte_size
+import ffmpeg
+
+def media_info(filepath: str, verbose: bool = False) -> str:
+    """
+    Retrieves the resolution of a video file.
+
+    Args:
+    filepath (str): The path to the video file.
+
+    Returns:
+    str: The resolution of the video as a string in the format 'widthxheight',
+         or an error message if the resolution cannot be determined.
+    """
+    try:
+        probe = ffmpeg.probe(filepath)
+        video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
+        if video_stream:
+            width = video_stream['width']
+            height = video_stream['height']
+            codec = video_stream['codec_name']
+            return f"{width}x{height} {codec}"
+    except ffmpeg.Error as e:
+        error = f'ffmpeg error: {e.stderr.decode()}'
+    except Exception as e:
+        error = f'Error: {e}'
+    if verbose:
+        return error
+    else:
+        return ''
+
 
 DEFAULT_FOLDER_LIST = [
     "/home/rdubar/projects/pythonProject/openerp-addons",
@@ -20,7 +50,7 @@ class SearchReport:
     total_files_searched: int = 0
     search_time: float = 0.0
 
-    def display_files(self, number=10, all=False):
+    def display_files(self, number=10, all=False, media=False):
         matches = "match" if len(self.results) == 1 else "matches"
         print(f"Found {len(self.results):,} {matches} in {self.total_files_searched:,} files in {self.search_time:.2f} seconds.")
         if all:
@@ -28,6 +58,10 @@ class SearchReport:
         for result in self.results[:number]:
             size = byte_size(os.path.getsize(result))
             print(f'{size:>9}  {result}')
+            if media:
+                info = media_info(result)
+                if info:
+                    print(f"{'':>10}  {info}")
         if len(self.results) > number:
             print("...and more")
 
@@ -35,6 +69,7 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description='Search for files and folders containing all specified texts.')
     parser.add_argument('-a', '--all', action='store_true', help='Show all matching results.')
     parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
+    parser.add_argument('-m', '--media', action='store_true', help='Show media info for matching files')
     parser.add_argument('-n', '--number', type=int, default=10, help='Number of results shown')
     parser.add_argument('-u', '--user', action='store_true', help='Search the user\'s home folder.')
 
@@ -67,9 +102,12 @@ def main():
     print(f"Searching in folders: {', '.join(folders)}")
     print(f"Looking for files containing all of: {', '.join(args.texts)}")
 
+    if args.media:
+        print('Showing media info for matching files.')
+
     clock = time.perf_counter()
     report = find_files(folders, args.texts)
-    report.display_files(number=args.number, all=args.all)
+    report.display_files(number=args.number, all=args.all, media=args.media)
     print(f"Completed in {time.perf_counter() - clock:.2f} seconds.")
 
 if __name__ == "__main__":
