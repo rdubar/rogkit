@@ -71,7 +71,7 @@ class DataList:
                 detailed_response = requests.get(detailed_url)
                 if detailed_response.status_code == 200:
                     return detailed_response.json()
-        print("Error fetching movie details")
+        print(f"No TMDB details for {title} ({year} or )")
         return None
     
     def delete_record(self, title, year=None):
