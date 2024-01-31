@@ -3,6 +3,7 @@ import datetime
 from .media_records import PlexRecordORM
 from .plex_library import PlexLibrary, update_database_schema, engine
 from .plex_server import PlexServer
+from .shrink import shrink_list
 
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
@@ -74,6 +75,11 @@ def main():
 
     if not results:
         print("No results.")
+        return
+
+    if args.shrink:
+        results = [result for result in results if result.codec == 'mpeg2video']
+        shrink_list(results, search=search_text)
         return
 
     if search_text:

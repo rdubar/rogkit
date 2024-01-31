@@ -30,6 +30,7 @@ def process_arguments():
     parser.add_argument('-s', '--size', action='store_true', help='Sort by file size')
     parser.add_argument('-S', '--summary', action='store_true', help='Show a summary for each title')
     parser.add_argument('--rating', action='store_true', help='Sort by rating')
+    parser.add_argument('--shrink', action='store_true', help='Run the experimetal shrink function')
     
     # Mode options
     parser.add_argument('-V', '--verbose', action='store_true', help='Verbose mode')
