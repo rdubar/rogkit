@@ -2,20 +2,28 @@ import argparse
 import requests
 from ..bin.tomlr import load_rogkit_toml
 
+# Load the configuration from TOML file
 TOML = load_rogkit_toml()
 DEFAULT_API_KEY = TOML.get('openai', {}).get('openai_api_key', '')
 DEFAULT_ENGINE = "gpt-3.5-turbo-0613"
 
-def query_chatgpt(prompt, api_key=DEFAULT_API_KEY, engine=DEFAULT_ENGINE):
+def query_chatgpt(prompt, api_key=DEFAULT_API_KEY, engine=DEFAULT_ENGINE, history=[]):
     headers = {
         'Authorization': f'Bearer {api_key}',
         'Content-Type': 'application/json'
     }
+    # Prepare the list of messages, starting with the system message
+    messages = [{"role": "system", "content": "You are a helpful assistant."}]
+    # Add history messages if any
+    messages.extend(history)
+    # Add the current prompt
+    messages.append({"role": "user", "content": prompt})
+    
     data = {
-        "model": engine,  # Include the model parameter
-        "messages": [{"role": "system", "content": "You are a helpful assistant."}, {"role": "user", "content": prompt}]
+        "model": engine,
+        "messages": messages
     }
-    response = requests.post(f"https://api.openai.com/v1/chat/completions", json=data, headers=headers)
+    response = requests.post("https://api.openai.com/v1/chat/completions", json=data, headers=headers)
     return response.json()
 
 def main():
@@ -27,18 +35,28 @@ def main():
     args = parser.parse_args()
 
     full_prompt = ' '.join(args.prompt)
-
-    response = query_chatgpt(full_prompt, api_key=args.api_key, engine=args.engine)
-    try:
-        print(response['choices'][0]['message']['content'])
-    except Exception as e:
-        print(f"Error: {e}")
-        print(response)
+    history = []  # Initialize the history list
 
     if args.debug:
         print(DEFAULT_API_KEY)
 
+    while True:
+        response = query_chatgpt(full_prompt, api_key=args.api_key, engine=args.engine, history=history)
+        try:
+            output = response['choices'][0]['message']['content']
+            print(output)
+            # Update the history after receiving a response
+            history.append({"role": "user", "content": full_prompt})
+            history.append({"role": "assistant", "content": output})
+        except Exception as e:
+            print(f"Error: {e}")
+        
+        full_prompt = input("> ")
+        if full_prompt.lower() in ['exit', 'quit', 'q']:
+            break
+
+
 if __name__ == "__main__":
     main()
 
-# TODO: creats an input loop for chatgpt & remember the conversation for the next prompt
+# TODO: better chat history handling
