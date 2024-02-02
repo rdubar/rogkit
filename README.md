@@ -53,7 +53,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 ### Commands
 
 | Command  | Description        | Python Imports                         |
-|----------|--------------------|-----------------------------------------|
+|----------|--------------------|----------------------------------------|
 | backup   | Backup files       |                                        |
 | bignum   | Show big numbers   | from bignum import bignum              |
 | bytes    | Bytes to KB/MB/GB  | from bytes import byte_size            |
