@@ -1,5 +1,6 @@
 import os
 import time
+import subprocess
 from datetime import datetime
 import tempfile
 
@@ -43,21 +44,31 @@ def main():
     with open(file_list_path, 'w') as f:
         f.writelines(f"{file}\n" for file in include_files)
 
-    # Create a backup name with timestamp and file count
     backup_name = f'backup-{datetime.today().strftime("%d-%m-%Y")}.{len(include_files):,}.tar.gz'
     backup_path = os.path.join(user_home, backup_name)
+    backup_temp = tempfile.NamedTemporaryFile(delete=False)
+    error = None
 
-    # Use tar command to create the backup directly
-    os.system(f'tar -czf {backup_path} -T {file_list_path}')
+    try:
+        # Correctly using subprocess for better control and security
+        subprocess.run(['tar', '-czf', backup_temp.name, '-T', file_list_path], check=True)
+        os.rename(backup_temp.name, backup_path)
+        size = os.path.getsize(backup_path)
+    except Exception as e:
+        error = e
+    finally:
+        os.remove(file_list_path)  # Clean up the temporary file list
 
     elapsed_time = convert_seconds(time.perf_counter() - start_time)
-    size = os.path.getsize(backup_path)
-
-    if size:
+    
+    if error or not os.path.exists(backup_path):
+        print(f'Error creating backup: {backup_path} in {elapsed_time}')
+        if error:
+            print(f'Error: {error}')
+    else:
         size_str = byte_size(size)
         print(f'Backup complete: {len(include_files):,} files backed up to {backup_path} ({size_str}) in {elapsed_time}')
-    else:
-        print(f'Error creating backup: {backup_path} in {elapsed_time}')
 
 if __name__ == '__main__':
     main()
+    
