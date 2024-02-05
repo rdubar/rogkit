@@ -95,7 +95,7 @@ def main():
     parser.add_argument("directory", nargs='?', default=".", help="Directory to process (default: current directory)")
     parser.add_argument("-c", "--confirm", action="store_true", help="Confirm processing of files")
     parser.add_argument("-d", "--debug", action="store_true", help="Run in debug mode (show full errors)")
-    parse_args = parser.add_argument("-s", "--size", nargs='?', default=110, help="Set the max size of the image in KB (default: 110KB)")
+    parser.add_argument("-s", "--size", nargs='?', default=110, help="Set the max size of the image in KB (default: 110KB)")
     args = parser.parse_args()
 
     print(f"Resize image files in a directory and convert them to JPEGs with a maxium size of {args.size}kb.")

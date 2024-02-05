@@ -26,7 +26,7 @@ def main():
 
     parser = argparse.ArgumentParser(description="Clean .po and .pot files modified within a certain time frame.")
     parser.add_argument("--test", action="store_true", help="Test run only")
-    parser.add_argument("--minutes", type=int, default=default_minutes, help="Minutes to look back for modified files")
+    parser.add_argument('-m', "--minutes", type=int, default=default_minutes, help="Minutes to look back for modified files")
     args = parser.parse_args()
 
     if not os.path.exists(root_directory):
