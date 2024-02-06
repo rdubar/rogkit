@@ -134,8 +134,12 @@ def main():
         print(f"Error creating Spotify client: {e}")
         exit(1)
 
-    client.authenticate()
-    liked_songs = client.get_liked_songs()
+    try:
+        client.authenticate()
+        liked_songs = client.get_liked_songs()
+    except Exception as e:
+        print(f"Error getting liked songs: {e}")
+        exit(1)
 
     print("Total songs in Liked Songs:", len(liked_songs))
 

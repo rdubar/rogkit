@@ -13,9 +13,11 @@ DEFAULT_ROGKIT_TOML = {
     "plex": {"plex_server_url": "", "plex_server_token": ""},
     "openweather": {"openweather_api_key": ""},
     "ipinfo": {"ipinfo_api_key": ""},
-    "yout": { "temp_folder" : "", "download_folder" : "", "default_input_file" : "" } 
+    "yout": { "temp_folder" : "", "download_folder" : "", "default_input_file" : "" },
+    "openai": {"openai_api_key": ""},
+    "tmdb": {"tmdb_api_key": "", "tmdb_api_read_access_token": ""},
+    "clean": {"script_path": ""},
 }
-
 
 
 def user_rogkit_toml_path():

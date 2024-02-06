@@ -4,6 +4,19 @@ import fnmatch
 import time
 import subprocess
 import argparse
+from .tomlr import load_rogkit_toml
+
+try:
+    script_path = load_rogkit_toml()['clean']['script_path']
+except KeyError:
+    print("Error: '[clean][script_path]' section not found in ~/.rogkit.toml. Exiting.")
+    script_path = None
+
+"""
+# Add to ~/.rogkit.toml: 
+[clean]
+script_path = '/home/rdubar/projects/pythonProject/openerp-addons/src/scripts/translation_clean.sh'
+"""
 
 def run_command(command):
     """Execute a shell command and return its output and error."""
@@ -33,6 +46,10 @@ def main():
         print(f"Root directory {root_directory} does not exist. Exiting.")
         return
 
+    if not script_path:
+        print(f"Script path not found at {script_path}. Exiting.")
+        return
+
     print(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
     all_files = list(find_files(root_directory, desired_filenames))
     total_files = len(all_files)
@@ -44,8 +61,6 @@ def main():
     if args.test:
         print("Test run only. No files were modified.")
         return
-
-    script_path = '/home/rdubar/projects/pythonProject/openerp-addons/src/scripts/translation_clean.sh'
 
     if not os.path.exists(script_path):
         print(f"Script path {script_path} does not exist. Exiting.")

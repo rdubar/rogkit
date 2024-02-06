@@ -22,7 +22,11 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=1):
     system_time = datetime.datetime.now()
     # Get the online time
     print(f"Getting the online time from {url}")
-    response = requests.get(url)
+    try:
+        response = requests.get(url)
+    except Exception as e:
+        print(f'Error getting time: {e}')
+        exit(1)
     online_time = parse(response.json()['datetime'])
     # Convert both times to UTC
     system_time = system_time.replace(tzinfo=tz.tzutc())

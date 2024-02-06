@@ -4,13 +4,12 @@ import subprocess
 from datetime import datetime
 import tempfile
 
-from ..bin.tomlr import load_rogkit_toml  # TODO: implement TOML setup
+from ..bin.tomlr import load_rogkit_toml  # Placeholder for actual import
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
 
-# Consolidated and corrected EXCLUDE_PATTERNS list
 EXCLUDE_PATTERNS = [
-    'bac.txt', '.csm_setup', 'Library', '.DS_Store', '.cache', '.modular',
+    '.csm_setup', 'Library', '.DS_Store', '.cache', '.modular',
     '.pyenv', '.local', '.Trash', '.vscode', '.git', '.gitignore', '.idea',
     '.pyc', '.ipynb_checkpoints', '.ropeproject', 'site-packages', '__pycache__',
     'venv', 'node_modules', 'build', 'dist', 'package-lock.json', 'package.json',
@@ -18,15 +17,13 @@ EXCLUDE_PATTERNS = [
 ]
 
 def get_all_files(path):
-    """Get all files in a directory, excluding those matching patterns in EXCLUDE_PATTERNS."""
     all_files = []
     for root, _, files in os.walk(path):
-        files = [os.path.join(root, file) for file in files]
+        files = [os.path.join(root, file) for file in files if file_filter(os.path.join(root, file))]
         all_files.extend(files)
     return all_files
 
 def file_filter(file_path):
-    """Check if the file should be included based on EXCLUDE_PATTERNS."""
     return not any(excluded in file_path for excluded in EXCLUDE_PATTERNS)
 
 def main():
@@ -36,39 +33,32 @@ def main():
 
     print(f'Finding files in {user_home}')
     all_files = get_all_files(user_home)
-    include_files = list(filter(file_filter, all_files))
+    include_files = all_files  # Filter is applied during file collection
 
     print(f'Found {len(include_files):,} files to backup from {len(all_files):,} total files.')
 
-    file_list_path = tempfile.NamedTemporaryFile(delete=False).name
-    with open(file_list_path, 'w') as f:
-        f.writelines(f"{file}\n" for file in include_files)
+    # Use NamedTemporaryFile for the list of files and TemporaryFile for the actual backup
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as file_list:
+        file_list.writelines(f"{file}\n" for file in include_files)
+        file_list.flush()
 
-    backup_name = f'backup-{datetime.today().strftime("%d-%m-%Y")}.{len(include_files):,}.tar.gz'
-    backup_path = os.path.join(user_home, backup_name)
-    backup_temp = tempfile.NamedTemporaryFile(delete=False)
-    error = None
+        with tempfile.NamedTemporaryFile(delete=False) as backup_temp:
+            backup_name = f'backup-{datetime.today().strftime("%Y-%m-%d")}.{len(include_files):,}.tar.gz'
+            backup_path = os.path.join(user_home, backup_name)
 
-    try:
-        # Correctly using subprocess for better control and security
-        subprocess.run(['tar', '-czf', backup_temp.name, '-T', file_list_path], check=True)
-        os.rename(backup_temp.name, backup_path)
-        size = os.path.getsize(backup_path)
-    except Exception as e:
-        error = e
-    finally:
-        os.remove(file_list_path)  # Clean up the temporary file list
+            try:
+                subprocess.run(['tar', '-czf', backup_temp.name, '-T', file_list.name], check=True)
+                os.rename(backup_temp.name, backup_path)  # Move the temporary backup to its final location
+                size = os.path.getsize(backup_path)
+            except Exception as e:
+                print(f'Error during backup: {e}')
+                return
+            finally:
+                os.remove(file_list.name)  # Clean up the file list after backup
 
     elapsed_time = convert_seconds(time.perf_counter() - start_time)
-    
-    if error or not os.path.exists(backup_path):
-        print(f'Error creating backup: {backup_path} in {elapsed_time}')
-        if error:
-            print(f'Error: {error}')
-    else:
-        size_str = byte_size(size)
-        print(f'Backup complete: {len(include_files):,} files backed up to {backup_path} ({size_str}) in {elapsed_time}')
+    size_str = byte_size(size)
+    print(f'Backup complete: {len(include_files):,} files backed up to {backup_path} ({size_str}) in {elapsed_time}')
 
 if __name__ == '__main__':
     main()
-    

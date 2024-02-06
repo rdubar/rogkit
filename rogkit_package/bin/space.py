@@ -17,9 +17,12 @@ def display_space(path):
 def display_paths(path_list=None, size=False):
     if path_list is None:
         path_list = []
-
-    mnt_paths = os.listdir('/mnt')
-    mnt_paths_full = [os.path.join('/mnt', x) for x in mnt_paths]
+        
+    if os.path.exists('/mnt'):  #  refactor this for MacOS setup
+        mnt_paths = os.listdir('/mnt')
+        mnt_paths_full = [os.path.join('/mnt', x) for x in mnt_paths]
+    else:
+        mnt_paths_full = []
 
     # Check if paths exist in the filesystem
     found_paths = [x for x in path_list if os.path.exists(x)]
