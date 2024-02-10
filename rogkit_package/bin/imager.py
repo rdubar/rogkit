@@ -28,6 +28,7 @@ def read_heic_file(input_image_path):
 def resize_image(img, max_size):
     """Resize the image to the given maximum size."""
     try:
+        max_size = int(max_size)
         img.thumbnail((max_size, max_size))
         return img
     except Exception as e:

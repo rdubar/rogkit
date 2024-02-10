@@ -27,6 +27,9 @@ class PlexLibrary:
         self.ensure_database_ready()
         self.load_data_from_db()
 
+    def total_records(self):
+        return self.session.query(PlexRecordORM).count()
+
     def ensure_database_ready(self):
         try:
             self.session.execute(text("SELECT 1 FROM plex_records LIMIT 1"))
