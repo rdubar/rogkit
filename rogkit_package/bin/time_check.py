@@ -18,8 +18,6 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logger=logging.getLogger(__name__) 
 
 def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=1):
-    # Get the system time
-    system_time = datetime.datetime.now()
     # Get the online time
     print(f"Getting the online time from {url}")
     try:
@@ -28,6 +26,8 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=1):
         print(f'Error getting time: {e}')
         exit(1)
     online_time = parse(response.json()['datetime'])
+    # Get the system time
+    system_time = datetime.datetime.now()
     # Convert both times to UTC
     system_time = system_time.replace(tzinfo=tz.tzutc())
     online_time = online_time.replace(tzinfo=tz.tzutc())
@@ -37,7 +37,7 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=1):
     time_difference = online_time - system_time
     # get the time difference in seconds
     time_difference_seconds = time_difference.total_seconds()
-    print(f"The difference between the online time and the system time is {convert_seconds(time_difference_seconds)}") 
+    print(f"The difference between the online time and the system time is {convert_seconds(time_difference_seconds)}.") 
     # If the difference is greater than the threshold, indicate a discrepancy
     if abs(time_difference_seconds) > threshold:
         return False
