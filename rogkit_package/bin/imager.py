@@ -110,12 +110,14 @@ def process_images(directory, confirm=False, max_size=110, max_length=800, verbo
 
 def main():
     default_max_dimension = 1_200
+    default_max_size = 200
     """Main function to handle argument parsing."""
     parser = argparse.ArgumentParser(description="Resize and convert images in the current directory.")
     parser.add_argument("directory", nargs='?', default=".", help="Directory to process (default: current directory)")
     parser.add_argument("-c", "--confirm", action="store_true", help="Confirm processing of files")
     parser.add_argument("-d", "--debug", action="store_true", help="Run in debug mode (show full errors)")
-    parser.add_argument("-s", "--max_size", nargs='?', default=110, help="Set the max size of the image in KB (default: 110KB)")
+    parser.add_argument("-s", "--max_size", nargs='?', default=default_max_size, 
+                        help=f"Set the max size of the image in KB (default: {default_max_size}KB)")
     parser.add_argument("-l", "--max_length", nargs='?', default=default_max_dimension, 
                         help=f"Set the max length of the image (default: {default_max_dimension})")
     parser.add_argument("-v", "--verbose", action="store_true", help="Show verbose output")
