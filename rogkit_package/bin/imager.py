@@ -109,8 +109,8 @@ def process_images(directory, confirm=False, max_size=110, max_length=800, verbo
     print(f"Moved {len(files)} image files to {images_backup_folder}")
 
 def main():
-    default_max_dimension = 1_200
-    default_max_size = 200
+    default_max_dimension = 1_200  # longest side of the image in pixels
+    default_max_size = 200  # maximum size of the image in KiloBytes
     """Main function to handle argument parsing."""
     parser = argparse.ArgumentParser(description="Resize and convert images in the current directory.")
     parser.add_argument("directory", nargs='?', default=".", help="Directory to process (default: current directory)")
