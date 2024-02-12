@@ -62,10 +62,10 @@ def delete_files(file_list):
 
 def main():
     parser = argparse.ArgumentParser(description='Search and delete files based on a pattern.')
-    parser.add_argument('pattern', nargs='?', default=PURGE_LIST, help='Pattern to search for.')
+    parser.add_argument('pattern', nargs='?', default=PURGE_LIST, help='Pattern to search for [or use defaults].')
+    parser.add_argument('-c', '--confirm', action='store_true', help='Confirm deletion of files.')
     parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
     parser.add_argument('-p', '--purge_list', action='store_true', help='Show the purge list.')
-    parser.add_argument('--confirm', action='store_true', help='Confirm deletion of files.')
     args = parser.parse_args()
 
     folder = args.folder or next((f for f in DEFAULT_FOLDER_LIST if os.path.exists(f)), '')

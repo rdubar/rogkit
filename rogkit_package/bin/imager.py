@@ -37,7 +37,7 @@ def resize_image(img, max_size):
 
 def compress_image(image, max_size, verbose=False):
     """Compress the image to a file size less than max_size."""
-    max_size *= 1024  # Convert max_size to bytes
+    max_size *= 1024  # Convert max_size from kilobytes to bytes
     quality = 85
     buffer = io.BytesIO()
     image.save(buffer, format="JPEG", quality=quality)
