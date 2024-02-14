@@ -6,7 +6,7 @@ from ..bin.tomlr import load_rogkit_toml
 TOML = load_rogkit_toml()
 DEFAULT_API_KEY = TOML.get('openai', {}).get('openai_api_key', '')
 # Set the API key globally
-DEFAULT_ENGINE = "gpt-3.5-turbo-0613"
+DEFAULT_ENGINE = "gpt-3.5-turbo"
 
 client = OpenAI(api_key=DEFAULT_API_KEY)
 
