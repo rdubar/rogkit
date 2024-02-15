@@ -36,7 +36,9 @@ def get_full_folder_path(arg):
 
 def run_tests(folder):
     """Executes the nosetest command on the specified folder."""
-    subprocess.run(f'cd {ROOT} && {NOSETEST_CMD} {folder}', shell=True)
+    command = f'cd {ROOT} && {NOSETEST_CMD} {folder}'
+    print(command)
+    subprocess.run(command, shell=True)
 
 if __name__ == '__main__':
     main()
