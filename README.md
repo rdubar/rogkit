@@ -92,5 +92,6 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 
 * bac: a better, simpler backup. Test code. 
 * tkm: am experimentl graphical front end for media searches
+* nose: run nosetests in ERP
 
 Roger D.
