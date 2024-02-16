@@ -36,7 +36,7 @@ def convert_seconds(seconds, long_format=False, show_seconds=True):
 
     for unit, name in [(years, 'year'), (days, 'day'), (hours, 'hour'), (minutes, 'minute')]:
         if unit > 0:
-            time_list.append(f"{unit} {plural(name, unit)}")
+            time_list.append(f"{unit:,} {plural(name, unit)}")
     if show_seconds and seconds > 0:
         time_list.append(f"{seconds} {plural('second', seconds)}")
 

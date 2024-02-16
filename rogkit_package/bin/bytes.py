@@ -14,8 +14,7 @@ def byte_size(size: int, base: int = 1000) -> str:
     for unit in units:
         if size < base or unit == units[-1]:  # Stop at the last unit
             if unit == "bytes":
-                return f"{size} {unit}"
-            return f"{size:,.2f} {unit}"
+                return f"{size} {unit}" if size != 1 else f"1 byte"
         size /= base
 
     return f"{size:,.2f} {unit}"  # Fallback for very large numbers

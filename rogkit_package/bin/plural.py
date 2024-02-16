@@ -7,7 +7,9 @@ def plural(word, count):
         return word
 
     # Handling irregular plural forms and common endings more efficiently
-    irregulars = {'man': 'men', 'woman': 'women', 'child': 'children', 'tooth': 'teeth', 'foot': 'feet', 'mouse': 'mice', 'person': 'people'}
+    irregulars = {"day": "days", 'man': 'men', 'woman': 'women', 'child': 'children', 
+                  'tooth': 'teeth', 'foot': 'feet', 'mouse': 'mice', 'person': 'people',
+                  "sheep": "sheep", "deer": "deer", "fish": "fish", "species": "species"}
     if word.lower() in irregulars:
         return irregulars[word.lower()]
 
