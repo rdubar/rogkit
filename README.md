@@ -65,6 +65,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | imager   | Resize images      |                                        |
 | loc      | Show locale info   | from location import get_weather_data  |
 | media    | Media Libary       |                                        |
+| plural   | Pluralise a word   | from plural import plural              |
 | purge    | Purge files        | from purge import delete_files         |
 | pw       | Generate password  | from pw import PasswordGenerator       |
 | replacer | Replace text       |                                        |

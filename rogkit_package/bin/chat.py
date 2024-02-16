@@ -22,11 +22,15 @@ def query_chatgpt(prompt, engine=DEFAULT_ENGINE, history=[]):
 
 
 def main():
+
+
     parser = argparse.ArgumentParser(description="CLI for querying ChatGPT.")
-    parser.add_argument("prompt", nargs='+', help="Prompt to send to ChatGPT")
+    parser.add_argument("prompt", nargs='?', help="Prompt to send to ChatGPT")
     parser.add_argument("-e", "--engine", required=False, default=DEFAULT_ENGINE, help="OpenAI engine to use")
     parser.add_argument("-d", "--debug", action="store_true", help="Print debug info")
     args = parser.parse_args()
+    if args.prompt is None:
+        args.prompt = input("Enter your prompt: ")
 
     full_prompt = ' '.join(args.prompt)
     history = []  # Initialize the history list

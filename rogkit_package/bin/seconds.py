@@ -1,17 +1,14 @@
 #!/usr/bin/env python3
-import sys
+import argparse
 from .bignum import bignum
+from .plural import plural
 
-def pluralize(word, count):
-    if count == 1:
-        return word
-    else:
-        return word + 's'
 
-def convert_seconds(seconds, long=False, end='', show_seconds=True):
-    # Return immediately for 0 seconds
+
+def convert_seconds(seconds, long_format=False, show_seconds=True):
+    """Convert seconds into a readable format, with options for long format and showing seconds."""
     if seconds == 0:
-        return "0 seconds" + end
+        return "0 seconds"
 
     seconds = int(seconds)
 
@@ -23,65 +20,40 @@ def convert_seconds(seconds, long=False, end='', show_seconds=True):
     hour = 3600  # 1 hour
     minute = 60  # 1 minute
 
-    # Calculate aeons, centuries, years, days, hours, minutes, and seconds
     time_list = []
-    if long:
-        aeons = seconds // aeon
-        seconds %= aeon
-        centuries = seconds // century
-        seconds %= century
+    if long_format:
+        aeons, seconds = divmod(seconds, aeon)
+        centuries, seconds = divmod(seconds, century)
         if aeons > 0:
-            time_list.append(f"{aeons:,} {pluralize('aeon', aeons)}")
+            time_list.append(f"{aeons:,} {plural('aeon', aeons)}")
         if centuries > 0:
-            time_list.append(f"{centuries:,} {pluralize('century', centuries)}")
-    
-    years = seconds // year
-    seconds %= year
-    if years > 0:
-        time_list.append(f"{years:,} {pluralize('year', years)}")
+            time_list.append(f"{centuries:,} {plural('century', centuries)}")
 
-    days = seconds // day
-    seconds %= day
-    if days > 0:
-        time_list.append(f"{days:,} {pluralize('day', days)}")
+    years, seconds = divmod(seconds, year)
+    days, seconds = divmod(seconds, day)
+    hours, seconds = divmod(seconds, hour)
+    minutes, seconds = divmod(seconds, minute)
 
-    hours = seconds // hour
-    seconds %= hour
-    if hours > 0:
-        time_list.append(f"{hours} {pluralize('hour', hours)}")
-
-    minutes = seconds // minute
-    seconds %= minute
-    if minutes > 0:
-        time_list.append(f"{minutes} {pluralize('minute', minutes)}")
-
+    for unit, name in [(years, 'year'), (days, 'day'), (hours, 'hour'), (minutes, 'minute')]:
+        if unit > 0:
+            time_list.append(f"{unit} {plural(name, unit)}")
     if show_seconds and seconds > 0:
-        time_list.append(f"{seconds} {pluralize('second', seconds)}")
+        time_list.append(f"{seconds} {plural('second', seconds)}")
 
-    # Construct the time string
-    if len(time_list) > 1:
-        return ", ".join(time_list[:-1]) + " and " + time_list[-1] + end
-    elif time_list:
-        return time_list[0] + end
-    else:
-        return "0 seconds" + end
+    return ", ".join(time_list[:-1]) + " and " + time_list[-1] if time_list else "0 seconds"
 
+def main():
+    """Main function to parse arguments and print the converted time."""
+    parser = argparse.ArgumentParser(description='Convert seconds into more readable formats.')
+    parser.add_argument('seconds', type=int, help='Number of seconds to convert')
+    parser.add_argument('-l', '--long', action='store_true', help='Use a long format for time representation')
+    parser.add_argument('-s', '--seconds', action='store_true', help='Show seconds explicitly', dest='show_seconds')
+    args = parser.parse_args()
 
-def hours_minutes_seconds(seconds):
-    # return H:M:S for seconds
-    seconds = int(seconds)
-    hours = seconds // 3600
-    seconds %= 3600
-    minutes = seconds // 60
-    seconds %= 60
-    return f"{hours}:{minutes:02}:{seconds:02}"
+    try:
+        print(convert_seconds(args.seconds, long_format=args.long, show_seconds=args.show_seconds))
+    except ValueError as e:
+        print(f"Error: {e}")
 
 if __name__ == "__main__":
-    if len(sys.argv) > 1:
-        try:
-            input_seconds = int(sys.argv[1])
-            print(convert_seconds(input_seconds))
-        except ValueError:
-            print("Please provide a valid number of seconds.")
-    else:
-        print("Convert seconds into years, days, minutes etc.\nUsage: seconds.py [number of seconds]")
+    main()
