@@ -92,7 +92,8 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 ### Experimental
 
 * bac: a better, simpler backup. Test code. 
-* tkm: am experimentl graphical front end for media searches
+* mongo: basic MongoDB tools
 * nose: run nosetests in ERP
+* tkm: am experimentl graphical front end for media searches
 
 Roger D.

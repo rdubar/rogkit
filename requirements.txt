@@ -11,6 +11,7 @@ charset-normalizer==3.3.2
 colorama==0.4.6
 cssselect==1.2.0
 distro==1.9.0
+dnspython==2.6.1
 exceptiongroup==1.2.0
 fake-useragent==1.4.0
 Faker==22.1.0
@@ -35,6 +36,7 @@ pydantic==2.6.0
 pydantic_core==2.16.1
 pyee==8.2.2
 pyheif==0.7.1
+pymongo==4.6.1
 pyppeteer==1.0.2
 pyquery==2.0.0
 python-dateutil==2.8.2
