@@ -4,8 +4,7 @@ from .bignum import bignum
 from .plural import plural
 
 
-
-def convert_seconds(seconds, long_format=False, show_seconds=True):
+def convert_seconds(seconds, long_format=False, show_seconds=True, no_commas=False, bignums=False):
     """Convert seconds into a readable format, with options for long format and showing seconds."""
     if seconds == 0:
         return "0 seconds"
@@ -36,22 +35,39 @@ def convert_seconds(seconds, long_format=False, show_seconds=True):
 
     for unit, name in [(years, 'year'), (days, 'day'), (hours, 'hour'), (minutes, 'minute')]:
         if unit > 0:
-            time_list.append(f"{unit:,} {plural(name, unit)}")
+            if bignums:
+                unit_str = bignum(unit)
+            else:
+                unit_str = unit if no_commas else f"{unit:,}"
+            time_list.append(f"{unit_str} {plural(name, unit)}")
     if show_seconds and seconds > 0:
         time_list.append(f"{seconds} {plural('second', seconds)}")
 
-    return ", ".join(time_list[:-1]) + " and " + time_list[-1] if time_list else "0 seconds"
+    if len(time_list) == 0:
+        return "0 seconds"
+    elif len(time_list) == 1:
+        return time_list[0]
+    else:
+        return ", ".join(time_list[:-1]) + " and " + time_list[-1]
+
 
 def main():
     """Main function to parse arguments and print the converted time."""
     parser = argparse.ArgumentParser(description='Convert seconds into more readable formats.')
     parser.add_argument('seconds', type=int, help='Number of seconds to convert')
     parser.add_argument('-l', '--long', action='store_true', help='Use a long format for time representation')
+    parser.add_argument('-n', '--no-commas', action='store_true', help='Do not use commas as a thousands separator')
+    parser.add_argument('-b', '--bignum', action='store_true', help='Use a bignum library for large numbers')
     parser.add_argument('-s', '--seconds', action='store_true', help='Show seconds explicitly', dest='show_seconds')
     args = parser.parse_args()
 
     try:
-        print(convert_seconds(args.seconds, long_format=args.long, show_seconds=args.show_seconds))
+        print(convert_seconds(
+            args.seconds, 
+            long_format=args.long, 
+            show_seconds=args.show_seconds, 
+            no_commas=args.no_commas,
+            bignums=args.bignum))
     except ValueError as e:
         print(f"Error: {e}")
 

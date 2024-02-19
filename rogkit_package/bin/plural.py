@@ -36,12 +36,13 @@ def parse_input(input_string):
 
 def main():
     parser = argparse.ArgumentParser(description='Pluralize a word based on the count provided.')
-    # Use nargs to accept multiple arguments
-    parser.add_argument('input', nargs='+', help='Input string containing a count and a word, in any order.')
+    parser.add_argument('input', nargs='?', help='Input string containing a count and a word, in any order.')
     args = parser.parse_args()
 
-    # Join the arguments to form a single string
-    input_str = " ".join(args.input)
+    if not args.input:
+        input_str = input("Enter a count and a word: ")    
+    else:
+        input_str = " ".join(args.input)
     word, count = parse_input(input_str)
     print(plural(word, count))
 
