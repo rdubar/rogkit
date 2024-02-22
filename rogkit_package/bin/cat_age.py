@@ -1,5 +1,5 @@
 import sys
-from .minidec import minimize_decimals
+from .rounder import round_decimals
 
 def cat_age_to_human(cat_age_years, cat_age_months=0):
     total_cat_age_months = cat_age_years * 12 + cat_age_months
@@ -30,15 +30,15 @@ def main():
     # Building the cat age string
     cat_parts = []
     if cat_age_years > 0:
-        cat_parts.append(f'{minimize_decimals(cat_age_years, 0)} years')
+        cat_parts.append(f'{round_decimals(cat_age_years, 0)} years')
     if cat_age_months > 0:
-        cat_parts.append(f'{minimize_decimals(cat_age_months, 0)} months')
+        cat_parts.append(f'{round_decimals(cat_age_months, 0)} months')
 
     cat_age_str = ' and '.join(cat_parts)
     if not cat_age_str:
         cat_age_str = "less than a month"  # For the case of 0 years and 0 months
 
-    human = minimize_decimals(human_years, 1)
+    human = round_decimals(human_years, 1)
 
     print(f"A cat that is {cat_age_str} old is approximately {human} human years old.")
 

@@ -1,6 +1,6 @@
 import sys
 
-def minimize_decimals(value, max_decimals):
+def round_decimals(value, max_decimals):
     if value == int(value):
         return str(int(value))
     else:
