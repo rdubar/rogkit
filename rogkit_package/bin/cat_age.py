@@ -27,12 +27,21 @@ def main():
 
     human_years = cat_age_to_human(cat_age_years, cat_age_months)
 
-    cat = f'{minimize_decimals(cat_age_years, 0)} years' if cat_age_years else ''
-    human = minimize_decimals(human_years, 1)
-    months = f' and {minimize_decimals(cat_age_months, 0)} months' if cat_age_months else ''
-    _and = ' and ' if cat_age_years and cat_age_months else ''
+    # Building the cat age string
+    cat_parts = []
+    if cat_age_years > 0:
+        cat_parts.append(f'{minimize_decimals(cat_age_years, 0)} years')
+    if cat_age_months > 0:
+        cat_parts.append(f'{minimize_decimals(cat_age_months, 0)} months')
 
-    print(f"A cat that is{cat}{_and}{months} old is approximately {human} human years old.")
+    cat_age_str = ' and '.join(cat_parts)
+    if not cat_age_str:
+        cat_age_str = "less than a month"  # For the case of 0 years and 0 months
+
+    human = minimize_decimals(human_years, 1)
+
+    print(f"A cat that is {cat_age_str} old is approximately {human} human years old.")
+
 
 if __name__ == "__main__":
     main()
