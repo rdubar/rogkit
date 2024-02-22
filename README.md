@@ -96,6 +96,6 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * mongo: basic MongoDB tools
 * nose: run nosetests in ERP
 * tkm: am experimentl graphical front end for media searches
-* cat_age: show a cat's age in human years
+* catyears: show a cat's age in human years
 
 Roger D.
