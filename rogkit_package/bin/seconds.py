@@ -9,7 +9,7 @@ def convert_seconds(seconds, long_format=False, show_seconds=True, no_commas=Fal
     if seconds == 0:
         return "0 seconds"
 
-    seconds = int(seconds)
+    seconds = abs(int(seconds))
 
     # Define time units in seconds
     aeon = 31557600000000000  # Assuming an aeon as 1 billion years
