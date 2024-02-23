@@ -11,6 +11,11 @@ def byte_size(size: int, base: int = 1000) -> str:
     else:
         units = ["bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"]
 
+    try:
+        size = abs(int(size))  
+    except Exception as e:
+        raise ValueError(f"Invalid size: {e}")
+
     for i, unit in enumerate(units):
         if size < base or unit == units[-1]:
             if unit == "bytes":
