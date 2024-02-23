@@ -22,8 +22,8 @@ def main():
         print("Usage: cat_age <cat_age_years> [cat_age_months]")
         sys.exit(1)
 
-    cat_age_years = float(sys.argv[1])
-    cat_age_months = float(sys.argv[2]) if len(sys.argv) > 2 else 0
+    cat_age_years = abs(float(sys.argv[1]))
+    cat_age_months = abs(float(sys.argv[2])) if len(sys.argv) > 2 else 0
 
     human_years = cat_age_to_human(cat_age_years, cat_age_months)
 
