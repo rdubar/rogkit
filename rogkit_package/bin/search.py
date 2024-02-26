@@ -5,7 +5,7 @@ from dataclasses import dataclass, field
 from typing import List
 
 DEFAULT_FOLDER_LIST = ["/home/rdubar/projects/pythonProject/openerp-addons"]
-EXCLUDE_PATTERNS = ["/.idea/",'__pycache__', '.git']
+EXCLUDE_PATTERNS = ["/.idea/",'__pycache__', '.git', 'venv/', '/eggs/']
 
 @dataclass
 class SearchResults:
