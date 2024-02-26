@@ -56,8 +56,6 @@ def main():
     parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
     parser.add_argument('-errors', '--show-errors', action='store_true', help='Show errors.')
     parser.add_argument('-skipped', '--show-skipped', action='store_true', help='Show skipped files.')
-
-
     args = parser.parse_args()
 
     folder = args.folder or next((f for f in DEFAULT_FOLDER_LIST if os.path.exists(f)), '')
@@ -68,7 +66,7 @@ def main():
     whole_phrase = len(args.text) == 1 and args.text[0].startswith('"') and args.text[0].endswith('"')
     search_terms = ' '.join(args.text).strip('"').lower().split() if not whole_phrase else args.text[0].strip('"').lower()
 
-    print(f"Searching for '{args.text}' in {folder}...")
+    print(f"Searching for '{args.text}' in '{folder}'")
 
     if args.skip_po:
         print("Skipping po/pot files.")
