@@ -19,11 +19,12 @@ from .bytes import byte_size
 DEFAULT_CONFIG = {
     "base_dirs": [os.path.expanduser("~")],
     "include_patterns": [".bash_aliases", ".bashrc", "/rogkit.toml", ".ssh"],
-    "exclude_patterns": ["__pycache__", ".git", "venv", "pyenv", "vscodes", "python-", "virtualenv", "site-packages", "Dropbox-Uploader", ".tar.gz", ".pyc", ".rst", "/usr/include", "/usr/lib", ".git"],
-    "archive_dirs": ["/mnt/expansion/Archive/pi", 
-                     "/mnt/archive/Archive/pi", 
-                     "/mnt/c/Users/RogerDubar/Dropbox/Archive/wsl2",
-                     "/mnt/c/Users/RogerDubar/OneDrive - Arden Grange/Archive/Backups"],
+    "exclude_patterns": ["__pycache__", '/drop', '/data', ".git", "venv", "pyenv", "vscodes", "python-", "virtualenv", "site-packages", "Dropbox-Uploader", ".tar.gz", ".pyc", ".rst", "/usr/include", "/usr/lib", ".git"],
+    "archive_dirs": [
+        "/mnt/expansion/Archive/pi", 
+        "/mnt/archive/Archive/pi", 
+        "/mnt/c/Users/RogerDubar/Dropbox/Archive/wsl2",
+        "/mnt/c/Users/RogerDubar/OneDrive - Arden Grange/Archive/Backups"],
     "include_files": ["/etc/fstab"]
 }
 
@@ -36,6 +37,7 @@ class BackupUtility:
     include_files: List[str] = field(default_factory=lambda: DEFAULT_CONFIG["include_files"])
     exclude_regex: re.Pattern = field(init=False)
     total_files_found: int = field(default=0, init=False)
+    verbose: bool = field(default=False, init=False)
     
     init: bool = field(default=False, init=False)
     files_to_include = []
@@ -118,6 +120,8 @@ class BackupUtility:
                     include_list.append(file_path)
                 else:
                     exclude_list.append(file_path)
+                    if self.verbose:
+                        print(f'Excluding: {file_path}')
             for name in dirs:
                 dir_path = os.path.join(root, name)
                 if os.path.islink(dir_path) and dir_path not in visited_links:
@@ -128,11 +132,13 @@ class BackupUtility:
         self.files_to_exlude = exclude_list
         return include_list
     
-    def init_backup(self, verbose=False, force=False):
+    def init_backup(self, force=False):
         if self.init and not force:
             return
         # Get a list of files to be archived
         print('Scanning files...')
+        if self.verbose:
+            print(f'Verbose mode.')
         include_dir = []
         exclude_dir = []
         for dir in self.base_dirs:
@@ -141,7 +147,7 @@ class BackupUtility:
             else:
                 exclude_dir.append(dir)
                 
-        if verbose:
+        if self.verbose:
             print('Including: ', include_dir)
             if len(exclude_dir) > 0:
                 print('Ignoring:  ', exclude_dir)
@@ -153,19 +159,20 @@ class BackupUtility:
         # Generate file list for each included directory
         for dir in include_dir:
             this_list = self.generate_file_list(dir)
-            if verbose:
+            if self.verbose:
                 print(f'Found {len(this_list):,} files in {dir}')
             complete_list.extend(this_list)  
 
         if len(include_dir) > 1:
-            if verbose:
+            if self.verbose:
                 print(f'Total {len(complete_list):,} files in {len(include_dir):,} directories')
         
         self.report_text = f'Total: {self.total_files_found:,}  Archive: {len(complete_list):,}  Ignore: {self.total_files_found - len(complete_list):,}'
         print(self.report_text)
         self.init = True
 
-    def perform_backup(self, verbose=False):        
+    def perform_backup(self, verbose=False):  
+        self.verbose = verbose      
         # Create a temporary file
         with tempfile.NamedTemporaryFile(delete=False) as temp_file:
             temp_backup_path = temp_file.name
@@ -189,7 +196,7 @@ class BackupUtility:
         with open(self.backup_log, 'a') as f:
             f.write(f'{datetime.now().strftime("%Y%m%d_%H%M%S")},{size} {self.report_text}\n')
             
-        if verbose:
+        if self.verbose:
             [print(x) for x in self.files_to_include]
         
         # Write the human-readable file list to the archive folder as backup.txt

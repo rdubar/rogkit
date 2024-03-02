@@ -97,5 +97,6 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * nose: run nosetests in ERP
 * tkm: am experimentl graphical front end for media searches
 * catyears: show a cat's age in human years
+* dice: throw dice
 
 Roger D.

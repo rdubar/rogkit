@@ -7,11 +7,12 @@ from typing import List
 
 from tqdm import tqdm
 from sqlalchemy import func, text, or_
+import pandas as pd
 
 from .plex_server import PlexServer
 from .media_records import PlexRecordORM, PlexRecord, common_schema, get_possible_attributes 
 from .database_utils import Base, engine, Session, update_database_schema
-from .media_settings import additional_media_csv
+from .media_settings import additional_media_csv, db_df_path
 from .tmdb import DataList
 from ..bin.seconds import convert_seconds
 
@@ -405,6 +406,19 @@ class PlexLibrary:
         if not (updated or new):
             print("No updates found.")
         print(f"{report} records checked in {clock:.2f} seconds.")
+
+    def get_df(self):
+        try:
+            # Assuming self.session is an instance of SQLAlchemy session
+            # and PlexRecordORM is an ORM model of your table
+            query = self.session.query(PlexRecordORM).statement
+            df = pd.read_sql(query, self.session.bind)
+            return df
+        except Exception as e:
+            print(f"Error exporting to DataFrame: {e}")
+            return None
+    
+
 
 
 def get_media_list():
