@@ -99,4 +99,6 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * catyears: show a cat's age in human years
 * dice: throw dice
 
+Use `streamlit run Home.py` to try out the Streamlit frontend.
+
 Roger D.
