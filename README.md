@@ -100,6 +100,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * nose: run nosetests in ERP
 * tkm: am experimentl graphical front end for media searches
 * transparent: make image transparent
+* xmlr: an xmlrpc tool
 
 Use `streamlit run Home.py` to try out the Streamlit frontend.
 

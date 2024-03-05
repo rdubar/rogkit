@@ -1,3 +1,5 @@
+import argparse
+import glob
 from dataclasses import dataclass, field
 import boto3
 from botocore.exceptions import NoCredentialsError
@@ -53,25 +55,48 @@ class S3CliTool:
         except NoCredentialsError:
             print("Credentials not available")
 
-TOML = load_rogkit_toml('aws')
-aws_config = AwsConfig(
-    access_key_id=TOML.get('aws_access_key_id'),
-    secret_access_key=TOML.get('aws_secret_access_key'),
-    region_name=TOML.get('aws_region_name'),
-    bucket_name=TOML.get('aws_bucket_name')
-)
+
+def main():
+    parser = argparse.ArgumentParser(description="AWS S3 File Operations CLI Tool")
+    parser.add_argument('--bucket', required=False, help="S3 bucket name")
+    parser.add_argument('--action', required=True, choices=['list', 'upload', 'download', 'delete'], help="Action to perform")
+    parser.add_argument('files', nargs='*', help="Files (or patterns) to process")
+    parser.add_argument('-c', '--confirm', action='store_true', help="Confirm before deleting")
+    args = parser.parse_args()
+
+    # Load configuration from TOML
+    TOML = load_rogkit_toml('aws')
+    aws_config = AwsConfig(
+        access_key_id=TOML.get('aws_access_key_id'),
+        secret_access_key=TOML.get('aws_secret_access_key'),
+        region_name=TOML.get('aws_region_name'),
+        bucket_name=args.bucket or TOML.get('aws_bucket_name'),
+    )
+
+    # Initialize the S3 CLI tool with the loaded configuration
+    s3_cli_tool = S3CliTool(config=aws_config)
 
 
-s3_cli_tool = S3CliTool(config=aws_config)
+    if args.action == 'list':
+        res = s3_cli_tool.list_files()
+        print(res)
+    elif args.action == 'upload':
+        for file_pattern in args.files:
+            for filename in glob.glob(file_pattern):
+                s3_cli_tool.upload_file(filename, filename)
+    elif args.action == 'download':
+        for file_pattern in args.files:
+            for filename in glob.glob(file_pattern):
+                s3_cli_tool.download_file(filename, filename)
+    elif args.action == 'delete':
+        for file_pattern in args.files:
+            for object_name in glob.glob(file_pattern):
+                if args.confirm:
+                    s3_cli_tool.delete_file(object_name)
+                else:
+                    response = input(f"Are you sure you want to delete {object_name}? (y/n): ")
+                    if response.lower() == 'y':
+                        s3_cli_tool.delete_file(object_name)
 
-# List files
-print(s3_cli_tool.list_files())
-
-# # Upload a file
-# s3_cli_tool.upload_file('path/to/your/local/file', 'your_desired_s3_key')
-
-# # Download a file
-# s3_cli_tool.download_file('your_s3_key', 'path/to/your/local/directory')
-
-# # Delete a file
-# s3_cli_tool.delete_file('your_s3_key')
+if __name__ == "__main__":
+    main()

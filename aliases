@@ -9,6 +9,7 @@ export PYTHONPATH="$ROGKIT:$PYTHONPATH"
 
 alias rogkit='cat "$ROGKIT/README.md" | grep "[|]"'
 alias amaz='$ROGKIT_PYTHON -m rogkit_package.bin.amaz "$@"'
+alias api='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
 alias bac='$ROGKIT_PYTHON -m rogkit_package.bin.bac "$@"'
 alias backup='$ROGKIT_PYTHON -m rogkit_package.bin.backup "$@"'
 alias bignum='$ROGKIT_PYTHON -m rogkit_package.bin.bignum "$@"'
@@ -51,4 +52,7 @@ alias transparent='$ROGKIT_PYTHON -m rogkit_package.bin.transparent "$@"'
 alias update='/usr/bin/bash $ROGKIT_PACKAGE/bin/update "$@"'
 alias wikipedia='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
 alias w='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
+alias xmlr='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
+alias xml='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
 alias yout='$ROGKIT_PYTHON -m rogkit_package.bin.yout "$@"'
+
