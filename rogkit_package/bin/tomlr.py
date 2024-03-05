@@ -36,7 +36,7 @@ def setup_rogkit_toml():
     else:
         print(f"{rogkit_toml_path} already exists.")
 
-def load_rogkit_toml():
+def load_rogkit_toml(*args):
     """ Load and return the contents of ~/.rogkit.toml as a dict. """
     rogkit_toml_path = user_rogkit_toml_path()
     if not os.path.exists(rogkit_toml_path):
@@ -44,10 +44,15 @@ def load_rogkit_toml():
 
     try:
         with open(rogkit_toml_path, 'r') as f:
-            return toml.load(f)
+            data = toml.load(f)
+            if args:
+                return data[args[0]]
+            return data
     except IOError as e:
         print(f"Error reading {rogkit_toml_path}: {e}", file=sys.stderr)
         sys.exit(1)
+
+
 
 def make_keys_lowercase(d):
     """ Recursively make all keys in a dict lowercase. """
