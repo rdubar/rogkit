@@ -92,6 +92,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 
 ### Experimental
 
+* amaz: an AWS cli tool
 * bac: a better, simpler backup. Test code. 
 * catyears: show a cat's age in human years
 * dice: throw dice
