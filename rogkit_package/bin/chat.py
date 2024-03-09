@@ -20,10 +20,29 @@ def query_chatgpt(prompt, engine=DEFAULT_ENGINE, history=[]):
 
     return response
 
+def chat_loop(prompt=None, engine=DEFAULT_ENGINE, history=[]):
+    full_prompt = prompt or input("Enter your prompt: ")
+    history = [] 
+
+    while True:
+        response = query_chatgpt(full_prompt, engine=engine, history=history)
+        try:
+            output = response.choices[0].message.content
+            print(output)
+
+            # Update the history with both user and assistant roles
+            history.append({"role": "user", "content": full_prompt})
+            history.append({"role": "assistant", "content": output})
+
+        except Exception as e:
+            print(f"Error: {e}")
+
+        full_prompt = input("> ")
+        if full_prompt.lower() in ['exit', 'quit', 'q']:
+            break
+
 
 def main():
-
-
     parser = argparse.ArgumentParser(description="CLI for querying ChatGPT.")
     parser.add_argument("prompt", nargs='?', help="Prompt to send to ChatGPT")
     parser.add_argument("-e", "--engine", required=False, default=DEFAULT_ENGINE, help="OpenAI engine to use")

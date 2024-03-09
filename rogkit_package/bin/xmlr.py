@@ -2,6 +2,8 @@ from dataclasses import dataclass
 import argparse
 import xmlrpc.client
 from typing import Optional
+import configparser
+import os
 from .tomlr import load_rogkit_toml
 
 @dataclass
@@ -11,10 +13,27 @@ class Config:
     username: str
     password: str
     environment: str
+    config: Optional[str] = None
 
     @staticmethod
     def load_config(environment: str) -> 'Config':
-        config = load_rogkit_toml(f'erp-{environment}')
+        try:
+            config = load_rogkit_toml(f'erp-{environment}')
+            if not config:
+                raise FileNotFoundError
+        except FileNotFoundError:
+            # Fallback to .env file if TOML is not available or empty
+            config = {}
+            try:
+                with open('.env') as f:
+                    for line in f:
+                        if '=' in line:
+                            key, value = line.strip().split('=', 1)
+                            config[key] = value
+            except Exception as e:
+                print(f"Error reading .env file: {e}")
+                exit(1)
+
         return Config(
             url=config.get('url'),
             db=config.get('db'),
