@@ -7,7 +7,9 @@ from .shrink import shrink_list
 
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
-from .utils import process_arguments, sort_by_resolution, freeze_database, restore_database, last_updated
+from .utils import process_arguments, freeze_database, restore_database, last_updated
+from .media_settings import afi_path
+
 
 def main():
     print("Rog's Plex Library Utility")
@@ -15,6 +17,23 @@ def main():
     args, search_text = process_arguments()
 
     plex_library = PlexLibrary()
+
+    if args.afi:
+        print("Checking against AFI's 100 Years...100 Movies list")
+        found = missing = 0
+        with open(afi_path, 'r') as file:
+            file_list = file.read().splitlines()
+        for item in file_list:
+            if item[0] == '#' or '(' not in item or ')' not in item:
+                continue
+            title = item[item.find(' '):item.rfind('(')].strip().lower().replace(", the", "").replace(", a", "")
+            if plex_library.search(title):
+                found += 1
+            else:
+                print(f"Missing: {item} - {title}")
+                missing += 1
+        print(f"Found: {found}, Missing: {missing}")
+        return
 
     if args.freeze:
         freeze_database()

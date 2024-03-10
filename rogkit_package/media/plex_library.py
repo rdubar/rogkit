@@ -258,6 +258,8 @@ class PlexLibrary:
                 PlexRecordORM.library.ilike(search_pattern),
                 PlexRecordORM.section.ilike(search_pattern),
                 PlexRecordORM.resolution.ilike(search_pattern),
+                # search aginst name nand year e.g. "The Matrix 1999" or "The Matrix (1999)"
+                PlexRecordORM.full_title + ' ' + PlexRecordORM.year.ilike(search_pattern)
                 # Add other fields as necessary
             )
         ).all()
@@ -417,9 +419,10 @@ class PlexLibrary:
         except Exception as e:
             print(f"Error exporting to DataFrame: {e}")
             return None
+
+    def find(self, title):
+        return self.session.query(PlexRecordORM).filter(PlexRecordORM.title == title).first()
     
-
-
 
 def get_media_list():
     library = PlexLibrary()
