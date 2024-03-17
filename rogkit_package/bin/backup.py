@@ -23,6 +23,7 @@ DEFAULT_CONFIG = {
     "archive_dirs": [
         "/mnt/expansion/Archive/pi", 
         "/mnt/archive/Archive/pi", 
+        "/Users/rdubar/Dropbox/Archive/MacBookPro",
         "/mnt/c/Users/RogerDubar/Dropbox/Archive/wsl2",
         "/mnt/c/Users/RogerDubar/OneDrive - Arden Grange/Archive/Backups"],
     "include_files": ["/etc/fstab"]
@@ -82,7 +83,7 @@ class BackupUtility:
             temp_file_name = temp_file.name
 
         # Create the tar command with --hard-dereference option
-        command = ["tar", "--hard-dereference", "-czf", backup_filename, "-T", temp_file_name]
+        command = ["tar", "-czf", backup_filename, "-T", temp_file_name]
 
         # Execute the command
         try:

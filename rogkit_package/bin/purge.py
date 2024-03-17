@@ -3,7 +3,7 @@ import argparse
 import os
 from dataclasses import dataclass, field
 
-DEFAULT_FOLDER_LIST = ["/home/rdubar/projects/pythonProject/openerp-addons", "/mnt/expansion/Media/Movies/"]
+DEFAULT_FOLDER_LIST = ["/Users/rdubar/apv/openerp-addons", "/mnt/expansion/Media/Movies/"]
 
 def process_purge_list(raw_list):
     """

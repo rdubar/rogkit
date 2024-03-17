@@ -42,7 +42,6 @@ pydantic_core==2.16.1
 pyee==8.2.2
 pyheif==0.7.1
 pymongo==4.6.1
-pyppeteer==1.0.2
 pyquery==2.0.0
 python-dateutil==2.8.2
 python-dotenv==1.0.0
@@ -63,7 +62,7 @@ typing_extensions==4.9.0
 tzdata==2024.1
 urllib3==1.26.18
 w3lib==2.1.2
-websockets==10.4
+websockets
 wikipedia==1.4.0
-yt-dlp==2023.12.30
+yt-dlp
 zipp==3.17.0

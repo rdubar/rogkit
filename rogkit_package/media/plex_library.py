@@ -320,7 +320,6 @@ class PlexLibrary:
                     for key, value in tmdb_data.items():
                         if key in possible_attributes and hasattr(PlexRecordORM, key) and key not in ['platform', 'resolution', 'extras']:
                             new_record_data[key] = value
-
                 new_record = PlexRecordORM(**new_record_data)
                 self.session.add(new_record)
                 loaded += 1

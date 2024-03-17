@@ -66,6 +66,12 @@ class DataList:
         if response.status_code == 200:
             results = response.json().get('results', [])
             if results:
+                # If year is provided, filter by year
+                if year:
+                    results = [result for result in results if result.get('release_date')[:4] == str(year)]
+                    if not results:
+                        print(f"No match for {title} ({year})")
+                        return None
                 movie_id = results[0]['id']
                 detailed_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={self.api_key}&append_to_response=credits"
                 detailed_response = requests.get(detailed_url)

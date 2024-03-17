@@ -6,7 +6,7 @@ from ..settings import toml_sample_path
 
 
 DEFAULT_ROGKIT_TOML = {
-    "backup" : { 
+    "backup" : {
         "backup_from": ["~/"],
         "backup_to": ["~/archive/"],
     },
@@ -42,17 +42,16 @@ def load_rogkit_toml(*args):
     if not os.path.exists(rogkit_toml_path):
         setup_rogkit_toml()
 
-    try:
-        with open(rogkit_toml_path, 'r') as f:
+    with open(rogkit_toml_path, 'r') as f:
+        try:
             data = toml.load(f)
-            if args:
-                return data[args[0]]
-            return data
-    except IOError as e:
-        print(f"Error reading {rogkit_toml_path}: {e}", file=sys.stderr)
-        sys.exit(1)
-
-
+        except toml.TomlDecodeError as e:
+            print(f"Error parsing {rogkit_toml_path}: {e}", file=sys.stderr)
+            sys.exit(1)
+        
+        if args:
+            return data[args[0]]
+        return data
 
 def make_keys_lowercase(d):
     """ Recursively make all keys in a dict lowercase. """
