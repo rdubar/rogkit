@@ -1,0 +1,121 @@
+# New experimental backup tool
+
+import os, sys, argparse, tempfile
+from datetime import datetime
+from time import perf_counter
+
+from .bytes import byte_size
+from .seconds import convert_seconds
+
+user_home = os.path.expanduser('~')
+
+folders_to_backup = [ 'apv', 'dev', 'opt' ]
+
+files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.gz', '.pyc', '.DS_Store', '.git', 
+                   '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__'
+                    'package.json', '.virtual', '.docker', 'yarn.lock', 'yarn-error.log']
+
+folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages']
+
+def create_backup(debug=False):
+
+    start_time = perf_counter()
+
+    backup_path = 'Dropbox/Archive/MacBookPro/'
+
+    # current date and time for backup filename withhours and minutes
+    current_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
+
+    backup_name = f'backup-{current_date}.tar.gz'
+
+    # make sure the backup path folder exists
+    os.makedirs(os.path.join(user_home, backup_path), exist_ok=True)
+
+    path_for_backup = os.path.join(user_home,backup_path, backup_name)
+
+    print(f'Backing up the following folders: {folders_to_backup}') 
+    print(f'Backup path: {path_for_backup}')
+
+    file_count = 0
+    file_total_size = 0
+    skipped = 0
+
+    # create a temporary file to store the list of files to backup
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as file_list:
+        for folder in folders_to_backup:
+            for root, dirs, files in os.walk(os.path.join(user_home, folder)):
+                for file in files:
+                    if not any(exclude in file for exclude in files_to_exlude) and not any(exclude in root for exclude in folders_to_exclude):
+                        file_list.write(os.path.join(root, file) + '\n')
+                        file_count += 1
+                        file_total_size += os.path.getsize(os.path.join(root, file))
+                    else:
+                        skipped += 1
+                        
+        current_elapsed_time = convert_seconds(perf_counter() - start_time)
+        print(f'Found {file_count:,} files to backup ({byte_size(file_total_size)}). Skipped {skipped:,}. Elapsed time: {current_elapsed_time}.')
+        
+        print(f'Creating backup file: {path_for_backup}')
+        
+        temp_backup_name = path_for_backup + '.tmp'
+        
+        if debug:
+            print('Writing backup file file list to ~/backup_files.txt')
+            with open(os.path.join(user_home, 'backup_files.txt'), 'w') as f:
+                file_list.seek(0)
+                f.write(file_list.read())
+            print('Debug mode enabled. Exiting.')
+            exit(0)
+
+        # create the backup
+        try:
+            os.system(f'tar -czf {temp_backup_name} -T {file_list.name}')
+        except Exception as e:
+            print(f'Error during backup: {e}')
+            os.remove(temp_backup_name)
+        finally:
+            # remove the temporary file with the list of files
+            os.remove(file_list.name)
+
+    if not os.path.exists(temp_backup_name):
+        print('Backup failed.')
+        os.remove(temp_backup_name)
+        sys.exit(1)        
+
+    try:
+        os.rename(temp_backup_name, path_for_backup)
+    except Exception as e:
+        print(f'Error moving backup to final location: {e}')
+        sys.exit(1)
+        
+    elapsed_time = perf_counter() - start_time
+    print(f'Backup created with {file_count:,} files ({byte_size(file_total_size)}) in {convert_seconds(elapsed_time)}.')
+    print(f'Backup path: {path_for_backup}')
+    
+def list_backups():
+    backups = [f for f in os.listdir(os.path.join(user_home, 'Dropbox/Archive/MacBookPro')) if f.startswith('backup-')]
+    for backup in backups:
+        backup_path = os.path.join(user_home, 'Dropbox/Archive/MacBookPro', backup)
+        backup_size = byte_size(os.path.getsize(backup_path))
+        backup_date = datetime.strptime(backup[7:22], '%Y-%m-%d-%H-%M')
+        print(f'{backup_size:10}   {backup_path}')
+    
+
+def main():
+    # create argparse with options -b --backup and -l --list
+    parser = argparse.ArgumentParser(description='Backup and list backups')
+    parser.add_argument('-b', '--backup', action='store_true', help='Create a new backup')
+    parser.add_argument('-l', '--list', action='store_true', help='List backups')
+    parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
+    args = parser.parse_args()
+    
+    if args.list:
+        list_backups()
+    elif args.backup:
+        create_backup(debug=args.debug)
+    else:
+        print("Rog's New Macbook Backup Tool")
+        parser.print_help()
+    
+if __name__ == '__main__':
+    main()
