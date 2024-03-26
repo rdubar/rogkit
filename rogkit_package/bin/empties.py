@@ -3,7 +3,7 @@ import os
 import time
 import argparse
 
-DEFAULT_DIRECTORIES = ["/home/rdubar/projects/pythonProject/openerp-addons/src", "/mnt/expansion/Media/Movies/"]
+DEFAULT_DIRECTORIES = ["/Users/rdubar/apv/openerp-addons/src","/Users/rdubar/apv/pythonProject/openerp-addons/src", "/mnt/expansion/Media/Movies/"]
 
 def check_directory(directory, file_limit):
     """
@@ -19,6 +19,11 @@ def check_directory(directory, file_limit):
 
         if len(filenames) + len(directories) <= file_limit:
             limited_file_folders.append(root)
+            
+        # id folders only contain one or more '.pyc' files, also add them
+        elif all([f.endswith('.pyc') for f in filenames]) and len(filenames) > 0:
+            limited_file_folders.append(root)
+        
 
     return limited_file_folders, directory_count, file_count
 

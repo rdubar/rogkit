@@ -2,6 +2,32 @@ import sys, argparse
 from interpreter import interpreter
 from ..bin.tomlr import load_rogkit_toml
 
+connection_script = """
+import xmlrpc.client                                                                                                                                                                                                         
+                                                                                                                                                                                                                            
+def connect_to_openerp(url, db, username, password):                                                                                                                                                                         
+    common = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/common')                                                                                                                                                               
+    uid = common.authenticate(db, username, password, {})                                                                                                                                                                    
+                                                                                                                                                                                                                            
+    if uid:                                                                                                                                                                                                                  
+        print(f'Successfully authenticated. User ID: {uid}')                                                                                                                                                                 
+    else:                                                                                                                                                                                                                    
+        raise Exception('Authentication failed')                                                                                                                                                                             
+                                                                                                                                                                                                                            
+    # Object proxy                                                                                                                                                                                                           
+    models = xmlrpc.client.ServerProxy(f'{url}/xmlrpc/object')                                                                                                                                                               
+                                                                                                                                                                                                                            
+    return common, models, uid                                                                                                                                                                                               
+                                                                                                                                                                                                                            
+# Replace with your details                                                                                                                                                                                                  
+url = '<your_url>'                                                                                                                                                                                                           
+db = '<your_database>'                                                                                                                                                                                                       
+username = '<your_username>'                                                                                                                                                                                                 
+password = '<your_password>'                                                                                                                                                                                                 
+                                                                                                                                                                                                                            
+common, models, uid = connect_to_openerp(url, db, username, password)   
+"""
+
 def setup():
     api_key = load_rogkit_toml().get("open-interpreter").get("api_key")
     if api_key:    
@@ -23,13 +49,13 @@ def main():
     
     if args.erp:
         credentials = load_rogkit_toml().get("erp-live")
-        prompt = f"Connect to OpenERP via /xmlrpc/common using these credentials:{credentials}"
+        prompt = f"Connect to OpenERP using {connection_script} and these credentials:{credentials}"
 
     while True:
         interpreter.chat(prompt)
         prompt = input()
         if prompt.lower() in ["exit", "quit", 'q']:
-            break
+            exit(0)
 
 if __name__ == "__main__":
     main()

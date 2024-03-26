@@ -101,6 +101,8 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * tkm: am experimentl graphical front end for media searches
 * transparent: make image transparent
 * xmlr: an xmlrpc tool
+* inter: run Open Interpreter
+* lm: run a local LLM
 
 Use `streamlit run Home.py` to try out the Streamlit frontend.
 
