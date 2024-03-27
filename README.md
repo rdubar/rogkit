@@ -68,6 +68,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | plural   | Pluralise a word   | from plural import plural              |
 | purge    | Purge files        | from purge import delete_files         |
 | pw       | Generate password  | from pw import PasswordGenerator       |
+| remote   | run remote/local   | from remote import execute_command     |
 | replacer | Replace text       |                                        |
 | rcase    | rANdoMcAse text    | from randomcase import randomcase      |
 | rounder  | Round decimals     | from rounder import round_decimals     |

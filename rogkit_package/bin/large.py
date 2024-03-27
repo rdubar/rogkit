@@ -5,6 +5,7 @@ import subprocess
 from collections import defaultdict
 import paramiko
 from .bytes import byte_size
+from .remote import execute_command
 
 # SSH connection parameters
 HOSTNAME = '192.168.0.240'
@@ -34,33 +35,9 @@ def parse_args():
     parser.add_argument('--large_file_size', type=int, default=50000000, help='Size defining a very large file')
     return parser.parse_args()
 
-def ssh_command_execute(hostname, username, password, cmd):
-    try:
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(hostname=hostname, username=username, password=password)
-        stdin, stdout, stderr = client.exec_command(cmd)
-        output = stdout.read().decode().strip()
-        error = stderr.read().decode().strip()
-        if error:
-            print(f"Error: {error}")
-        return output
-    finally:
-        client.close()
-
 def get_file_objects(folder, hostname, username, password, command):
     file_objects = []
-    if os.path.exists(folder):
-        # Execute the command locally using subprocess
-        print(f"Checking for large files in: {folder}")
-        process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
-        output, error = process.communicate()
-        if error:
-            print(f"Error: {error}")
-    else:
-        # Execute the command over SSH if the folder does not exist locally
-        print(f"Checking for large files at {hostname}:{folder}")
-        output = ssh_command_execute(hostname, username, password, command)
+    output = execute_command(command, folder, hostname, username, password)
     
     for line in output.split('\n'):
         if line:  # Check if line is not empty
@@ -100,6 +77,7 @@ def main():
                     
     if not args.all:
         print("Use --all to show all relevant paths.")
+
 
 if __name__ == "__main__":
     main()
