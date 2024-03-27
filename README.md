@@ -103,6 +103,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * xmlr: an xmlrpc tool
 * inter: run Open Interpreter
 * lm: run a local LLM
+* large: show folders with multiple very large files
 
 Use `streamlit run Home.py` to try out the Streamlit frontend.
 

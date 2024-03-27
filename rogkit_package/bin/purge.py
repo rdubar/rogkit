@@ -22,8 +22,7 @@ WWW.YIFY-TORRENTS.COM.jpg
 [TGx]Downloaded from torrentgalaxy.to .txt
 NEW upcoming releases by Xclusive.txt
 Downloaded From PublicHD.SE.txt
-00.nfo
-www.YTS.MX.jpg
+00.nfop
 WWW.YTS.RE.jpg
 www.YTS.AM.jpg
 TSYifyUP... (TOR).txt
