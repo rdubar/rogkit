@@ -26,14 +26,14 @@ def ssh_command_execute(hostname, username, password, cmd):
 def execute_command(command: str, folder: str, hostname: str = HOSTNAME, username: str = USERNAME, password: str = PASSWORD) -> str:
     if os.path.exists(folder):
         # Execute the command locally using subprocess
-        print(f"Executing command: {command}")
+        print(f"Executing command: '{command}'")
         process = subprocess.Popen(command, shell=True, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
         output, error = process.communicate()
         if error:
             print(f"Error: {error}")
     elif HOSTNAME and USERNAME:
         # Execute the command over SSH if the folder does not exist locally
-        print(f"Executing {command} at {hostname}:{folder}")
+        print(f"Executing '{command}' at {hostname}:{folder}")
         output = ssh_command_execute(hostname, username, password, command)
     else:
         print(f"Folder not found: {folder}")

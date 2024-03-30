@@ -12,7 +12,7 @@ HOSTNAME = '192.168.0.240'
 USERNAME = 'pi'
 PASSWORD = 'your_password_here'  # It's better to use SSH keys if possiblepi
 FOLDER = '/mnt/expansion/Media/Movies'
-
+        
 @dataclasses.dataclass
 class FileObject:
     path: str
@@ -26,7 +26,10 @@ class FileObject:
 
 def parse_args():
     parser = argparse.ArgumentParser(description="List large files and folders with multiple large files over SSH.")
+    parser.add_argument('search', nargs='*', help='Text to search for.')
     parser.add_argument('-a', '--all', action='store_true', help='Show all relevant paths') 
+    parser.add_argument('-s', '--small', action='store_true', help='Show small files') 
+    parser.add_argument('-l', '--large', action='store_true', help='Show large files') 
     parser.add_argument('--folder', type=str, required=False, default=FOLDER, help='Folder to check')
     parser.add_argument('--hostname', type=str, required=False, default=HOSTNAME, help='SSH server hostname')
     parser.add_argument('--username', type=str, required=False, default=USERNAME, help='SSH username')
@@ -61,19 +64,26 @@ def main():
     large_files, folders_with_multiple_large = analyze_files(file_objects, args.min_size, args.large_file_size)
 
     print(f"Found {len(large_files):,} files larger than {byte_size(args.min_size)}")
-    if args.all:
+    if args.large:
         for file in large_files:
             print(f"{file.path} ({byte_size(file.size)})")
         print()
+        
+    search_terms = ' '.join(args.search).strip('"').lower() if args.search else None
+    if search_terms:
+        print(f"Searching for '{search_terms}' in {len(file_objects):,} files...")
     
     print(f"Found {len(folders_with_multiple_large):,} folders with multiple very large files.")
-    if args.all:
+    if args.all or args.search:
         for folder, count in folders_with_multiple_large.items():
+            if search_terms and search_terms not in folder.lower():
+                continue
             print(f"{folder}: {count} files")
             # print all paths in the folder
             for file in file_objects:
                 if file.folder == folder:
-                    print(f"{file.path} ({byte_size(file.size)})")
+                    if args.small or file.size >= args.large_file_size:
+                        print(f"{file.path} ({byte_size(file.size)})")
                     
     if not args.all:
         print("Use --all to show all relevant paths.")
