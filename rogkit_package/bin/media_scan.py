@@ -3,7 +3,9 @@ import os
 import sys
 
 def bitrate2k(text: str) -> str:
-    return f"{int(text) // 1024}k"
+    if text.isdigit():
+        return f"{int(text) // 1024:,}kb"
+    return text
 
 def get_media_info(file_path):
     if not file_path.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.flv', '.wmv', '.webm', '.mpg', '.mpeg', '.m4v', '.3gp', '.3g2', '.ts', '.vob', '.f4v', '.f4p', '.f4a', '.f4b', '.m4a', '.m4b')):
@@ -39,16 +41,30 @@ def get_media_info(file_path):
         return None
 
 def main(directory):
+    output_lines = []  # Store each line of output here
+    longest = 0  # Keep track of the longest file path for formatting
+
     for root, dirs, files in os.walk(directory):
         for file in files:
             file_path = os.path.join(root, file)
             info = get_media_info(file_path)
             if info is not None:
-                print(f"File: {file_path}")
+                out = [file_path]  # Start with file path
                 for stream_type, details in info.items():
-                    print(f"  {stream_type.capitalize()}:")
                     for key, value in details.items():
-                        print(f"    {key.capitalize()}: {value}")
+                        out.append(value)
+                if len(file_path) > longest:
+                    longest = len(file_path)
+                output_lines.append(out)  # Add this file's info to the output list
+
+    for line in output_lines:
+        file_path = line[0]
+        print(f"{file_path.ljust(longest)}     ", end=" ")  # Print the file path, padded to align columns
+        for info in line[1:]:  # Print the rest of the info for this file
+            print(f'{info:>10}', end=" ")
+        print()  # Newline after each file's info
+
+
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
