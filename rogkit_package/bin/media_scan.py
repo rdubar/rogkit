@@ -2,7 +2,12 @@ import ffmpeg
 import os
 import sys
 
+def bitrate2k(text: str) -> str:
+    return f"{int(text) // 1024}k"
+
 def get_media_info(file_path):
+    if not file_path.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.flv', '.wmv', '.webm', '.mpg', '.mpeg', '.m4v', '.3gp', '.3g2', '.ts', '.vob', '.f4v', '.f4p', '.f4a', '.f4b', '.m4a', '.m4b')):
+        return
     try:
         # Get probe data
         probe = ffmpeg.probe(file_path)
@@ -17,14 +22,14 @@ def get_media_info(file_path):
             info['video'] = {
                 'resolution': f"{video_stream['width']}x{video_stream['height']}",
                 'codec': video_stream['codec_name'],
-                'bitrate': video_stream['bit_rate']
+                'bitrate': bitrate2k(video_stream['bit_rate'])
             }
 
         # Get audio information if available
         if audio_stream is not None:
             info['audio'] = {
                 'codec': audio_stream['codec_name'],
-                'bitrate': audio_stream['bit_rate']
+                'bitrate': bitrate2k(audio_stream['bit_rate'])
             }
 
         return info
