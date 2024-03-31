@@ -48,14 +48,14 @@ def main(directory):
         for file in files:
             file_path = os.path.join(root, file)
             info = get_media_info(file_path)
+            out = [file_path] 
             if info is not None:
-                out = [file_path]  # Start with file path
                 for stream_type, details in info.items():
                     for key, value in details.items():
                         out.append(value)
                 if len(file_path) > longest:
                     longest = len(file_path)
-                output_lines.append(out)  # Add this file's info to the output list
+            output_lines.append(out)  # Add this file's info to the output list
 
     for line in output_lines:
         file_path = line[0]

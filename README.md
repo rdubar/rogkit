@@ -104,6 +104,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * lm: run a local LLM
 * large: show folders with multiple very large files
 * mcscan: scan media for resolution, bitrate etc. 
+* speed_test: run with python interpreters as a benchmark
 
 Use `streamlit run Home.py` to try out the Streamlit frontend.
 
