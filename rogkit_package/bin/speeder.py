@@ -78,6 +78,9 @@ def run_speed_test(interpreter, test_script='run_benchmark'):
     except subprocess.CalledProcessError as e:
         print("Error running test on {}: {}".format(interpreter, str(e)))
         return False, None
+    except FileNotFoundError:
+        print("Interpreter not found: {}".format(interpreter))
+        return False, None
     
 
 def main():
