@@ -138,3 +138,11 @@ def last_updated():
         return f'Library last updated {convert_seconds(time.time() - os.path.getmtime(db_path))} ago.'
     except FileNotFoundError:
         return "Library not found."
+    
+def sort_results_by_attribute(results, attribute_name):
+    if attribute_name == 'year':
+        # Numeric sort with default value for non-numeric or absent values
+        return sorted(results, key=lambda x: int(getattr(x, attribute_name, 0)) if str(getattr(x, attribute_name, '0')).isdigit() else 0, reverse=True)
+    else:
+        # Generic sort for other attributes, filtering out results without the attribute
+        return sorted((result for result in results if getattr(result, attribute_name, None)), key=lambda x: getattr(x, attribute_name), reverse=True)

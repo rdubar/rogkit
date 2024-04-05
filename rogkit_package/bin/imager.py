@@ -16,6 +16,11 @@ def list_image_files(directory):
 def read_heic_file(input_image_path):
     """Read a HEIC file and convert it to a PIL Image object."""
     heif_file = pyheif.read(input_image_path)
+    print(type(heif_file), heif_file)
+    
+    
+    heif_file = (input_image_path, "heic")
+
     return Image.frombytes(
         heif_file.mode, 
         heif_file.size, 

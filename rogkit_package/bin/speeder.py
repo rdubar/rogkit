@@ -2,9 +2,38 @@ from __future__ import print_function
 import timeit
 import argparse
 
+import pandas as pd
+import matplotlib.pyplot as plt
+
 import subprocess, platform
 import sys, os
 from datetime import datetime
+
+def make_graph():
+    # Read the CSV file into a DataFrame
+    path = '/Users/rdubar/opt/rogkit/rogkit_package/bin/speeder.csv'
+    df = pd.read_csv(path)
+
+    # Set the figure size
+    plt.figure(figsize=(10, 6))
+
+    # Group by platform and Python version, then calculate the mean execution time
+    grouped_data = df.groupby(['Platform', 'Python Version'])['Execution Time'].mean().unstack()
+
+    # Plot the grouped data as a bar graph
+    grouped_data.plot(kind='bar', ax=plt.gca())
+
+    # Set the title and labels
+    plt.title('Execution Time Comparison Across Platforms and Python Versions')
+    plt.xlabel('Platform')
+    plt.ylabel('Execution Time (seconds)')
+    plt.xticks(rotation=45, ha='right')
+
+    # Show the plot
+    plt.tight_layout()
+    plt.legend(title='Python Version')
+    plt.show()
+
 
 def numerical_operations():
     """Perform numerical operations."""
@@ -88,10 +117,15 @@ def main():
     parser.add_argument('--test', '-t', action='store_true', help='Run the speed tests.')
     parser.add_argument('--output', '-o', type=str, default='results.txt', help='Output file for test results.')
     parser.add_argument('--mode', help='Mode in which to run the script. Use "test" to run in test mode.')
+    parser.add_argument('--graph', '-g', action='store_true', help='Generate a graph from the results.')
     args = parser.parse_args()
     
     if args.mode == 'test':
         run_benchmark()
+        exit(0)
+        
+    if args.graph:
+        make_graph()
         exit(0)
 
     if args.test:

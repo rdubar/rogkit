@@ -42,6 +42,8 @@ def main():
     parser.add_argument("prompt", nargs='*', help="Prompt to send to Open Interpreter")
     parser.add_argument("-e", "--erp", action="store_true", help="Connect to the ERP")
     args = parser.parse_args()
+    
+    print('Welcome to the Open Interpreter!')
 
     prompt = ' '.join(args.prompt) if args.prompt else ''
     

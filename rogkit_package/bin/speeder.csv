@@ -1,0 +1,8 @@
+Platform,Python Version,System Architecture,Execution Time
+Macbook Pro 16" November 2023,python2.7,x86_64,12.1799249649
+Macbook Pro 16" November 2023,python3.11,arm64,3.463677749998169
+Macbook Pro 16" November 2023,python3.12,arm64,3.019709417014383
+Macbook Pro 13" Mid 2013,python2.7,x86_64,21.9497449398
+Macbook Pro 13" Mid 2013,python3.11,x86_64,10.700399325000035
+Macbook Pro 13" Mid 2013,python3.12,x86_64,9.369566717000453
+Raspberry Pi 400,python3.11,aarch64,22.992913811000108

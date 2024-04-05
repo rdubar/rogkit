@@ -7,7 +7,7 @@ from .shrink import shrink_list
 
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
-from .utils import process_arguments, freeze_database, restore_database, last_updated
+from .utils import process_arguments, freeze_database, restore_database, last_updated, sort_results_by_attribute
 from .media_settings import afi_path
 
 
@@ -115,21 +115,19 @@ def main():
 
     if args.year:
         sort_by = 'year'
-        # remove results that don't have a year value
-        results = sorted((result for result in results if getattr(result, 'year', None)), key=lambda x: x.year, reverse=True)
-    
+        results = sort_results_by_attribute(results, sort_by)
+
     if args.video:
         sort_by = 'resolution'
-        # remove results that don't have a resolution value
-        results = sorted((result for result in results if getattr(result, 'resolution', None)), key=lambda x: x.resolution, reverse=True)
-    
+        results = sort_results_by_attribute(results, sort_by)
+
     if args.size:
         sort_by = 'size'
-        results = sorted((result for result in results if getattr(result, 'size', None)), key=lambda x: x.size, reverse=True)
-    
+        results = sort_results_by_attribute(results, sort_by)
+
     if args.rating:
         sort_by = 'rating'
-        results = sorted((result for result in results if getattr(result, 'rating', None)), key=lambda x: x.rating, reverse=True)
+        results = sort_results_by_attribute(results, sort_by)
 
     reverse_text = 'reversed' if args.reverse else ''
     if args.reverse:
@@ -170,10 +168,8 @@ if __name__ == "__main__":
 """
 TODO: 
 
-update in plex_library.py
 Rename PlexRecord, PlexRecordORM to MediaRecord, MediaRecordORM 
 Rename PlexLibrary to MediaLibrary
 Rename plex_library.py to media_library.py
 Refactor plex_library.py
---update currenrly not implemented
 """
