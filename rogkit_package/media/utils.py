@@ -140,6 +140,9 @@ def last_updated():
         return "Library not found."
     
 def sort_results_by_attribute(results, attribute_name):
+    """
+    Sort a list of media results by an attribute, filtering out results without the attribute.
+    """
     if attribute_name == 'year':
         # Numeric sort with default value for non-numeric or absent values
         return sorted(results, key=lambda x: int(getattr(x, attribute_name, 0)) if str(getattr(x, attribute_name, '0')).isdigit() else 0, reverse=True)
