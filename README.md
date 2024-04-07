@@ -95,17 +95,17 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * amaz: an AWS cli tool
 * catyears: show a cat's age in human years
 * dice: throw dice
+* inter: run Open Interpreter
+* large: show folders with multiple very large files
+* lm: run a local LLM
+* mcscan: scan media for resolution, bitrate etc. 
 * mongo: basic MongoDB tools
 * nose: run nosetests in ERP
+* pdfer: experimental images to pdf
+* speeder: run with python interpreters as a benchmark
 * tkm: am experimentl graphical front end for media searches
 * transparent: make image transparent
 * xmlr: an xmlrpc tool
-* inter: run Open Interpreter
-* lm: run a local LLM
-* large: show folders with multiple very large files
-* mcscan: scan media for resolution, bitrate etc. 
-* speeder: run with python interpreters as a benchmark
-* pdfer: experimental images to pdf
 
 Use `streamlit run Home.py` to try out the Streamlit frontend.
 
