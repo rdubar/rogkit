@@ -17,11 +17,14 @@ files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.g
 
 folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages']
 
+BACKUP_FOLDER = 'Dropbox/Archive/MacBookPro/'
+
+
 def create_backup(debug=False):
 
     start_time = perf_counter()
-
-    backup_path = 'Dropbox/Archive/MacBookPro/'
+    
+    backup_path = BACKUP_FOLDER
 
     # current date and time for backup filename withhours and minutes
     current_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
@@ -99,6 +102,19 @@ def list_backups():
         backup_size = byte_size(os.path.getsize(backup_path))
         backup_date = datetime.strptime(backup[7:22], '%Y-%m-%d-%H-%M')
         print(f'{backup_size:10}   {backup_path}')
+        
+def extract_latest():
+    backups = [f for f in os.listdir(os.path.join(user_home, 'Dropbox/Archive/MacBookPro')) if f.startswith('backup-')]
+    if not backups:
+        print('No backups found.')
+        return
+    latest_backup = max(backups)
+    backup_path = os.path.join(user_home, BACKUP_FOLDER, latest_backup)
+    extract_dir = os.path.join(user_home, BACKUP_FOLDER, latest_backup[:-7])
+    if not os.path.exists(extract_dir):
+        os.makedirs(extract_dir)
+    print(f'Extracting latest backup: {backup_path} to {extract_dir}')
+    os.system(f'tar -xzf {backup_path} -C {extract_dir}')
     
 
 def main():
@@ -107,7 +123,12 @@ def main():
     parser.add_argument('-b', '--backup', action='store_true', help='Create a new backup')
     parser.add_argument('-l', '--list', action='store_true', help='List backups')
     parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
+    parser.add_argument('-x', '--extract', action='store_true', help='Extract the latest backup')
     args = parser.parse_args()
+    
+    if args.extract:
+        extract_latest()
+        exit(0)
     
     if args.list:
         list_backups()
