@@ -97,7 +97,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * dice: throw dice
 * inter: run Open Interpreter
 * large: show folders with multiple very large files
-* lm: run a local LLM
+* lm: run a local LLM (using the LM application)
 * mcscan: scan media for resolution, bitrate etc. 
 * mongo: basic MongoDB tools
 * nose: run nosetests in ERP

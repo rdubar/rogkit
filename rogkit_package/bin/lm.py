@@ -3,14 +3,12 @@ import argparse
 from openai import OpenAI
 import json
 
-MODEL = 'CodeLlama-13b-Python.Q4_K_M.gguf'
+MODEL = 'lmstudio-community/Meta-Llama-3-70B-Instruct-GGUF/Meta-Llama-3-70B-Instruct-IQ1_M.gguf'
 
 
 def connect_to_lm(show_history=False, model=MODEL):
     # Point to the local server
     client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
-
-    model = 'CodeLlama-13b-Python.Q4_K_M.gguf'
 
     history = [
         {"role": "system", "content": "You are an intelligent assistant. You always provide well-reasoned answers that are both correct and helpful."},
