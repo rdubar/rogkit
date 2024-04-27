@@ -17,14 +17,15 @@ files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.g
 
 folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages']
 
-BACKUP_FOLDER = 'Dropbox/Archive/MacBookPro/'
+BACKUP_FOLDERS = ['Dropbox/Archive/MacBookPro/', '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups']
 
 
 def create_backup(debug=False):
 
     start_time = perf_counter()
     
-    backup_path = BACKUP_FOLDER
+    backup_path = BACKUP_FOLDERS[0]
+    backup_extras = BACKUP_FOLDERS[1:] if len(BACKUP_FOLDERS) > 1 else []
 
     # current date and time for backup filename withhours and minutes
     current_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
@@ -90,6 +91,15 @@ def create_backup(debug=False):
     except Exception as e:
         print(f'Error moving backup to final location: {e}')
         sys.exit(1)
+
+    # Now copy the backup to the other locations
+    for extra_backup in backup_extras:
+        try:
+            os.makedirs(os.path.join(user_home, extra_backup), exist_ok=True)
+            os.system(f'cp {path_for_backup} "{os.path.join(user_home, extra_backup)}"')
+            print(f'Backup copied to {extra_backup}')
+        except Exception as e:
+            print(f'Error copying backup to {extra_backup}: {e}')
         
     elapsed_time = perf_counter() - start_time
     print(f'Backup created with {file_count:,} files ({byte_size(file_total_size)}) in {convert_seconds(elapsed_time)}.')
