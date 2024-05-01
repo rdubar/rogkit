@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import datetime
+from time import perf_counter
 from .media_records import PlexRecordORM
 from .plex_library import PlexLibrary, update_database_schema, engine
 from .plex_server import PlexServer
@@ -12,11 +13,14 @@ from .media_settings import afi_path
 
 
 def main():
+    start_time = perf_counter()
     print("Rog's Plex Library Utility")
     print(last_updated())
     args, search_text = process_arguments()
 
     plex_library = PlexLibrary()
+
+    
 
     if args.afi:
         print("Checking against AFI's 100 Years...100 Movies list")
@@ -159,7 +163,8 @@ def main():
     total_duration = convert_seconds((sum([getattr(result, 'duration', 0) or 0 for result in results]) or 0) / 1000)
     total_size = byte_size(sum([getattr(result, 'size', 0) or 0 for result in results]) or 0)
     item_text = 'items' if len(results) > 1 else 'item'
-    print(f"{len(results):,} {item_text}, {total_duration} ({total_size})")
+    elapsed = perf_counter() - start_time
+    print(f"{len(results):,} {item_text}, {total_duration} ({total_size}) [{elapsed:.2f}s]")
 
 
 if __name__ == "__main__":
