@@ -107,11 +107,20 @@ def create_backup(debug=False):
     
 def list_backups():
     backups = [f for f in os.listdir(os.path.join(user_home, 'Dropbox/Archive/MacBookPro')) if f.startswith('backup-')]
+    # Create a list of tuples containing backup information
+    backup_info = []
     for backup in backups:
         backup_path = os.path.join(user_home, 'Dropbox/Archive/MacBookPro', backup)
         backup_size = byte_size(os.path.getsize(backup_path))
         backup_date = datetime.strptime(backup[7:22], '%Y-%m-%d-%H-%M')
-        print(f'{backup_size:10}   {backup_path}')
+        backup_info.append((backup_size, backup_path, backup_date))
+
+    # Sort the list by backup date
+    backup_info.sort(key=lambda x: x[2])
+
+    # Print the sorted backup information
+    for size, path, date in backup_info:
+        print(f'{size:10}   {date:%Y-%m-%d %H:%M}   {path}')
         
 def extract_latest():
     backups = [f for f in os.listdir(os.path.join(user_home, 'Dropbox/Archive/MacBookPro')) if f.startswith('backup-')]
