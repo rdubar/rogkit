@@ -12,15 +12,16 @@ user_home = os.path.expanduser('~')
 folders_to_backup = [ 'apv', 'dev', 'opt' ]
 
 files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.gz', '.pyc', '.DS_Store', '.git', 
-                   '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__'
+                   '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__', '.log', '.sqlite', 
                     'package.json', '.virtual', '.docker', 'yarn.lock', 'yarn-error.log']
 
-folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages']
+folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages', 'data/', '/venv', '.git', 'idea']
 
 BACKUP_FOLDERS = ['Dropbox/Archive/MacBookPro/', '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups']
 
+MEGA_BYTE = 1024 * 1024
 
-def create_backup(debug=False):
+def create_backup(verbose=False):
 
     start_time = perf_counter()
     
@@ -52,7 +53,11 @@ def create_backup(debug=False):
                     if not any(exclude in file for exclude in files_to_exlude) and not any(exclude in root for exclude in folders_to_exclude):
                         file_list.write(os.path.join(root, file) + '\n')
                         file_count += 1
-                        file_total_size += os.path.getsize(os.path.join(root, file))
+                        size = os.path.getsize(os.path.join(root, file))
+                        file_total_size += size
+                        if verbose:
+                            warning = '' if size < MEGA_BYTE else '****'
+                            print(f'{byte_size(size):>10}   {os.path.join(root, file)} {warning}')
                     else:
                         skipped += 1
                         
@@ -62,14 +67,6 @@ def create_backup(debug=False):
         print(f'Creating backup file: {path_for_backup}')
         
         temp_backup_name = path_for_backup + '.tmp'
-        
-        if debug:
-            print('Writing backup file file list to ~/backup_files.txt')
-            with open(os.path.join(user_home, 'backup_files.txt'), 'w') as f:
-                file_list.seek(0)
-                f.write(file_list.read())
-            print('Debug mode enabled. Exiting.')
-            exit(0)
 
         # create the backup
         try:
@@ -141,7 +138,7 @@ def main():
     parser = argparse.ArgumentParser(description='Backup and list backups')
     parser.add_argument('-b', '--backup', action='store_true', help='Create a new backup')
     parser.add_argument('-l', '--list', action='store_true', help='List backups')
-    parser.add_argument('-d', '--debug', action='store_true', help='Debug mode')
+    parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
     parser.add_argument('-x', '--extract', action='store_true', help='Extract the latest backup')
     args = parser.parse_args()
     
@@ -152,7 +149,7 @@ def main():
     if args.list:
         list_backups()
     elif args.backup:
-        create_backup(debug=args.debug)
+        create_backup(verbose=args.verbose)
     else:
         print("Rog's New Macbook Backup Tool")
         parser.print_help()
