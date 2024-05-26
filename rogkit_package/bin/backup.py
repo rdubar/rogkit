@@ -56,7 +56,7 @@ def create_backup(verbose=False):
                         size = os.path.getsize(os.path.join(root, file))
                         file_total_size += size
                         if verbose:
-                            warning = '' if size < MEGA_BYTE else '****'
+                            warning = 'cd ' if size < MEGA_BYTE else '****'
                             print(f'{byte_size(size):>10}   {os.path.join(root, file)} {warning}')
                     else:
                         skipped += 1

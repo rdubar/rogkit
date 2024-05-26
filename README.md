@@ -81,6 +81,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | tomlr    | Rogkit TOML tools  | from tomlr import load_rogkit_toml     |
 | update   | Update system      |                                        |
 | wikipedia| Query Wikipedia    | from wikipedia import search_wikipedia |
+| venv     | Activate venv      |                                        |
 | yout     | Youtube downloads  |                                        |
 |          |                    |                                        |
 | rogkit   | Display this info  |                                        |
