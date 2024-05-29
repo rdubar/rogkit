@@ -2,14 +2,7 @@ import os
 import subprocess
 
 def find_virtual_envs(directory):
-    env_folders = []
-    
-    for folder in os.listdir(directory):
-        activate_path = os.path.join(directory, folder, 'bin', 'activate')
-        if os.path.isdir(os.path.join(directory, folder)) and os.path.exists(activate_path):
-            env_folders.append(folder)
-    
-    return env_folders
+    return [folder for folder in os.listdir(directory) if os.path.exists(os.path.join(directory, folder, 'bin', 'activate'))]
 
 def activate_virtual_env(directory):
     for root, dirs, files in os.walk(directory):

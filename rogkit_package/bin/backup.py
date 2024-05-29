@@ -15,7 +15,7 @@ files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.g
                    '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__', '.log', '.sqlite', 
                     'package.json', '.virtual', '.docker', 'yarn.lock', 'yarn-error.log']
 
-folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages', 'data/', '/venv', '.git', 'idea']
+folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages', 'data/', '/venv', '.git', '.idea', 'logs', 'data_dir', 'mvs']
 
 BACKUP_FOLDERS = ['Dropbox/Archive/MacBookPro/', '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups']
 
@@ -99,7 +99,8 @@ def create_backup(verbose=False):
             print(f'Error copying backup to {extra_backup}: {e}')
         
     elapsed_time = perf_counter() - start_time
-    print(f'Backup created with {file_count:,} files ({byte_size(file_total_size)}) in {convert_seconds(elapsed_time)}.')
+    archive_size = os.path.getsize(path_for_backup)
+    print(f'Backup created with {file_count:,} files ({byte_size(archive_size)}) in {convert_seconds(elapsed_time)}.')
     print(f'Backup path: {path_for_backup}')
     
 def list_backups():
