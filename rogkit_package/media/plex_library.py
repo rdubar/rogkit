@@ -367,6 +367,9 @@ class PlexLibrary:
         total = 0
         updated = []
         new = []
+        if not libraries:
+            print("No libraries found.")
+            return
         for library in libraries:
             print(f"Checking library: {library.title}: {len(library.all()):,} items")
             for item in library.all():

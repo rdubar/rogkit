@@ -11,10 +11,10 @@ def display_space(path):
     free_space = os.statvfs(path).f_bfree * os.statvfs(path).f_frsize
     used_space = total_space - free_space
     percent_full = used_space / total_space * 100
-
+    
     print(f"{path:20} | {byte_size(total_space):10} | {byte_size(used_space):10} | {byte_size(free_space):10} | {percent_full:5.2f}%")
 
-def display_paths(path_list=None, size=False):
+def display_paths(path_list=None, size=False, quiet=False):
     if path_list is None:
         path_list = []
         
@@ -42,7 +42,8 @@ def display_paths(path_list=None, size=False):
         # sort alphabetically
         found_paths.sort()
 
-    print_header()
+    if not quiet:
+        print_header()
     for path in found_paths:
         display_space(path)
 
@@ -50,10 +51,11 @@ def get_args():
     parser = argparse.ArgumentParser(description='Display disk space usage')
     parser.add_argument('paths', nargs='*', default=[], help='List of paths to check (optional)')
     parser.add_argument('-s', '--size', action='store_true', help='Sort by size')
+    parser.add_argument('-q', '--quiet', action='store_true', help='Short (quiet) output')
     args = parser.parse_args()
     return args
 
 if __name__ == "__main__":
     args = get_args()
-    display_paths(args.paths, size=args.size)
+    display_paths(args.paths, size=args.size, quiet=args.quiet)
 
