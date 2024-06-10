@@ -6,7 +6,7 @@ from ..bin.tomlr import load_rogkit_toml
 TOML = load_rogkit_toml()
 DEFAULT_API_KEY = TOML.get('openai', {}).get('openai_api_key', '')
 # Set the API key globally
-DEFAULT_ENGINE = "gpt-3.5-turbo"
+DEFAULT_ENGINE = "gpt-4o"
 
 client = OpenAI(api_key=DEFAULT_API_KEY)
 
@@ -47,7 +47,12 @@ def main():
     parser.add_argument("prompt", nargs='*', help="Prompt to send to ChatGPT")
     parser.add_argument("-e", "--engine", required=False, default=DEFAULT_ENGINE, help="OpenAI engine to use")
     parser.add_argument("-d", "--debug", action="store_true", help="Print debug info")
+    parser.add_argument("-i", "--info", action="store_true", help="Print information about the assistant")
     args = parser.parse_args()
+    
+    if args.info:
+        print(f'Connected to OpenAI engine: {args.engine}')
+    
     if args.prompt:
         full_prompt = ' '.join(args.prompt)
     else:
