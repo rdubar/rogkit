@@ -3,7 +3,7 @@ import argparse
 import os
 from dataclasses import dataclass, field
 
-DEFAULT_FOLDER_LIST = ["/Users/rdubar/apv/openerp-addons", "/mnt/expansion/Media/Movies/"]
+DEFAULT_FOLDER_LIST = ["/Users/rdubar/apv/openerp-addons", "/mnt/expansion/Media/Movies/", "/mnt/archive/Media/Movies/"]    
 
 def process_purge_list(raw_list):
     """
@@ -20,7 +20,7 @@ RARBG_DO_NOT_MIRROR.exe
 RARBG.txt
 WWW.YIFY-TORRENTS.COM.jpg
 [TGx]Downloaded from torrentgalaxy.to .txt
-NEW upcoming releases by Xclusive.txt
+NEW upcoming releases by Xclusive.txt`
 Downloaded From PublicHD.SE.txt
 00.nfop
 WWW.YTS.RE.jpg
@@ -41,14 +41,17 @@ def matches_pattern(file, pattern):
             return True
     return False
 
-def search_and_collect_files(folder, pattern):
+def search_and_collect_files(folders, pattern):
     results = PurgeResults()
-    for root, dirs, files in os.walk(folder):
-        for file in files:
-            filepath = os.path.join(root, file)
-            if matches_pattern(filepath, pattern):
-                results.files_to_delete.append(filepath)
-            results.total_files += 1
+    if not isinstance(folders, list):
+        folders = [folders]
+    for folder in folders:
+        for root, dirs, files in os.walk(folder):
+            for file in files:
+                filepath = os.path.join(root, file)
+                if matches_pattern(filepath, pattern):
+                    results.files_to_delete.append(filepath)
+                results.total_files += 1
     return results
 
 def delete_files(file_list):
@@ -67,20 +70,22 @@ def main():
     parser.add_argument('-p', '--purge_list', action='store_true', help='Show the purge list.')
     args = parser.parse_args()
 
-    folder = args.folder or next((f for f in DEFAULT_FOLDER_LIST if os.path.exists(f)), '')
-    if not folder:
-        print("No valid folder found. Exiting.")
-        return
-    
-    print(f"Searching {folder} for files to purge...")
-
     if args.purge_list:
         print("Showing the purge list of files to purge:")
         for item in PURGE_LIST:
             print(item)
         return
+        
+    folder_list= [args.folder] if args.folder else DEFAULT_FOLDER_LIST
+    folders = [x for x in folder_list if os.path.exists(x)]
+    
+    if not folders:
+        print("No valid folder found. Exiting.")
+        return
+    
+    print(f"Searching {folders} for files to purge...")
 
-    results = search_and_collect_files(folder, args.pattern)
+    results = search_and_collect_files(folders, args.pattern)
     print(f"Found {len(results.files_to_delete):,} files to delete out of {results.total_files:,} files scanned.")
 
     if args.confirm:
