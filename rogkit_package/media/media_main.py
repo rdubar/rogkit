@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import datetime
+from pprint import pp
 from time import perf_counter
 from .media_records import PlexRecordORM
 from .plex_library import PlexLibrary, update_database_schema, engine
@@ -157,7 +158,7 @@ def main():
         if args.summary:
             print(result.summary)
         if args.verbose:
-            print(vars(result))     
+            print(pp(vars(result)))   
 
     # get the total duration of all results
     total_duration = convert_seconds((sum([getattr(result, 'duration', 0) or 0 for result in results]) or 0) / 1000)
