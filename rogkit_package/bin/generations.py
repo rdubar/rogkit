@@ -1,5 +1,5 @@
 import argparse
-from bignum import bignum
+from .bignum import bignum
 
 # Function to calculate the percentage of DNA shared with each generation
 def calculate_dna_shared(generations):
