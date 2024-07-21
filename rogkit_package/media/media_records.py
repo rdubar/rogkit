@@ -63,7 +63,7 @@ class PlexRecordORM(Base):
     def __str__(self):
         # Customize the string representation of PlexRecord
         year_str = f" ({self.year})" if self.year is not None else ""
-        resolution_str = f" {self.resolution}" if self.resolution is not None else ""
+        resolution_str = f" {self.resolution}" if self.resolution is not None and self.resolution != "None" else ""
         size_str = f" {byte_size(self.size)}" if self.size is not None else ""
 
         # Default values for None fields
