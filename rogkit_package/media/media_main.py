@@ -44,7 +44,7 @@ def main():
         freeze_database()
         return
     
-    if args.restore:
+    if args.unfreeze:
         restore_database()
         return
 
@@ -159,6 +159,9 @@ def main():
             print(result.summary)
         if args.verbose:
             print(pp(vars(result)))   
+    remaining = len(results) - args.number
+    if remaining > 0:
+        print(f"...and {remaining:,} more.")
 
     # get the total duration of all results
     total_duration = convert_seconds((sum([getattr(result, 'duration', 0) or 0 for result in results]) or 0) / 1000)
