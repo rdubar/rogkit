@@ -33,6 +33,12 @@ class PlexLibrary:
 
     def ensure_database_ready(self):
         try:
+            # Execute PRAGMA statements for optimization
+            self.session.execute(text("PRAGMA journal_mode = WAL"))
+            self.session.execute(text("PRAGMA synchronous = NORMAL"))
+            self.session.execute(text("PRAGMA cache_size = 10000"))
+            
+            # Check if the database is ready by executing a simple query
             self.session.execute(text("SELECT 1 FROM plex_records LIMIT 1"))
         except Exception as e:
             print(f"Database error encountered: {e}")
@@ -425,6 +431,50 @@ class PlexLibrary:
     def find(self, title):
         return self.session.query(PlexRecordORM).filter(PlexRecordORM.title == title).first()
     
+    def get_db_path(self):
+        # Extract the database file path from the SQLAlchemy engine URL
+        db_url = engine.url.database
+        if not db_url:
+            raise FileNotFoundError("Database URL is not set or the database file does not exist.")
+        return db_url
+
+    def get_db_stats(self):
+        stats = {}
+        db_path = self.get_db_path()
+        stats['size'] = os.path.getsize(db_path)
+        start_time = time.time()
+        count = self.session.execute(text('SELECT COUNT(*) FROM plex_records')).scalar()
+        stats['count'] = count
+        stats['sample_query_time'] = time.time() - start_time
+        return stats
+
+    def vacuum_db(self):
+        # perform warmup query
+        self.session.execute(text('SELECT COUNT(*) FROM plex_records'))
+        
+        # Get stats before vacuuming
+        stats_before = self.get_db_stats()
+        print(f"Database stats before vacuuming: {stats_before}")
+        
+        # Perform vacuuming
+        start_vacuum_time = time.time()
+        
+        self.session.execute(text('VACUUM;'))
+        vacuum_time = time.time() - start_vacuum_time
+        
+        # Get stats after vacuuming
+        stats_after = self.get_db_stats()
+        print(f"Database stats after vacuuming: {stats_after}")
+        
+        # Print vacuuming duration
+        print(f"Vacuuming took {vacuum_time:.2f} seconds")
+        
+        # Print comparison
+        size_diff = stats_before['size'] - stats_after['size']
+        query_time_diff = stats_before['sample_query_time'] - stats_after['sample_query_time']
+        print(f"Size reduced by {size_diff} bytes")
+        print(f"Sample query time improved by {query_time_diff:.4f} seconds")
+
 
 def get_media_list():
     library = PlexLibrary()

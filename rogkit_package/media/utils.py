@@ -16,6 +16,7 @@ def process_arguments():
     parser.add_argument('-D', '--duplicates', action='store_true', help='Remove duplicates')
     parser.add_argument('-F', '--freeze', action='store_true', help='Freeze database')
     parser.add_argument('-U', '--unfreeze', action='store_true', help='Unfreeze (restore) frozen database')
+    parser.add_argument('--vacuum', action='store_true', help='Vacuum database')
 
     # Display options
     parser.add_argument('-a', '--all', action='store_true', help='Show all records')

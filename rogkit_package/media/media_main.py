@@ -51,6 +51,10 @@ def main():
     if args.conn:
         server = PlexServer()
         print(server.get_connection())
+        
+    if args.vacuum:
+        plex_library.vacuum_db()
+        return
 
     if args.debug:
         # Do debug stuff here
