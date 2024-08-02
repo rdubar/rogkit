@@ -115,7 +115,7 @@ def main():
     print('BMI Progression Calculator')
     
     if not args.args:
-        print('Provide <height> <weight>, or e.g, <height> 0 <bmi> to calculate weight from BMI.')
+        print('Provide <height> <weight>, or e.g, <height> 0 <bmi> to calculate weight from BMI')
         return
 
     for arg in args.args:

@@ -34,10 +34,18 @@ class PlexLibrary:
     def ensure_database_ready(self):
         try:
             # Execute PRAGMA statements for optimization
-            self.session.execute(text("PRAGMA journal_mode = WAL"))
-            self.session.execute(text("PRAGMA synchronous = NORMAL"))
-            self.session.execute(text("PRAGMA cache_size = 10000"))
-            
+            self.session.execute(text("PRAGMA journal_mode = WAL"))         # Set journal mode to Write-Ahead Logging for better concurrency
+            self.session.execute(text("PRAGMA synchronous = NORMAL"))       # Set synchronous mode to NORMAL to reduce disk I/O overhead
+            self.session.execute(text("PRAGMA cache_size = 10000"))         # Increase the cache size to keep more data in memory
+            self.session.execute(text("PRAGMA foreign_keys = OFF"))         # Disable foreign key constraints for performance improvement (if not using foreign keys)
+            self.session.execute(text("PRAGMA automatic_index = ON"))       # Enable automatic indexing to optimize query performance
+            self.session.execute(text("PRAGMA temp_store = MEMORY"))        # Use memory for temporary storage to speed up operations
+            self.session.execute(text("PRAGMA page_size = 4096"))           # Increase the page size to 4096 bytes for better performance
+            self.session.execute(text("PRAGMA cache_spill = OFF"))          # Disable cache spilling to reduce disk I/O operations
+            self.session.execute(text("ANALYZE"))                           # Run ANALYZE to gather statistics for the query planner
+            # This lock causes reset to fail        
+            # self.session.execute(text("PRAGMA locking_mode = EXCLUSIVE"))   # Set locking mode to EXCLUSIVE to reduce locking overhead
+
             # Check if the database is ready by executing a simple query
             self.session.execute(text("SELECT 1 FROM plex_records LIMIT 1"))
         except Exception as e:
@@ -55,15 +63,48 @@ class PlexLibrary:
 
     def reset_database(self):
         try:
-            # Close the current session to clear any existing session state
+            # Log the status
+            print("Closing session and disposing engine...")
+            # Ensure all sessions are properly closed
             self.session.close()
-            # Drop all existing data
-            Base.metadata.drop_all(engine)
-            # Recreate the tables
-            Base.metadata.create_all(engine)
+            engine.dispose()
+            
+            # Sleep for a short duration to ensure all connections are fully closed
+            import time
+            time.sleep(1)
+            
+            # Connect to the database and perform reset operations
+            print("Connecting to the database...")
+            with engine.connect() as connection:
+                try:
+                    print("Setting PRAGMA journal_mode=DELETE...")
+                    connection.execute(text("PRAGMA journal_mode=DELETE"))
+                    connection.execute(text("PRAGMA locking_mode=NORMAL"))
+                    connection.execute(text("PRAGMA busy_timeout = 30000"))  # Increase busy timeout to 30 seconds
+
+                    # Log all current database connections for debugging
+                    print("Checking for existing database connections...")
+                    connections = connection.execute(text("PRAGMA database_list")).fetchall()
+                    for conn in connections:
+                        print(f"Database connection: {conn}")
+
+                    print("Dropping all tables...")
+                    Base.metadata.drop_all(connection)
+                    print("Creating all tables...")
+                    Base.metadata.create_all(connection)
+                    
+                except Exception as e:
+                    print(f"Error during schema reset: {e}")
+                    raise
+                finally:
+                    print("Restoring PRAGMA journal_mode=WAL...")
+                    connection.execute(text("PRAGMA journal_mode=WAL"))
+                    connection.execute(text("PRAGMA locking_mode=EXCLUSIVE"))
+                    
+            print("Creating a new session for the next operations...")
             # Create a new session for the next operations
             self.session = Session()
-            # Repopulate the database
+            print("Populating the database...")
             self.populate_database()
         except Exception as e:
             print(f"Critical error resetting the database: {e}")
@@ -347,7 +388,7 @@ class PlexLibrary:
         if plex:
             return [record.title for record in self.session.query(PlexRecordORM).all()]
         else:
-            # exclude titles with no plex_guida
+            # exclude titles with no plex_guid
             return [(x.title, x.year) for x in self.session.query(PlexRecordORM).filter(PlexRecordORM.plex_guid == None).all()]
         # return [
         #     f"{record.title} {record.year if record.year else ''}".strip()

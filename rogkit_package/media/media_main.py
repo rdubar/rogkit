@@ -86,7 +86,7 @@ def main():
     results = plex_library.libraries
 
     if True or args.latest: # or should_show_latest_results(args, search_text):
-        # go thru results, setting addded at to 01/01/2000 if it's None
+        # go thru results, setting added at to 01/01/2000 if it's None
         for result in results:
             if hasattr(result, 'added_at') and not result.added_at:
                 result.added_at = datetime.datetime(2000, 1, 1)
