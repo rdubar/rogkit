@@ -30,10 +30,13 @@ class Config:
         }
 
 def get_title_from_url(url):
+    ydl_opts = {'quiet': True, 'no_warnings': True, 'skip_download': True}
     try:
-        return HTMLSession().get(url).html.find("title", first=True).text
+        with YoutubeDL(ydl_opts) as ydl:
+            info_dict = ydl.extract_info(url, download=False)
+            return info_dict.get('title', None)
     except Exception as e:
-        print(Fore.RED + f"Error fetching title: {e}")
+        print(Fore.RED + f"Error fetching title with yt_dlp: {e}")
         return None
 
 def set_directory(directory):
