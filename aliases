@@ -65,9 +65,10 @@ alias toml='$ROGKIT_PYTHON -m rogkit_package.bin.tomlr "$@"'
 alias transparent='$ROGKIT_PYTHON -m rogkit_package.bin.transparent "$@"'
 alias venv='$ROGKIT_PYTHON -m rogkit_package.bin.venv_set "$@"'
 alias update='/usr/bin/bash $ROGKIT_PACKAGE/bin/update "$@"'
+alias vido='$ROGKIT_PYTHON -m rogkit_package.bin.vido "$@"'
 alias wikipedia='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
 alias w='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
 alias xmlr='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
 alias xml='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
-alias yout='$ROGKIT_PYTHON -m rogkit_package.bin.yout "$@"'
+
 

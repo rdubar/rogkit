@@ -83,7 +83,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | update   | Update system      |                                        |
 | wikipedia| Query Wikipedia    | from wikipedia import search_wikipedia |
 | venv     | Activate venv      |                                        |
-| yout     | Youtube downloads  |                                        |
+| vido     | Video downloads    |                                        |
 |          |                    |                                        |
 | rogkit   | Display this info  |                                        |
 
