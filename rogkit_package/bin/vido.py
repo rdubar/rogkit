@@ -1,6 +1,7 @@
 #!/home/pi/.env/bin/python
 
 import os
+import sys
 import argparse
 import time
 import datetime
@@ -96,12 +97,15 @@ def get_movies(search, config):
     print(Fore.GREEN + f"Completed tasks in {showtime(time.perf_counter() - clock)}.")
 
 def main():
-    parser = argparse.ArgumentParser(description="Youtube Movie Downloader")
+    parser = argparse.ArgumentParser(description="Rog's Movie Downloader")
     parser.add_argument("search", nargs="*", help="Search term, URL, or filename")
     parser.add_argument("-c", "--config", default="~/.rogkit.toml", help="Path to config file")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
 
+    if len(sys.argv) == 1:
+        print(parser.description)
+        
     if args.config == "~/.rogkit.toml":
         # get the users home directory
         home = os.path.expanduser("~")
