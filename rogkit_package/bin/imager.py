@@ -4,6 +4,7 @@ import io
 import pyheif
 from PIL import Image
 from .bytes import byte_size
+import subprocess
 
 def list_image_files(directory):
     """List all HEIC, webp, jpg and jpeg files in the given directory."""
@@ -13,28 +14,39 @@ def list_image_files(directory):
         print(f"Error listing files in {directory}: {e}")
         exit(1)
 
+def convert_heic_to_jpg(input_image_path, output_image_path):
+    """Convert HEIC to JPG using ImageMagick."""
+    try:
+        subprocess.run(["magick", "convert", input_image_path, output_image_path], check=True)
+        return Image.open(output_image_path)
+    except Exception as e:
+        print(f"Error converting HEIC to JPG with ImageMagick: {e}")
+        return None
+
 def read_heic_file(input_image_path):
     """Read a HEIC file and convert it to a PIL Image object."""
-    heif_file = pyheif.read(input_image_path)
-    print(type(heif_file), heif_file)
-    
-    
-    heif_file = (input_image_path, "heic")
-
-    return Image.frombytes(
-        heif_file.mode, 
-        heif_file.size, 
-        heif_file.data,
-        "raw",
-        heif_file.mode,
-        heif_file.stride,
-    )
+    try:
+        heif_file = pyheif.read(input_image_path)
+        return Image.frombytes(
+            heif_file.mode, 
+            heif_file.size, 
+            heif_file.data,
+            "raw",
+            heif_file.mode,
+            heif_file.stride,
+        )
+    except pyheif.error.HeifError as e:
+        print(f"Error reading HEIC file: {e}")
+        # Fallback to ImageMagick conversion if pyheif fails
+        output_image_path = input_image_path.rsplit('.', 1)[0] + ".jpg"
+        return convert_heic_to_jpg(input_image_path, output_image_path)
 
 def resize_image(img, max_size):
     """Resize the image to the given maximum size."""
     try:
         max_size = int(max_size)
-        img.thumbnail((max_size, max_size))
+        if hasattr(img, 'thumbnail'):
+            img.thumbnail((max_size, max_size))
         return img
     except Exception as e:
         print(f"Error resizing image: {e}")
@@ -61,7 +73,7 @@ def compress_image(image, max_size, verbose=False):
 
     return buffer
 
-def process_images(directory, confirm=False, max_size=110, max_length=800, verbose=False):
+def process_images(directory, confirm=False, max_size=110, max_length=800, verbose=False, debug=False):
     """Process each image file in the directory."""
     files = list_image_files(directory)
     if confirm and not files:
@@ -71,38 +83,48 @@ def process_images(directory, confirm=False, max_size=110, max_length=800, verbo
         print("Files to be processed:", files)
         return
     
-    # create a folder called "images_backup" in the directory and move all the heic files there (if it doesn't exist)
     images_backup = "images_backup"
     images_backup_folder = os.path.join(directory, images_backup)
     if not os.path.exists(images_backup_folder):
         os.mkdir(images_backup_folder)
 
+    moved = 0
     for file in files:
         path = os.path.join(directory, file)
-
         is_heic = file.lower().endswith('.heic')
 
-        # skip if file size is less than max_size and not heic
         if not is_heic and os.path.getsize(path) < max_size * 1024:
             print(f'Skipping: {file} is already less than {max_size}KB.')
             continue
 
         if is_heic:
             img = read_heic_file(path)
+            if img is None and not debug:
+                print(f"Skipping {file} due to a read error.")
+                continue
         else:
-            img = Image.open(path)
+            try:
+                img = Image.open(path)
+            except Exception as e:
+                print(f"Error opening image {file}: {e}")
+                continue
+
         resized_img = resize_image(img, max_length)
+        if resized_img is None:
+            print(f"Skipping {file} due to an error in resizing.")
+            continue
+
         try:
             compressed_img = compress_image(resized_img, max_size, verbose=verbose)
         except Exception as e:
             print(f"Error compressing image: {e}")
-            exit(1)
+            continue
 
         output_filename = file.rsplit('.', 1)[0] + f"-{max_size}.jpg"
         output_path = os.path.join(directory, output_filename)
 
         if os.path.exists(output_path):
-            print(f'Skipping:{output_path} already exists.')
+            print(f'Skipping: {output_path} already exists.')
             continue
 
         with open(output_path, 'wb') as f:
@@ -111,7 +133,9 @@ def process_images(directory, confirm=False, max_size=110, max_length=800, verbo
         size = byte_size(os.path.getsize(output_path))
         print(f"Processed: {output_filename} {size}")
         os.rename(path, os.path.join(directory, images_backup, file))
-    print(f"Moved {len(files)} image files to {images_backup_folder}")
+        moved += 1
+    
+    print(f"Moved {moved} image files to {images_backup_folder}")
 
 def main():
     default_max_dimension = 1_200  # longest side of the image in pixels
@@ -128,14 +152,15 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", help="Show verbose output")
     args = parser.parse_args()
 
-    print(f"Resize image files in a directory and convert them to JPEGs with a maxium size of {args.max_size}kb.")
+    print(f"Resize image files in a directory and convert them to JPEGs with a maximum size of {args.max_size}kb.")
     if args.debug:
         print("Debug mode enabled.")
         process_images(args.directory, 
                     confirm=args.confirm, 
                     max_size=args.max_size, 
                     max_length=args.max_length, 
-                    verbose=args.verbose)
+                    verbose=args.verbose,
+                    debug=args.debug)
     else:
         try:
             process_images(args.directory, 

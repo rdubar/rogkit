@@ -1,6 +1,6 @@
 import streamlit as st
 from rogkit_package.media.plex_library import PlexLibrary
-inport pandas as pd
+import pandas as pd
 
 st.set_page_config(page_title="RogKit", page_icon=":tools:")
 
