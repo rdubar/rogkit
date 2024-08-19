@@ -152,6 +152,8 @@ def main():
     parser.add_argument("-v", "--verbose", action="store_true", help="Show verbose output")
     args = parser.parse_args()
 
+    print('\nimager: If not working please use "magick" utility to convert HEIC to JPG\n')
+
     print(f"Resize image files in a directory and convert them to JPEGs with a maximum size of {args.max_size}kb.")
     if args.debug:
         print("Debug mode enabled.")
