@@ -21,7 +21,7 @@ class Config:
             self.download_folder = self.config['yout']['download_folder']
             self.default_input_file = self.config['yout']['default_input_file']
         except Exception as e:
-            print(Fore.RED + f"Failed to load [yout] section of config file {config_file}: {e}")
+            print(Fore.MAGENTA + f"Failed to load [yout] section of config file {config_file}: {e}")
             exit(1)
 
     def get_download_options(self):
@@ -37,15 +37,15 @@ def get_title_from_url(url):
             info_dict = ydl.extract_info(url, download=False)
             return info_dict.get('title', None)
     except Exception as e:
-        print(Fore.RED + f"Error fetching title with yt_dlp: {e}")
+        print(Fore.MAGENTA + f"Error fetching title with yt_dlp: {e}")
         return None
 
 def set_directory(directory):
     try:
         os.chdir(directory)
-        print(Fore.BLUE + "Output directory: ", os.getcwd())
+        print(Fore.CYAN + "Output directory: ", os.getcwd())
     except Exception as e:
-        print(Fore.RED + f"Failed to change directory: {e}")
+        print(Fore.MAGENTA + f"Failed to change directory: {e}")
         return False
     return True
 
@@ -66,13 +66,13 @@ def process_url(url, config):
     title = get_title_from_url(url)
     if not title:
         return
-    print(Fore.GREEN + "Downloading:", title)
+    print(Fore.CYAN + "Downloading:", title)
     try:
         with YoutubeDL(config.get_download_options()) as ydl:
             video_info = ydl.extract_info(url, download=True)
             output = ydl.prepare_filename(video_info)
     except Exception as e:
-        print(Fore.RED + f"Error downloading {url}\n{e}")
+        print(Fore.MAGENTA + f"Error downloading {url}\n{e}")
         return
 
     final_output = os.path.join(config.download_folder, output)
@@ -94,7 +94,7 @@ def get_movies(search, config):
             lines = f.readlines()
 
     process_lines(lines, config)
-    print(Fore.GREEN + f"Completed tasks in {showtime(time.perf_counter() - clock)}.")
+    print(Fore.CYAN + f"Completed tasks in {showtime(time.perf_counter() - clock)}.")
 
 def main():
     parser = argparse.ArgumentParser(description="Rog's Movie Downloader")
@@ -122,7 +122,7 @@ def main():
         try:
             get_movies(search, config)
         except Exception as e:
-            print(Fore.RED + f"Error: {e}")
+            print(Fore.MAGENTA + f"Error: {e}")
 
 if __name__ == "__main__":
     main()
