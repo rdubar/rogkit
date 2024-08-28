@@ -1,5 +1,3 @@
-#!/home/pi/.env/bin/python
-
 import os
 import sys
 import argparse
@@ -27,7 +25,7 @@ class Config:
     def get_download_options(self):
         return {
             "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
-            "outtmpl": "%(title)s-%(id)s.%(ext)s",
+            "outtmpl": "%(title).80s-%(id)s.%(ext)s",  # Limit title to 80 characters
         }
 
 def get_title_from_url(url):
@@ -72,16 +70,9 @@ def process_url(url, config):
         with YoutubeDL(config.get_download_options()) as ydl:
             video_info = ydl.extract_info(url, download=True)
             output = ydl.prepare_filename(video_info)
-            
-            # Truncate the output filename if it's too long
-            max_length = 100  # Adjust this value as needed
-            base, ext = os.path.splitext(output)
-            if len(base) > max_length:
-                base = base[:max_length]
-                output = f"{base}{ext}"
-            
+
             final_output = os.path.join(config.download_folder, output)
-            os.rename(ydl.prepare_filename(video_info), final_output)
+            os.rename(output, final_output)
 
     except Exception as e:
         print(Fore.MAGENTA + f"Error downloading {url}\n{e}")
