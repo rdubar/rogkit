@@ -33,6 +33,7 @@ def process_arguments():
     parser.add_argument('--rating', action='store_true', help='Sort by rating')
     parser.add_argument('--shrink', action='store_true', help='Run the experimetal shrink function')
     parser.add_argument('--afi', action="store_true", help="Check against AFI's 100 Years...100 Movies list")
+    parser.add_argument('--list', type=str, help='List of titles to search for [Experimental]')
     
     # Mode options
     parser.add_argument('-V', '--verbose', action='store_true', help='Verbose mode')

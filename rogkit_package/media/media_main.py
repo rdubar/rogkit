@@ -21,8 +21,6 @@ def main():
 
     plex_library = PlexLibrary()
 
-    
-
     if args.afi:
         print("Checking against AFI's 100 Years...100 Movies list")
         found = missing = 0
@@ -38,6 +36,30 @@ def main():
                 print(f"Missing: {item} - {title}")
                 missing += 1
         print(f"Found: {found}, Missing: {missing}")
+        return
+    
+    # prnt verbose status
+    if args.verbose:
+        print(f"Verbose mode: {args.verbose}")
+    
+    if args.list:
+        try:
+            with open(args.list, 'r') as file:
+                file_list = file.read().splitlines()
+        except FileNotFoundError:
+            print(f"File not found: {args.list}")
+            return
+        if not file_list:
+            print(f"File is empty: {args.list}")
+            return
+        print(f"Searching for {len(file_list):,} items in {args.list}")
+        print(f"\n{'Matches':5}    Title\n{'-------':5}    -----")
+        for item in file_list:
+            results = plex_library.search(item)
+            titles = {result.title for result in results}
+            print(f"{len(titles):5}      {item}", sep='')
+            if args.verbose and len(titles) > 1:  
+                print( *titles, sep=', ')
         return
 
     if args.freeze:

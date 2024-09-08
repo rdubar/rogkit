@@ -16,6 +16,9 @@ from .media_settings import additional_media_csv, db_df_path
 from .tmdb import DataList
 from ..bin.seconds import convert_seconds
 
+from thefuzz import fuzz
+from thefuzz import process
+
 
 @dataclasses.dataclass
 class PlexLibrary:
@@ -288,10 +291,16 @@ class PlexLibrary:
                 removed += 1
         self.session.commit()
         return removed
-    
+
     def search(self, text):
+        """
+        Search in three ways:
+        1. General search
+        3. Search by title and then (year)
+        2. Fuzzy match
+        """
         search_pattern = f"%{text.lower()}%"
-        return self.session.query(PlexRecordORM).filter(
+        results = self.session.query(PlexRecordORM).filter(
             or_(
                 PlexRecordORM.title.ilike(search_pattern),
                 PlexRecordORM.year.ilike(search_pattern),
@@ -305,11 +314,51 @@ class PlexLibrary:
                 PlexRecordORM.library.ilike(search_pattern),
                 PlexRecordORM.section.ilike(search_pattern),
                 PlexRecordORM.resolution.ilike(search_pattern),
-                # search aginst name nand year e.g. "The Matrix 1999" or "The Matrix (1999)"
-                PlexRecordORM.full_title + ' ' + PlexRecordORM.year.ilike(search_pattern)
-                # Add other fields as necessary
+                (PlexRecordORM.full_title + ' ' + PlexRecordORM.year).ilike(search_pattern)
             )
         ).all()
+        
+        if not results:
+            # check for a year. e.g. "(2019)" then search for the title without the year, and filter by year
+            if text[-5:-1].isdigit():
+                title = text[:-6].strip()
+                year = text[-5:-1]
+                results = self.session.query(PlexRecordORM).filter(
+                    or_(
+                        PlexRecordORM.title.ilike(f"%{title}%"),
+                        PlexRecordORM.full_title.ilike(f"%{title}%")
+                    ),
+                    PlexRecordORM.year == year
+                ).all()
+
+        # Fallback to fuzzy matching if no results
+        if not results:
+            all_records = self.session.query(PlexRecordORM).all()
+            
+            def get_relevant_fields(record):
+                return (
+                    f"{record.title or ''} {record.year or ''}",  # Handle None values
+                    record.full_title or '',
+                    record.summary or '',
+                    record.actors or ''
+                )
+
+            candidates = [(get_relevant_fields(record), record) for record in all_records]
+
+            matched_records = []
+            for field_values, record in candidates:
+                for field in field_values:
+                    # Ensure field is a string before calling lower()
+                    if field:  # Skips None and empty strings
+                        score = fuzz.partial_ratio(text.lower(), field.lower())
+                        if score > 70:
+                            matched_records.append((score, record))
+            
+            matched_records.sort(reverse=True, key=lambda x: x[0])
+            results = [record for score, record in matched_records]
+
+        return results
+
 
     @staticmethod
     def _load_csv_to_dict(file_path):

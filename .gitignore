@@ -3,6 +3,7 @@
 *.bak
 *.pkl
 .DS_Store
+list.txt
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
