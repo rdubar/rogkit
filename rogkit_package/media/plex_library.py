@@ -16,8 +16,7 @@ from .media_settings import additional_media_csv, db_df_path
 from .tmdb import DataList
 from ..bin.seconds import convert_seconds
 
-from thefuzz import fuzz
-from thefuzz import process
+from thefuzz import fuzz, process
 
 
 @dataclasses.dataclass
@@ -292,12 +291,12 @@ class PlexLibrary:
         self.session.commit()
         return removed
 
-    def search(self, text, fuzzy=False):
+    def search(self, text, fuzzy=90):
         """
         Search in three ways:
         1. General search
         3. Search by title and then (year)
-        2. Fuzzy match (if option is enabled)
+        2. Fuzzy match (as a percentage)
         """
         search_pattern = f"%{text.lower()}%"
         results = self.session.query(PlexRecordORM).filter(
@@ -332,7 +331,8 @@ class PlexLibrary:
                 ).all()
 
         # Fallback to fuzzy matching if no results
-        if not results and isinstance(fuzzy, int):
+        if not results and fuzzy < 100:
+            print(f"Fuzzy search with threshold: {fuzzy}")
             all_records = self.session.query(PlexRecordORM).all()
             
             def get_relevant_fields(record):

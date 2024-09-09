@@ -1,48 +1,10 @@
 #!/usr/bin/env python3
-import argparse
 import os
 import shutil
 import time
 from .media_settings import db_path, db_backup_path
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
-
-def process_arguments():
-    parser = argparse.ArgumentParser(description='Process arguments')
-
-    # Database management options
-    parser.add_argument('-u', '--update', action='store_true', help='Update database')  # TODO: confirm working
-    parser.add_argument('-R', '--reset', action='store_true', help='Reset database')
-    parser.add_argument('-D', '--duplicates', action='store_true', help='Remove duplicates')
-    parser.add_argument('-F', '--freeze', action='store_true', help='Freeze database')
-    parser.add_argument('-U', '--unfreeze', action='store_true', help='Unfreeze (restore) frozen database')
-    parser.add_argument('--vacuum', action='store_true', help='Vacuum database')
-
-    # Display options
-    parser.add_argument('-a', '--all', action='store_true', help='Show all records')
-    parser.add_argument('-d', '--dvd', action='store_true', help='Show uncompressed DVDs')
-    parser.add_argument('-i', '--info', action='store_true', help='Show info for a title')  
-    parser.add_argument('-f', '--fuzzy', nargs='?', const=True, type=int, help='Fuzzy search with optional integer value')
-    parser.add_argument('-l', '--latest', action='store_true', help='Show latest additions')
-    parser.add_argument('-r', '--reverse', action='store_true', help='Show reverse order')
-    parser.add_argument('-t', '--title', action='store_true', help='sort by title')
-    parser.add_argument('-n', '--number', type=int, default=10, help='Number of results to return')
-    parser.add_argument('-v', '--video', action='store_true', help='Sort by video resolution')
-    parser.add_argument('-y', '--year', action='store_true', help='Sort by year of release') 
-    parser.add_argument('-s', '--size', action='store_true', help='Sort by file size')
-    parser.add_argument('-S', '--summary', action='store_true', help='Show a summary for each title')
-    parser.add_argument('--rating', action='store_true', help='Sort by rating')
-    parser.add_argument('--shrink', action='store_true', help='Run the experimental database shrink function')
-    parser.add_argument('--afi', action="store_true", help="Check against AFI's 100 Years...100 Movies list")
-    parser.add_argument('--list', type=str, help='Search for a list of titles in a file (one per line)')
-    
-    # Mode options
-    parser.add_argument('-V', '--verbose', action='store_true', help='Verbose mode')
-    parser.add_argument('--conn', action='store_true', help='Test Plex server connection')
-    parser.add_argument('--debug', action='store_true', help='Debug mode')
-    
-    args, search_terms = parser.parse_known_args()
-    return args, ' '.join(search_terms)
 
 
 def sort_by_resolution(results):

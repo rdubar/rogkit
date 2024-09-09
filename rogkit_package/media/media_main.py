@@ -9,16 +9,16 @@ from .shrink import shrink_list
 
 from ..bin.seconds import convert_seconds
 from ..bin.bytes import byte_size
-from .utils import process_arguments, freeze_database, restore_database, last_updated, sort_results_by_attribute
+from .media_args import process_arguments
 from .media_settings import afi_path
-
+from .media_utils import freeze_database, restore_database, last_updated, sort_results_by_attribute
 
 def main():
     start_time = perf_counter()
     print("Rog's Plex Library Utility")
     print(last_updated())
     args, search_text = process_arguments()
-
+    
     plex_library = PlexLibrary()
 
     if args.afi:
@@ -140,22 +140,11 @@ def main():
         print("Filtering for uncompressed DVDs...")
         results = [result for result in results if result.codec == 'mpeg2video']
         matches_text = f' of {len(results):,} uncompressed DVDs'
-
-    if args.year:
-        sort_by = 'year'
-        results = sort_results_by_attribute(results, sort_by)
-
-    if args.video:
-        sort_by = 'resolution'
-        results = sort_results_by_attribute(results, sort_by)
-
-    if args.size:
-        sort_by = 'size'
-        results = sort_results_by_attribute(results, sort_by)
-
-    if args.rating:
-        sort_by = 'rating'
-        results = sort_results_by_attribute(results, sort_by)
+        
+    # sort results by the specified attribute
+    for arg, sort_by in [('year', 'year'), ('video', 'resolution'), ('size', 'size'), ('rating', 'rating')]:
+        if getattr(args, arg):
+            results = sort_results_by_attribute(results, sort_by)
 
     reverse_text = 'reversed' if args.reverse else ''
     if args.reverse:
