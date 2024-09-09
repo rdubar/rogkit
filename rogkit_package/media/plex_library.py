@@ -292,12 +292,12 @@ class PlexLibrary:
         self.session.commit()
         return removed
 
-    def search(self, text):
+    def search(self, text, fuzzy=False):
         """
         Search in three ways:
         1. General search
         3. Search by title and then (year)
-        2. Fuzzy match
+        2. Fuzzy match (if option is enabled)
         """
         search_pattern = f"%{text.lower()}%"
         results = self.session.query(PlexRecordORM).filter(
@@ -332,7 +332,7 @@ class PlexLibrary:
                 ).all()
 
         # Fallback to fuzzy matching if no results
-        if not results:
+        if not results and isinstance(fuzzy, int):
             all_records = self.session.query(PlexRecordORM).all()
             
             def get_relevant_fields(record):
@@ -351,7 +351,7 @@ class PlexLibrary:
                     # Ensure field is a string before calling lower()
                     if field:  # Skips None and empty strings
                         score = fuzz.partial_ratio(text.lower(), field.lower())
-                        if score > 70:
+                        if score > fuzzy:
                             matched_records.append((score, record))
             
             matched_records.sort(reverse=True, key=lambda x: x[0])

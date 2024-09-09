@@ -3,7 +3,9 @@
 *.bak
 *.pkl
 .DS_Store
-list.txt
+
+# lists of media files to check
+lists/
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

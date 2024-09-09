@@ -30,7 +30,7 @@ def main():
             if item[0] == '#' or '(' not in item or ')' not in item:
                 continue
             title = item[item.find(' '):item.rfind('(')].strip().lower().replace(", the", "").replace(", a", "")
-            if plex_library.search(title):
+            if plex_library.search(title, fuzzy=args.fuzzy):
                 found += 1
             else:
                 print(f"Missing: {item} - {title}")
@@ -38,11 +38,8 @@ def main():
         print(f"Found: {found}, Missing: {missing}")
         return
     
-    # prnt verbose status
-    if args.verbose:
-        print(f"Verbose mode: {args.verbose}")
-    
     if args.list:
+        # read a list of items from a file and search for them
         try:
             with open(args.list, 'r') as file:
                 file_list = file.read().splitlines()
@@ -55,7 +52,7 @@ def main():
         print(f"Searching for {len(file_list):,} items in {args.list}")
         print(f"\n{'Matches':5}    Title\n{'-------':5}    -----")
         for item in file_list:
-            results = plex_library.search(item)
+            results = plex_library.search(item, fuzzy=args.fuzzy)
             titles = {f"{result.title} ({result.year})" if result.year else result.title for result in results}
             print(f"{len(titles):5}      {item}", sep='')
             if args.verbose and len(titles) > 1:  
@@ -133,7 +130,7 @@ def main():
         return
 
     if search_text:
-        results = plex_library.search(search_text)
+        results = plex_library.search(search_text, fuzzy=args.fuzzy)
         print(f"Found {len(results):,} results in {total_records:,} total records for '{search_text}':" )
         matches_text = f' of {len(results):,} matches' 
     else:
