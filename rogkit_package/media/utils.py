@@ -31,9 +31,9 @@ def process_arguments():
     parser.add_argument('-s', '--size', action='store_true', help='Sort by file size')
     parser.add_argument('-S', '--summary', action='store_true', help='Show a summary for each title')
     parser.add_argument('--rating', action='store_true', help='Sort by rating')
-    parser.add_argument('--shrink', action='store_true', help='Run the experimetal shrink function')
+    parser.add_argument('--shrink', action='store_true', help='Run the experimental database shrink function')
     parser.add_argument('--afi', action="store_true", help="Check against AFI's 100 Years...100 Movies list")
-    parser.add_argument('--list', type=str, help='List of titles to search for [Experimental]')
+    parser.add_argument('--list', type=str, help='Search for a list of titles in a file (one per line)')
     
     # Mode options
     parser.add_argument('-V', '--verbose', action='store_true', help='Verbose mode')

@@ -56,7 +56,7 @@ def main():
         print(f"\n{'Matches':5}    Title\n{'-------':5}    -----")
         for item in file_list:
             results = plex_library.search(item)
-            titles = {result.title for result in results}
+            titles = {f"{result.title} ({result.year})" if result.year else result.title for result in results}
             print(f"{len(titles):5}      {item}", sep='')
             if args.verbose and len(titles) > 1:  
                 print( *titles, sep=', ')
