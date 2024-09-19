@@ -291,7 +291,7 @@ class PlexLibrary:
         self.session.commit()
         return removed
 
-    def search(self, text, fuzzy=90):
+    def search(self, text, fuzzy=90, verbose=False):
         """
         Search in three ways:
         1. General search
@@ -332,7 +332,8 @@ class PlexLibrary:
 
         # Fallback to fuzzy matching if no results
         if not results and fuzzy < 100:
-            print(f"Fuzzy search with threshold: {fuzzy}")
+            if verbose:
+                print(f"Fuzzy search with threshold: {fuzzy}")
             all_records = self.session.query(PlexRecordORM).all()
             
             def get_relevant_fields(record):
@@ -445,7 +446,7 @@ class PlexLibrary:
         # ]
 
     def update_test(self):
-        print("Checking for updates. Please allow 10-20 seconds...")
+        print("Checking for updates. Please wait...")
         clock = time.perf_counter()
         try:
             database_date = self.session.query(func.max(PlexRecordORM.updated_at)).scalar()

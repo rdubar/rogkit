@@ -1,4 +1,5 @@
 import argparse
+from .media_settings import FUZZY_DEFAULT
 
 def process_arguments():
     """
@@ -9,7 +10,7 @@ def process_arguments():
     parse = parser.add_argument
 
     # Database management options
-    parse('-u', '--update', action='store_true', help='Update database')  # TODO: confirm working
+    parse('-u', '--update', action='store_true', help='Update database')
     parse('-R', '--reset', action='store_true', help='Reset database')
     parse('-D', '--duplicates', action='store_true', help='Remove duplicates')
     parse('-F', '--freeze', action='store_true', help='Freeze database')
@@ -20,7 +21,7 @@ def process_arguments():
     parse('-a', '--all', action='store_true', help='Show all records')
     parse('-d', '--dvd', action='store_true', help='Show uncompressed DVDs')
     parse('-i', '--info', action='store_true', help='Show info for a title')  
-    parse('-f', '--fuzzy', nargs='?', const=90, type=int, help='Fuzzy search with optional integer value (default: 90)')
+    parse('-f', '--fuzzy', nargs='?', const=FUZZY_DEFAULT, type=int, help=f'Fuzzy search with optional integer value (default: {FUZZY_DEFAULT})')
     parse('-l', '--latest', action='store_true', help='Show latest additions')
     parse('-r', '--reverse', action='store_true', help='Show reverse order')
     parse('-t', '--title', action='store_true', help='sort by title')
