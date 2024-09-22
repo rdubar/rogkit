@@ -62,7 +62,10 @@ def get_media_info(file_path):
         return info
 
     except ffmpeg.Error as e:
-        print(f"Error occurred: {e.stderr}", file=sys.stderr)
+        print(f"ffmpeg error occurred: {e.stderr}", file=sys.stderr)
+        return None
+    except Exception as e:
+        print(f"Error occurred: {e}", file=sys.stderr)
         return None
 
 def main(directory):
@@ -94,4 +97,3 @@ if __name__ == "__main__":
         print("Usage: python media_scan.py <directory_path>")
         sys.exit(1)
     main(sys.argv[1])
-``
