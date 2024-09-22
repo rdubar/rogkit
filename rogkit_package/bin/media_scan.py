@@ -1,6 +1,7 @@
 import ffmpeg
 import os
 import sys
+from .bytes import byte_size  # Assuming this module exists in your setup
 
 def bitrate2k(text: str) -> str:
     if text.isdigit():
@@ -8,31 +9,55 @@ def bitrate2k(text: str) -> str:
     return text
 
 def get_media_info(file_path):
-    if not file_path.lower().endswith(('.mp4', '.avi', '.mkv', '.mov', '.flv', '.wmv', '.webm', '.mpg', '.mpeg', '.m4v', '.3gp', '.3g2', '.ts', '.vob', '.f4v', '.f4p', '.f4a', '.f4b', '.m4a', '.m4b')):
+    if not file_path.lower().endswith((
+        '.mp4', '.avi', '.mkv', '.mov', '.flv', '.wmv', '.webm',
+        '.mpg', '.mpeg', '.m4v', '.3gp', '.3g2', '.ts', '.vob',
+        '.f4v', '.f4p', '.f4a', '.f4b', '.m4a', '.m4b'
+    )):
         return
     try:
         # Get probe data
         probe = ffmpeg.probe(file_path)
-        video_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'video'), None)
-        audio_stream = next((stream for stream in probe['streams'] if stream['codec_type'] == 'audio'), None)
+        video_stream = next(
+            (stream for stream in probe['streams'] if stream['codec_type'] == 'video'),
+            None
+        )
+        audio_stream = next(
+            (stream for stream in probe['streams'] if stream['codec_type'] == 'audio'),
+            None
+        )
 
         # Initialize info dictionary
         info = {}
 
         # Get video information if available
         if video_stream is not None:
-            info['video'] = {
-                'resolution': f"{video_stream['width']}x{video_stream['height']}",
-                'codec': video_stream['codec_name'],
-                'bitrate': bitrate2k(video_stream['bit_rate'])
-            }
+            video_info = {}
+            if 'width' in video_stream and 'height' in video_stream:
+                video_info['resolution'] = f"{video_stream['width']}x{video_stream['height']}"
+            if 'codec_name' in video_stream:
+                video_info['codec'] = video_stream['codec_name']
+            if 'bit_rate' in video_stream:
+                video_info['bitrate'] = bitrate2k(video_stream['bit_rate'])
+            else:
+                video_info['bitrate'] = 'N/A'
+            info['video'] = video_info
 
         # Get audio information if available
         if audio_stream is not None:
-            info['audio'] = {
-                'codec': audio_stream['codec_name'],
-                'bitrate': bitrate2k(audio_stream['bit_rate'])
-            }
+            audio_info = {}
+            if 'codec_name' in audio_stream:
+                audio_info['codec'] = audio_stream['codec_name']
+            if 'bit_rate' in audio_stream:
+                audio_info['bitrate'] = bitrate2k(audio_stream['bit_rate'])
+            else:
+                audio_info['bitrate'] = 'N/A'
+            info['audio'] = audio_info
+
+        # Get file size in human-friendly format
+        file_size = os.path.getsize(file_path)
+        size_info = {'size': byte_size(file_size)}
+        info['size'] = size_info
 
         return info
 
@@ -48,7 +73,7 @@ def main(directory):
         for file in files:
             file_path = os.path.join(root, file)
             info = get_media_info(file_path)
-            out = [file_path] 
+            out = [file_path]
             if info is not None:
                 for stream_type, details in info.items():
                     for key, value in details.items():
@@ -64,11 +89,9 @@ def main(directory):
             print(f'{info:>10}', end=" ")
         print()  # Newline after each file's info
 
-
-
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print("Usage: python media_scan.py <directory_path>")
         sys.exit(1)
-    
     main(sys.argv[1])
+``
