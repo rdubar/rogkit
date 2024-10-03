@@ -86,7 +86,7 @@ def main():
     print(f"Searching {folders} for files to purge...")
 
     results = search_and_collect_files(folders, args.pattern)
-    print(f"Found {len(results.files_to_delete):,} files to delete out of {results.total_files:,} files scanned.")
+    print(f"Found {len(results.files_to_delete):,} files to delete from {results.total_files:,} files scanned.")
 
     if args.confirm:
         delete_files(results.files_to_delete)
