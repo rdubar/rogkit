@@ -1,6 +1,8 @@
 import os
 from dataclasses import dataclass
 from collections import Counter
+from time import perf_counter
+import argparse
 import spotipy
 from spotipy.oauth2 import SpotifyOAuth
 from dotenv import load_dotenv
@@ -46,10 +48,24 @@ class SpotifyClient:
                 tracks.append(track['name'] + ' - ' + track['artists'][0]['name'])
             results = self.sp.next(results)
         return tracks
+    
+def process_arguments():
+    """
+    Process command line arguments
+    :return: args, search_text
+    """
+    parser = argparse.ArgumentParser(description='Process arguments')
+    parse = parser.add_argument
+
+    # Display options
+    parse('-a', '--all', action='store_true', help='Show all records')
+    args, search_terms = parser.parse_known_args()
+    return args, ' '.join(search_terms)
 
 
 def main():
     # Load the toml configuration file
+    start_time = perf_counter()
     try:
         toml = load_rogkit_toml()  # Assuming this function returns the parsed TOML as a dictionary
         spotify_config = toml.get('spotify', {})
@@ -57,10 +73,10 @@ def main():
         print(f"Error loading configuration from toml: {e}")
         exit(1)
 
-    # Extract credentials from the toml config
-    client_id = spotify_config.get('spotify_client_id', '')
-    client_secret = spotify_config.get('spotify_client_secret', '')
-    redirect_uri = spotify_config.get('spotify_redirect_uri', '') or "http://localhost:8888/callback/"
+    # Extract credentials from the toml config or environment variables
+    client_id = spotify_config.get('spotify_client_id', '') or os.getenv('SPOTIFY_CLIENT_ID')
+    client_secret = spotify_config.get('spotify_client_secret', '') or os.getenv('SPOTIFY_CLIENT_SECRET')
+    redirect_uri = spotify_config.get('spotify_redirect_uri', '') or os.getenv('SPOTIFY_REDIRECT_URI', "http://localhost:8888/callback/")
 
     if not client_id or not client_secret or not redirect_uri:
         print("Missing Spotify credentials in the configuration. Please check your config.toml file.")
@@ -75,10 +91,29 @@ def main():
 
     # Authenticate the user
     client.authenticate()
+    
+    args, search_text = process_arguments()
+    
+    print(f"Search text: {search_text}")
 
     # Fetch liked songs
-    liked_songs = client.get_liked_songs()
-    print("Total liked songs:", len(liked_songs))
+    try:
+        liked_songs = client.get_liked_songs()
+    except Exception as e:
+        print(f"Error fetching liked songs: {e}")
+        exit(1)
+    
+    if args.all:
+        [print(song) for song in liked_songs]
+    elif search_text:
+        matched = [song for song in liked_songs if search_text.lower() in song.lower()]
+        if not matched:
+            print(f"No matching songs found for '{search_text}'.")
+        else:
+            print(f"Found: {len(matched):,} songs from {len(liked_songs):,} liked songs matching:'{search_text}'")
+            [print(song) for song in matched]
+
+    print(f"Total liked songs: {len(liked_songs):,}")
         
     # Create a Counter object to count the occurrences of each song
     song_counts = Counter(liked_songs)
@@ -86,9 +121,13 @@ def main():
     # Get the duplicates by filtering songs that appear more than once
     duplicates = {song for song, count in song_counts.items() if count > 1}
 
-    print("Duplicate songs:", len(duplicates))
-    for song in duplicates:
-        print(song)
+    if len(duplicates) == 0:
+        print("No duplicate songs found.")
+    else:
+        print(f"Duplicate songs: {len(duplicates):,}")
+        [print(song) for song in duplicates]
+        
+    print(f"Execution time: {perf_counter() - start_time:.2f} seconds.")
 
 
 if __name__ == '__main__':
