@@ -105,6 +105,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * mcscan: scan media for resolution, bitrate etc. 
 * mongo: basic MongoDB tools
 * nose: run nosetests in ERP
+* padding: delete Internet Archive padding files
 * pdfer: experimental images to pdf
 * speeder: run with python interpreters as a benchmark
 * tkm: am experimentl graphical front end for media searches
