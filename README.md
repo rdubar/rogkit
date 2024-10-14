@@ -63,6 +63,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | fakes    | Generate text etc  | from fakes import fake_data            |
 | gen      | show generations   |                                        |
 | files    | Find files & dirs  | from files import find_files           |
+| hidden   | Find hidden items  |                                        |
 | imager   | Resize images      |                                        |
 | loc      | Show locale info   | from location import get_weather_data  |
 | media    | Media Libary       |                                        |
