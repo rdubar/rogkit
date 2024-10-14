@@ -3,6 +3,7 @@
 *.bak
 *.pkl
 .DS_Store
+.spotify_cache
 
 # lists of media files to check
 lists/
