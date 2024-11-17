@@ -389,7 +389,7 @@ class PlexLibrary:
                 item.setdefault(field, None)
 
             # Convert 'extras' to boolean
-            item['extras'] = item.get('extras', 'False').lower() == 'true'
+            item['extras'] = str(item.get('extras', 'False')).lower() == 'true'
 
             # Fetch TMDB data if needed
             tmdb_data = tmdb_object.get_media_record(item['title'], item['year']) if tmdb else None
