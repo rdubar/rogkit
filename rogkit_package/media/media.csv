@@ -20,6 +20,7 @@ Danger: Diabolik,1968,appletv,HD,FALSE,Films
 Django Unchained,2012,appletv,HD,FALSE,Films
 Dune,1984,appletv,4k,FALSE,Films
 Dune: Part One,2021,appletv,4k,FALSE,Films
+Enter the Dragon,1973,appletv,4k,FALSE,Films
 Excalibur,1981,appletv,HD,FALSE,Films
 Existenz,1999,appletv,HD,FALSE,Films
 Ghostbusters,1984,appletv,4k,TRUE,Films
@@ -36,9 +37,10 @@ Lawrence of Arabia,1962,appletv,4k,TRUE,Films
 Life (BBC),2009,appletv,HD,FALSE,TV Shows
 Life Is Beautiful,1997,appletv,HD,FALSE,Films
 Live Die Repeat: Edge of Tomorrow,2014,appletv,4k,FALSE,Films
+Living,2022,appletv,4k,FALSE,Films
 Mario Puzo's The Godfather Coda,1990,appletv,HD,TRUE,Films
 Mayhem,2017,appletv,HD,FALSE,Films
-Miller's Crossing,1990,appletv,HD,FALSE,Films
+Miller's Crossing,1990,appletv,HD,TRUE,Films
 Mulholland Drive,2001,appletv,4k,TRUE,Films
 Naked Lunch,1991,appletv,4K,FALSE,Films
 Nicholas and Alexandra,1971,appletv,HD,FALSE,Films
@@ -89,4 +91,4 @@ Total Recall,1990,appletv,4k,TRUE,Films
 What We Do In the Shadows,2014,appletv,HD,FALSE,Films
 White Christmas,1954,appletv,HD,FALSE,Films
 When Worlds Collide,1951,appletv,HD,FALSE,Films
-Withnail & I,1987,appletv,HD,TRUE,Films
+Withnail & I,1987,appletv,4k,TRUE,Films
