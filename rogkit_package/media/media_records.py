@@ -38,6 +38,7 @@ common_schema = {
     'bitrate': (Integer, {'default': None}),
     'codec': (String, {'default': None}),
     'size': (Integer, {'default': None}),
+    'video_path': (String, {'default': None}),
     'last_modified': (DateTime, {'default': sa.func.now(), 'onupdate': sa.func.now()}),
 }
 

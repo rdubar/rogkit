@@ -214,6 +214,7 @@ class PlexLibrary:
 
             if hasattr(media, 'parts'):
                 part = media.parts[0]
+                attributes['video_path'] = getattr(part, 'file', None)
                 attributes['size'] = getattr(part, 'size', None)   
 
         # get the file size from parts
@@ -570,3 +571,9 @@ class PlexLibrary:
 def get_media_list():
     library = PlexLibrary()
     return library.title_list()
+
+def find_video_path(self, title):
+    record = self.session.query(PlexRecordORM).filter(PlexRecordORM.title == title).first()
+    if record:
+        return record.video_path
+    return None
