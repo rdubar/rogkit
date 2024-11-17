@@ -8,6 +8,7 @@ An American Werewolf in London,1981,appletv,HD,FALSE,Films
 Apocalypse Now,1979,appletv,4K,TRUE,Films
 Apocalypto,2006,appletv,HD,FALSE,Films
 Asterix: The Mansions of the Gods,2014,appletv,HD,FALSE,Films
+Ben Hur,2016,appletv,HD,TRUE,Films
 Blade Runner (The Final Cut),1982,appletv,4k,TRUE,Films
 Blade Runner 2049,2017,appletv,4k,FALSE,Films
 Casablanca,1943,appletv,4K,TRUE,Films
@@ -73,7 +74,7 @@ The Lord of the Rings: The Two Towers,2002,appletv,4k,TRUE,Films
 The Lord of the Rings: The Return of the King,2003,appletv,4k,TRUE,Films
 The Man Who Shot Liberty Valance,1962,appletv,4K,FALSE,Films
 The Mist,2007,appletv,4K,FALSE,Films
-The Muppet Christmas Carol,1992,prime,HD,FALSE,Films
+The Muppet Christmas Carol,1992,prime,4k,FALSE,Films
 The Naked City,1948,appletv,HD,FALSE,Films
 The Odd Couple,1968,appletv,HD,FALSE,Films
 The Parallax View,1974,appletv,HD,FALSE,Films
@@ -89,6 +90,7 @@ They Live,1988,appletv,4k,TRUE,Films
 Tinker Tailor Soldier Spy,1979,appletv,HD,FALSE,TV Shows
 Total Recall,1990,appletv,4k,TRUE,Films
 What We Do In the Shadows,2014,appletv,HD,FALSE,Films
-White Christmas,1954,appletv,HD,FALSE,Films
+White Christmas,1954,appletv,4k,TRUE,Films
 When Worlds Collide,1951,appletv,HD,FALSE,Films
 Withnail & I,1987,appletv,4k,TRUE,Films
+git stat
