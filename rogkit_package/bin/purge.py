@@ -18,7 +18,7 @@ def process_purge_list(raw_list):
     """
     return [line.strip() for line in raw_list.strip().split('\n') if line.strip()]
 
-# Use the function to process PURGE_LIST and include patterns like "WWW.YTS.?.jpg"
+# Updated PURGE_LIST with patterns to include broader matches
 PURGE_LIST = process_purge_list("""
 Zone.Identifier
 RARBG_DO_NOT_MIRROR.exe
@@ -30,7 +30,7 @@ Downloaded From PublicHD.SE.txt
 00.nfo
 TSYifyUP... (TOR).txt
 YIFYStatus.com.txt
-WWW.YTS.?.jpg
+WWW.YTS.*.jpg
 """)
 
 @dataclass
@@ -45,7 +45,7 @@ def matches_pattern(file, patterns):
     """
     file_lower = file.lower()
     for pattern in patterns:
-        if fnmatch.fnmatch(file_lower, f"*{pattern.lower()}*"):
+        if fnmatch.fnmatch(file_lower, pattern.lower()):
             return True
     return False
 
