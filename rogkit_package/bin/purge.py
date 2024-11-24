@@ -41,10 +41,11 @@ class PurgeResults:
 def matches_pattern(file, patterns):
     """
     Check if a file matches any pattern from the list.
-    Supports wildcards using fnmatch.
+    Supports wildcards using fnmatch and is case-insensitive.
     """
+    file_lower = file.lower()
     for pattern in patterns:
-        if fnmatch.fnmatch(file, f"*{pattern}*"):
+        if fnmatch.fnmatch(file_lower, f"*{pattern.lower()}*"):
             return True
     return False
 
@@ -99,8 +100,4 @@ def main():
         delete_files(results.files_to_delete)
     elif results.files_to_delete:
         print("Files to be deleted (use --confirm to actually delete):")
-        for file in results.files_to_delete:
-            print(file)
-
-if __name__ == "__main__":
-    main()
+        for file in
