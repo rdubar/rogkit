@@ -1,9 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 import os
+import fnmatch
 from dataclasses import dataclass, field
 
-DEFAULT_FOLDER_LIST = ["/Users/rdubar/apv/openerp-addons", "/mnt/expansion/Media/Movies/", "/mnt/archive/Media/Movies/"]    
+DEFAULT_FOLDER_LIST = [
+    "/Users/rdubar/apv/openerp-addons",
+    "/mnt/expansion/Media/Movies/",
+    "/mnt/archive/Media/Movies/"
+]
 
 def process_purge_list(raw_list):
     """
@@ -13,21 +18,19 @@ def process_purge_list(raw_list):
     """
     return [line.strip() for line in raw_list.strip().split('\n') if line.strip()]
 
-# Use the function to process PURGE_LIST and PURGE_INCLUDE
+# Use the function to process PURGE_LIST and include patterns like "WWW.YTS.?.jpg"
 PURGE_LIST = process_purge_list("""
 Zone.Identifier
 RARBG_DO_NOT_MIRROR.exe
 RARBG.txt
 WWW.YIFY-TORRENTS.COM.jpg
 [TGx]Downloaded from torrentgalaxy.to .txt
-NEW upcoming releases by Xclusive.txt`
+NEW upcoming releases by Xclusive.txt
 Downloaded From PublicHD.SE.txt
-00.nfop
-WWW.YTS.RE.jpg
-www.YTS.AM.jpg
-www.YTS.MX.jpg
+00.nfo
 TSYifyUP... (TOR).txt
 YIFYStatus.com.txt
+WWW.YTS.?.jpg
 """)
 
 @dataclass
@@ -35,14 +38,17 @@ class PurgeResults:
     files_to_delete: list = field(default_factory=list)
     total_files: int = 0
 
-def matches_pattern(file, pattern):
-    # Modify this function based on how you want to match the patterns
-    for p in pattern:
-        if p in file:
+def matches_pattern(file, patterns):
+    """
+    Check if a file matches any pattern from the list.
+    Supports wildcards using fnmatch.
+    """
+    for pattern in patterns:
+        if fnmatch.fnmatch(file, f"*{pattern}*"):
             return True
     return False
 
-def search_and_collect_files(folders, pattern):
+def search_and_collect_files(folders, patterns):
     results = PurgeResults()
     if not isinstance(folders, list):
         folders = [folders]
@@ -50,7 +56,7 @@ def search_and_collect_files(folders, pattern):
         for root, dirs, files in os.walk(folder):
             for file in files:
                 filepath = os.path.join(root, file)
-                if matches_pattern(filepath, pattern):
+                if matches_pattern(file, patterns):
                     results.files_to_delete.append(filepath)
                 results.total_files += 1
     return results
@@ -76,14 +82,14 @@ def main():
         for item in PURGE_LIST:
             print(item)
         return
-        
-    folder_list= [args.folder] if args.folder else DEFAULT_FOLDER_LIST
+
+    folder_list = [args.folder] if args.folder else DEFAULT_FOLDER_LIST
     folders = [x for x in folder_list if os.path.exists(x)]
-    
+
     if not folders:
         print("No valid folder found. Exiting.")
         return
-    
+
     print(f"Searching {folders} for files to purge...")
 
     results = search_and_collect_files(folders, args.pattern)
