@@ -100,4 +100,9 @@ def main():
         delete_files(results.files_to_delete)
     elif results.files_to_delete:
         print("Files to be deleted (use --confirm to actually delete):")
-        for file in
+        for file in results.files_to_delete:
+            print(file)
+
+if __name__ == "__main__":
+    main()
+    
