@@ -63,6 +63,7 @@ def main():
     """Main function to parse arguments and print the converted time."""
     parser = argparse.ArgumentParser(description='Convert seconds into more readable formats.')
     parser.add_argument('seconds', type=int, help='Number of seconds to convert')
+    parser.add_argument('-c', '--compact', action='store_true', help='Show compact format H:M:S')
     parser.add_argument('-l', '--long', action='store_true', help='Use a long format for time representation')
     parser.add_argument('-n', '--no-commas', action='store_true', help='Do not use commas as a thousands separator')
     parser.add_argument('-b', '--bignum', action='store_true', help='Use a bignum library for large numbers')
@@ -70,12 +71,15 @@ def main():
     args = parser.parse_args()
 
     try:
-        print(convert_seconds(
-            args.seconds, 
-            long_format=args.long, 
-            show_seconds=args.show_seconds, 
-            no_commas=args.no_commas,
-            bignums=args.bignum))
+        if args.compact:
+            print(hms_string(args.seconds))
+        else:
+            print(convert_seconds(
+                    args.seconds, 
+                    long_format=args.long, 
+                    show_seconds=args.show_seconds, 
+                    no_commas=args.no_commas,
+                    bignums=args.bignum))
     except ValueError as e:
         print(f"Error: {e}")
 
