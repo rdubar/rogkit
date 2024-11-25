@@ -32,6 +32,7 @@ def process_arguments():
     parse('-s', '--size', action='store_true', help='Sort by file size')
     parse('-S', '--summary', action='store_true', help='Show a summary for each title')
     parse('--rating', action='store_true', help='Sort by rating')
+    parse('--remove', type=int, help='Remove a record by ID')
     parse('--shrink', action='store_true', help='Run the experimental database shrink function')
     parse('--afi', action="store_true", help="Check against AFI's 100 Years...100 Movies list")
     parse('--list', type=str, help='Search for a list of titles in a file (one per line)')

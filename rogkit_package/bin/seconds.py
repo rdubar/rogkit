@@ -4,6 +4,14 @@ from .bignum import bignum
 from .plural import plural
 
 
+def hms_string(seconds):
+    """Convert seconds into hours, minutes, and seconds."""
+    seconds = int(seconds)  # Ensure the input is an integer
+    hours, remainder = divmod(seconds, 3600)
+    minutes, seconds = divmod(remainder, 60)
+    return f"{hours:02}:{minutes:02}:{seconds:02}"
+
+
 def convert_seconds(seconds, long_format=False, show_seconds=True, no_commas=False, bignums=False):
     """Convert seconds into a readable format, with options for long format and showing seconds."""
     if seconds == 0:

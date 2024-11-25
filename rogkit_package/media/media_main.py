@@ -38,6 +38,10 @@ def main():
         print(f"Found: {found}, Missing: {missing}")
         return
     
+    if args.remove:
+        plex_library.remove_record(args.remove, verbose= True, check=True)
+        return
+    
     if args.list:
         # read a list of items from a file and search for them
         try:

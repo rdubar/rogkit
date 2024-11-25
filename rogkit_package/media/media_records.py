@@ -4,7 +4,7 @@ from sqlalchemy import Column, Integer, Boolean, String, DateTime, Integer
 import sqlalchemy as sa
 from .database_utils import Base ,engine
 from ..bin.bytes import byte_size
-from ..bin.seconds import convert_seconds
+from ..bin.seconds import hms_string
 
 common_schema = {
     'id': (Integer, {'primary_key': True, 'default': None}),
@@ -82,7 +82,7 @@ class PlexRecordORM(Base):
         rating = f"[{self.rating}/10]" if self.rating else ""
         genres = f"{self.genres}" if self.genres else ""
         # Convert duration from milliseconds to seconds, but round to the nearest minute
-        time_str = convert_seconds((self.duration / 1000), show_seconds=False) if self.duration else ""
+        time_str = hms_string((self.duration / 1000)) if self.duration else ""
         information = f'{self.title}{year_str}\n'
         if self.directors:
             information += f'd. {self.directors}'
@@ -90,7 +90,9 @@ class PlexRecordORM(Base):
             information += f', w. {self.writers}'
         if self.actors:
             information += f', a. {self.actors}'
-        information += f'\n{self.summary}\n{self.platform} {resolution_str}  {rating}   {size_str}   {time_str}  {genres}\n'
+        # get the internal ID of the record from the database for easy of reference
+        id_str = f'ID: {self.id}'
+        information += f'\n{self.summary}\n{self.platform} {resolution_str}  {rating}   {size_str}   {time_str}  [{id_str}]  {genres}\n'
         return information
 
 # Dataclass field defaults handling (if required)

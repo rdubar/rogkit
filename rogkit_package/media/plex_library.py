@@ -567,6 +567,32 @@ class PlexLibrary:
         print(f"Size reduced by {size_diff} bytes")
         print(f"Sample query time improved by {query_time_diff:.4f} seconds")
 
+    def remove_record(self, id, verbose=False, check=False):
+        """
+        Remove a record based on its ID, as long as a single record is found matching the ID.
+        """
+        record = self.session.query(PlexRecordORM).filter(PlexRecordORM.id == id).first()
+
+        if not record:
+            if verbose:
+                print(f"Record with ID {id} not found.")
+            return False
+
+        if check:
+            res = input(f"Are you sure you want to delete {record.title}? (yes/y to confirm): ").lower()
+            if res not in ['y', 'yes']:
+                if verbose:
+                    print(f"Record {record.title} [{id}] not deleted.")
+                return False
+
+        self.session.delete(record)
+        self.session.commit()
+        if verbose:
+            print(f"Record {record.title} [{id}] deleted.")
+        return True
+
+
+# Helper functions
 
 def get_media_list():
     library = PlexLibrary()
@@ -577,3 +603,5 @@ def find_video_path(self, title):
     if record:
         return record.video_path
     return None
+
+
