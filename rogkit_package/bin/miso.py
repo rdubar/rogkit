@@ -50,14 +50,39 @@ def concatenate_vob_files(vob_files, output_path="combined.vob", verbose=False):
     print(f"Finished concatenating VOB files into {output_path}")
 
 
-def convert_to_movie_format(vob_path, output_path, format="mp4", verbose=False):
-    """Convert a VOB file to MP4 or MKV format using ffmpeg."""
-    print(f"Converting {vob_path} to {output_path} ({format.upper()} format)...")
-    subprocess.run(
-        ["ffmpeg", "-i", vob_path, "-c:v", "libx264", "-preset", "fast", "-crf", "23", "-c:a", "aac", output_path],
-        check=True
-    )
-    print(f"Conversion completed. Output file: {output_path}")
+def convert_to_movie_format(vob_path, output_path, format="mp4", compress=None, verbose=False):
+    """
+    Convert a VOB file to MP4 or MKV format with optional compression.
+    - compress=None: No compression, copy streams directly.
+    - compress=23: Reasonable compression (default for ffmpeg CRF).
+    """
+    if compress is None:
+        # No compression, just copy streams
+        print(f"Converting {vob_path} to {output_path} ({format.upper()} format) at maximum speed (no compression)...")
+        command = ["ffmpeg", "-i", vob_path, "-c", "copy", "-f", format, output_path]
+    else:
+        # Compress using the specified CRF value
+        compress = int(compress)  # Ensure compress is an integer
+        print(f"Converting {vob_path} to {output_path} ({format.upper()} format) with compression level: {compress}...")
+        command = [
+            "ffmpeg",
+            "-i", vob_path,
+            "-c:v", "libx264",
+            "-preset", "fast",
+            "-crf", str(compress),
+            "-c:a", "aac",
+            output_path
+        ]
+
+    if verbose:
+        print(f"Running command: {' '.join(command)}")
+
+    try:
+        subprocess.run(command, check=True)
+        print(f"Conversion completed. Output file: {output_path}")
+    except subprocess.CalledProcessError as e:
+        print(f"Error during conversion: {e}")
+        raise
 
 
 def unmount_iso(mount_dir="/mnt/iso", verbose=False):
@@ -78,19 +103,38 @@ def infer_movie_name(input_path):
 
 def main():
     start_time = time.time()
-
+    
     parser = argparse.ArgumentParser(
-        description="Combine VOB files from ISO or VIDEO_TS directory into a single movie file."
+        description="Combine VOB files from ISO or VIDEO_TS directory into a single movie file.",
+        epilog="Example usage:\n"
+               "  1. No compression (default): miso\n"
+               "  2. Default compression: miso -c\n"
+               "  3. Custom compression: miso -c 18\n"
+               "  4. Output as MKV: miso --format mkv",
+        formatter_class=argparse.RawTextHelpFormatter
     )
-    parser.add_argument("path", help="Path to ISO file or VIDEO_TS directory")
+    parser.add_argument("path", nargs="?", help="Path to ISO file or VIDEO_TS directory")
     parser.add_argument("-o", "--output", help="Output file name (default: inferred from input)")
     parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output")
     parser.add_argument("--format", choices=["mp4", "mkv"], default="mp4", help="Output format (default: mp4)")
+    parser.add_argument(
+        "-c", "--compress", nargs="?", const=23, type=int,
+        help="Enable compression. Specify a CRF value (default: 23, typical range: 18-28).\n"
+             "Lower values = better quality & larger file size.\n"
+             "No compression if omitted."
+    )
 
     args = parser.parse_args()
+
+    # Show help if no arguments are provided
+    if not args.path:
+        parser.print_help()
+        sys.exit(1)
+
     input_path = args.path
     verbose = args.verbose
     output_format = args.format
+    compress = args.compress
 
     # Infer output file name
     movie_name = infer_movie_name(input_path)
@@ -117,8 +161,8 @@ def main():
         vob_output = f"{movie_name}.vob"
         concatenate_vob_files(vob_files, output_path=vob_output, verbose=verbose)
 
-        # Convert to movie format
-        convert_to_movie_format(vob_output, output_path, format=output_format, verbose=verbose)
+        # Convert to movie format with optional compression
+        convert_to_movie_format(vob_output, output_path, format=output_format, compress=compress, verbose=verbose)
 
         # Clean up intermediate VOB file
         print(f"Removing intermediate file: {vob_output}")
@@ -137,7 +181,7 @@ def main():
     end_time = time.time()
     total_time = round(end_time - start_time, 2)
     print(f"Operation completed in {total_time} seconds.")
-
-
+    
 if __name__ == "__main__":
     main()
+    
