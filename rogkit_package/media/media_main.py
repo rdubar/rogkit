@@ -38,7 +38,7 @@ def main():
         print(f"Found: {found}, Missing: {missing}")
         return
     
-    if args.remove:
+    if args.delete:
         plex_library.remove_record(args.remove, verbose= True, check=True)
         return
     
