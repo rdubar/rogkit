@@ -31,6 +31,7 @@ Downloaded From PublicHD.SE.txt
 TSYifyUP... (TOR).txt
 YIFYStatus.com.txt
 WWW.YTS.*.jpg
+sample.m*
 """)
 
 @dataclass
