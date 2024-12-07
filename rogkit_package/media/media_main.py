@@ -39,7 +39,7 @@ def main():
         return
     
     if args.delete:
-        plex_library.remove_record(args.remove, verbose= True, check=True)
+        plex_library.remove_record(args.delete, verbose= True, check=True)
         return
     
     if args.list:
