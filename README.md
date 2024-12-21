@@ -15,13 +15,14 @@ source venv/bin/activate
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python get-pip.py
 rm get-pip.py
-pip install pipreqs
+pip install pipreqs 
 pipreqs . --force
 # Install requirements, advising of any issues...
 cat requirements.txt | while read package; do
     echo "Installing $package..."
     pip install "$package" || echo "Failed to install $package, continuing..."
 done
+pip install ffmpeg-python python-dotenv sqlalchemy requests-html
 cp rogkit.sample.toml ~/rogkit.tomlcd ..
 # Make scripts executable
 chmod +x rogkit_package/bin/*
