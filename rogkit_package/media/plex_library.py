@@ -280,17 +280,39 @@ class PlexLibrary:
             self.session.rollback()
 
     def remove_duplicates(self):
-        # Find duplicates based on 'plex_guid' but ignore records with no plex_guid
-        duplicates = self.session.query(PlexRecordORM.plex_guid).filter(PlexRecordORM.plex_guid != None).group_by(PlexRecordORM.plex_guid).having(func.count() > 1).all()
+        from sqlalchemy import func
+
+        # Find duplicates based on title and size (adjust criteria if necessary)
+        duplicates = (
+            self.session.query(PlexRecordORM.title, PlexRecordORM.size)
+            .filter(PlexRecordORM.title != None, PlexRecordORM.size != None)  # Ignore records with missing data
+            .group_by(PlexRecordORM.title, PlexRecordORM.size)
+            .having(func.count() > 1)
+            .all()
+        )
+
         removed = 0
-        for dup in duplicates:
-            # Keep only the first record and remove others
-            dup_records = self.session.query(PlexRecordORM).filter_by(plex_guid=dup.plex_guid).all()
+        removed_titles = []  # To store removed titles
+
+        for title, size in duplicates:
+            # Fetch duplicate records
+            dup_records = (
+                self.session.query(PlexRecordORM)
+                .filter_by(title=title, size=size)
+                .order_by(PlexRecordORM.id)  # Ensure deterministic order
+                .all()
+            )
+            # Keep the first record, delete others
             for record in dup_records[1:]:
+                if record.title not in removed_titles:
+                    removed_titles.append(record.title)
                 self.session.delete(record)
                 removed += 1
+
         self.session.commit()
-        return removed
+
+        # Return the list of removed titles
+        return removed_titles
 
     def search(self, text, fuzzy=90, verbose=False):
         """

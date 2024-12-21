@@ -8,6 +8,7 @@ ROGKIT_PACKAGE="$ROGKIT/rogkit_package" # The root of the Python package
 export PYTHONPATH="$ROGKIT:$PYTHONPATH"
 
 alias rogkit='cat "$ROGKIT/README.md" | grep "[|]"'
+alias aish='$ROGKIT_PYTHON -m rogkit_package.bin.aish "$@"'
 alias amaz='$ROGKIT_PYTHON -m rogkit_package.bin.amaz "$@"'
 alias api='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
 alias bac='$ROGKIT_PYTHON -m rogkit_package.bin.backup "$@"'

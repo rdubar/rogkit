@@ -102,7 +102,8 @@ def main():
 
     if args.duplicates: 
         removed = plex_library.remove_duplicates()
-        print(f"Removed {removed:,} duplicates.") 
+        print(f"Removed {len(removed):,} duplicates.") 
+        [print(result) for result in removed]
 
     total_records = plex_library.session.query(PlexRecordORM).count()
 
