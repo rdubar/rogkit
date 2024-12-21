@@ -10,16 +10,21 @@ cd "$INSTALL"
 # Install and setup
 gh repo clone rdubar/rogkit
 cd rogkit
-python3.12 -m venv --without-pip venv
+python3.13 -m venv --without-pip venv
 source venv/bin/activate
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python get-pip.py
 rm get-pip.py
-pip install -r requirements.txt
-cp rogkit.sample.toml ~/rogkit.toml
-
+pip install pipreqs
+pipreqs . --force
+# Install requirements, advising of any issues...
+cat requirements.txt | while read package; do
+    echo "Installing $package..."
+    pip install "$package" || echo "Failed to install $package, continuing..."
+done
+cp rogkit.sample.toml ~/rogkit.tomlcd ..
 # Make scripts executable
-chmod +x "$INSTALL/rogkit/rogkit_package/bin/*"
+chmod +x rogkit_package/bin/*
 
 # additional linux installs
 sudo apt update
