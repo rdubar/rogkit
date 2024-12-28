@@ -29,6 +29,7 @@ NEW upcoming releases by Xclusive.txt
 Downloaded From PublicHD.SE.txt
 00.nfo
 TSYifyUP... (TOR).txt
+Torrent Downloaded From *.txt
 YIFYStatus.com.txt
 WWW.YTS.*.jpg
 sample.m*
