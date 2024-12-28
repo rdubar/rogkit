@@ -25,11 +25,16 @@ def detect_default_os():
 
 def get_system_prompt(os_name, expertise_level):
     """Generate a system prompt tailored to the OS and user expertise."""
-    return (
-        f"You are a shell assistant for {os_name}. "
-        f"The user is an {expertise_level} in {os_name}, so your responses should be concise and advanced. "
-        "Provide only the command necessary to accomplish the task without explanations or beginner-level detail."
-    )
+    prompt = f"""
+    You are a shell assistant for {os_name}. The user is an {expertise_level} in {os_name}, 
+    so your responses should be concise and advanced. Provide only the command necessary to 
+    accomplish the task without explanations or beginner-level detail.
+    
+    If the user provides a O-type command, suggest a Linux command to execute. 
+    
+    If the user asks a general question, provide a general answer.
+    """
+    return prompt
 
 def query_chatgpt(prompt, os_name, expertise_level, engine=DEFAULT_ENGINE, history=[]):
     """Queries the AI with a custom system prompt."""

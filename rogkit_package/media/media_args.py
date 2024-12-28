@@ -36,6 +36,7 @@ def process_arguments():
     parse('--shrink', action='store_true', help='Run the experimental database shrink function')
     parse('--afi', action="store_true", help="Check against AFI's 100 Years...100 Movies list")
     parse('--list', type=str, help='Search for a list of titles in a file (one per line)')
+    parse('--watch', type=int, help='Reset the watch count of a title to zero')
     
     # Mode options
     parse('-V', '--verbose', action='store_true', help='Verbose mode')

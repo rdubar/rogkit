@@ -23,8 +23,10 @@ PURGE_LIST = process_purge_list("""
 Zone.Identifier
 RARBG_DO_NOT_MIRROR.exe
 RARBG.txt
+RARBG.com.txt
 WWW.YIFY-TORRENTS.COM.jpg
-[TGx]Downloaded from torrentgalaxy.to .txt
+[TGx]Downloaded from tor
+rentgalaxy.to .txt
 NEW upcoming releases by Xclusive.txt
 Downloaded From PublicHD.SE.txt
 00.nfo
@@ -33,6 +35,10 @@ Torrent*ownloaded*rom *.txt
 YIFYStatus.com.txt
 WWW.YTS.*.jpg
 sample.m*
+YTSProxies.*
+VISIT ME ON FACEBOOK.txt
+AhaShare.com.txt
+Downloaded from *.txt
 """)
 
 @dataclass

@@ -42,6 +42,10 @@ def main():
         plex_library.remove_record(args.delete, verbose= True, check=True)
         return
     
+    if args.watch:
+        plex_library.reset_watch_count(args.watch)
+        return
+    
     if args.list:
         # read a list of items from a file and search for them
         try:

@@ -612,6 +612,68 @@ class PlexLibrary:
         if verbose:
             print(f"Record {record.title} [{id}] deleted.")
         return True
+    
+    def reset_watch_count(self, rating_key: str):
+        """
+        Reset the view count (or watch flag) for a series and its episodes, or for standalone media.
+
+        :param rating_key: The rating key of the media (series, movie, or episode).
+        """
+        try:
+            # Fetch the record by rating key
+            media_item = self.session.query(PlexRecordORM).filter(
+                PlexRecordORM.rating_key == rating_key
+            ).first()
+
+            if not media_item:
+                print(f"No media found for rating key: {rating_key}")
+                return
+
+            # Output media details
+            print(f"Found media: {media_item.title} (Type: {media_item.media_type}, Year: {media_item.year})")
+            print(f"Details: Library: {media_item.library}, Key: {media_item.key}, Guid: {media_item.guid}")
+
+            # Check if the media is a series
+            if media_item.media_type == "show":  # Adjust "show" if it differs in your schema
+                print(f"Media with rating key {rating_key} is a series. Fetching episodes...")
+
+                # Fetch all episodes for the series
+                episodes = self.session.query(PlexRecordORM).filter(
+                    PlexRecordORM.guid.like(f"%/library/metadata/{rating_key}/children%")
+                ).all()
+
+                if not episodes:
+                    print(f"No episodes found for series with rating key: {rating_key}")
+                    return
+
+                # Output episode details
+                print(f"Found {len(episodes)} episodes for series {media_item.title}:")
+                for episode in episodes:
+                    print(f"  - Episode: {episode.title} (Rating Key: {episode.rating_key}, Guid: {episode.guid})")
+
+                # Reset watch flags for all episodes
+                episode_rating_keys = [episode.rating_key for episode in episodes]
+                result = self.session.query(PlexRecordORM).filter(
+                    PlexRecordORM.rating_key.in_(episode_rating_keys)
+                ).update({"viewed_at": None, "last_viewed_at": None}, synchronize_session="fetch")
+
+                # Commit changes
+                self.session.commit()
+                print(f"Reset watch flags for {len(episode_rating_keys)} episodes with result: {result}.")
+            else:
+                print(f"Media with rating key {rating_key} is a standalone item.")
+
+                # Reset watch flag for standalone item
+                result = self.session.query(PlexRecordORM).filter(
+                    PlexRecordORM.rating_key == rating_key
+                ).update({"viewed_at": None, "last_viewed_at": None}, synchronize_session="fetch")
+
+                # Commit changes
+                self.session.commit()
+                print(f"Reset watch flag for standalone item with result: {result}.")
+        except Exception as e:
+            self.session.rollback()
+            print(f"An error occurred: {e}")
 
 
 # Helper functions
