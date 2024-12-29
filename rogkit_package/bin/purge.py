@@ -38,7 +38,7 @@ sample.m*
 YTSProxies.*
 VISIT ME ON FACEBOOK.txt
 AhaShare.com.txt
-Downloaded from *.txt
+*ownloaded from *.txt
 """)
 
 @dataclass
