@@ -1,7 +1,7 @@
 import ffmpeg
 import os
 import sys
-from .bytes import byte_size  # Assuming this module exists in your setup
+from .bytes import byte_size 
 
 def bitrate2k(text: str) -> str:
     if text.isdigit():
@@ -68,32 +68,45 @@ def get_media_info(file_path):
         print(f"Error occurred: {e}", file=sys.stderr)
         return None
 
-def main(directory):
+def process_file(file_path, output_lines, longest):
+    """Process a single media file and append its info to output_lines."""
+    info = get_media_info(file_path)
+    out = [file_path]
+    if info is not None:
+        for stream_type, details in info.items():
+            for key, value in details.items():
+                out.append(value)
+        longest[0] = max(longest[0], len(file_path))
+    output_lines.append(out)
+
+def main(path):
     output_lines = []  # Store each line of output here
-    longest = 0  # Keep track of the longest file path for formatting
+    longest = [0]  # Keep track of the longest file path for formatting (use list for mutability)
 
-    for root, dirs, files in os.walk(directory):
-        for file in files:
-            file_path = os.path.join(root, file)
-            info = get_media_info(file_path)
-            out = [file_path]
-            if info is not None:
-                for stream_type, details in info.items():
-                    for key, value in details.items():
-                        out.append(value)
-                if len(file_path) > longest:
-                    longest = len(file_path)
-            output_lines.append(out)  # Add this file's info to the output list
+    if os.path.isfile(path):
+        # Single file provided
+        process_file(path, output_lines, longest)
+    elif os.path.isdir(path):
+        # Directory provided
+        for root, dirs, files in os.walk(path):
+            for file in files:
+                file_path = os.path.join(root, file)
+                process_file(file_path, output_lines, longest)
+    else:
+        print(f"Invalid path: {path}")
+        sys.exit(1)
 
+    # Print results
     for line in output_lines:
         file_path = line[0]
-        print(f"{file_path.ljust(longest)}     ", end=" ")  # Print the file path, padded to align columns
+        print(f"{file_path.ljust(longest[0])}     ", end=" ")  # Print the file path, padded to align columns
         for info in line[1:]:  # Print the rest of the info for this file
             print(f'{info:>10}', end=" ")
         print()  # Newline after each file's info
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python media_scan.py <directory_path>")
+        print("Usage: python media_scan.py <file_or_directory_path>")
         sys.exit(1)
     main(sys.argv[1])
+    
