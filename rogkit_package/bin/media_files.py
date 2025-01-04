@@ -3,6 +3,7 @@ import paramiko
 import json
 import os
 import argparse
+import glob
 from time import perf_counter
 from collections import defaultdict
 from datetime import datetime
@@ -101,25 +102,27 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
     :param path: Path to search for media files (default is /mnt/media*/Media)
     :return: List of MediaFile objects
     """
-    def get_local_media_files(local_path: str) -> List[MediaFile]:
+    def get_local_media_files(local_paths: List[str]) -> List[MediaFile]:
         """Retrieve media files from the local file system."""
         media_files = []
-        for root, dirs, files in os.walk(local_path):
-            for file in files:
-                file_path = os.path.join(root, file)
-                try:
-                    size = os.path.getsize(file_path)
-                    media_file = parse_media_file_line(f"{size} {file_path}")
-                    if media_file:
-                        media_files.append(media_file)
-                except Exception as e:
-                    print(f"Error processing local file: {file_path}, Error: {e}")
+        for local_path in local_paths:
+            for root, dirs, files in os.walk(local_path):
+                for file in files:
+                    file_path = os.path.join(root, file)
+                    try:
+                        size = os.path.getsize(file_path)
+                        media_file = parse_media_file_line(f"{size} {file_path}")
+                        if media_file:
+                            media_files.append(media_file)
+                    except Exception as e:
+                        print(f"Error processing local file: {file_path}, Error: {e}")
         return media_files
 
-    # Check if the path exists locally
-    if os.path.exists(path):
-        print(f"Local path detected: {path}")
-        return get_local_media_files(path)
+    # Expand wildcards in the path using glob
+    matched_paths = glob.glob(path)
+    if matched_paths:
+        print(f"Local paths detected: {matched_paths}")
+        return get_local_media_files(matched_paths)
 
     # If the path is not available locally, fetch files remotely
     try:
