@@ -109,7 +109,8 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * inter: run Open Interpreter
 * large: show folders with multiple very large files
 * lm: run a local LLM (using the LM application)
-* mcscan: scan media for resolution, bitrate etc. 
+* mfiles media files utility
+* mscan: scan media for resolution, bitrate etc. 
 * miso: make video from an iso file
 * mongo: basic MongoDB tools
 * nose: run nosetests in ERP
