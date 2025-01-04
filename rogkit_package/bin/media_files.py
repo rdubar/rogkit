@@ -11,8 +11,8 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 from colorama import Fore, Style
 
-
-CACHE_FILE = "media_files_cache.json"
+script_dir = os.path.dirname(os.path.abspath(__file__))
+CACHE_FILE = os.path.join(script_dir, "media_files_cache.json")
 
 def size_as_string(size):
     """
