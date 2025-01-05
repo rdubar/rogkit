@@ -9,7 +9,7 @@ from .seconds import convert_seconds
 
 user_home = os.path.expanduser('~')
 
-folders_to_backup = [ 'apv', 'dev', 'opt', '/usr/local/bin' ]
+folders_to_backup = [ 'apv', 'bin', 'dev', 'opt', '/usr/local/bin' ]
 
 files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.gz', '.pyc', '.DS_Store', '.git', 
                    '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__', '.log', '.sqlite', 
@@ -17,7 +17,7 @@ files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.g
 
 folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages', 'data/', '/venv', '.git', '.idea', 'logs', 'data_dir', 'mvs']
 
-BACKUP_FOLDERS = ['Dropbox/Archive/MacBookPro/', '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups', ['/mnt/media1/Archive/Backups', '/mnt/media2/Archive/Backups']]
+BACKUP_FOLDERS = ['Dropbox/Archive/MacBookPro/', '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups', '/mnt/media1/Archive/Backups', '/mnt/media2/Archive/Backups']
 
 MEGA_BYTE = 1024 * 1024
 
