@@ -282,27 +282,73 @@ def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
 
     return media_folders
 
-def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_000_000):
+def is_extra_file(name: str) -> bool:
+    """
+    Determine if a file is an extra file based on its name.
+
+    :param name: The file name to check.
+    :return: True if the file name contains any of the keywords, False otherwise.
+    """
+    for keyword in ['sample', 'trailer', 'featurette', 'extra', 'other', 'interview', 'behindthescenes', 'deleted']:
+        if keyword in name.lower():
+            return True
+    return False  # Explicitly return False if no keywords match
+
+def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_000_000, not_other: bool = False):
+    """
+    Display folders containing large files, optionally filtering out extras.
+
+    :param media_folders: List of MediaFolder objects to inspect.
+    :param min_folder_size: Minimum file size to consider (default: 500MB).
+    :param not_other: If True, exclude files flagged as extras.
+    """
     big_folders = []
+    
     for folder in media_folders:
+        # Exclude TV folders
         if 'tv' in folder.location.lower():
             continue
-        if folder.total_size() < min_folder_size * 2:  # Total size > 1GB
+        
+        # Skip folders with a total size less than the threshold (e.g., 1GB here)
+        if folder.total_size() < min_folder_size * 2:
             continue
-        large_files = [file for file in folder.files if file.filesize > min_folder_size]  # Files > 500MB
-        if len(large_files) > 1:  # More than one file > 500MB
-            big_folders.append(folder)
+        
+        # Filter files in the folder that are larger than the threshold
+        large_files = [file for file in folder.files if file.filesize > min_folder_size]
+        
+        # Apply the "not_other" filter if specified
+        if not_other:
+            filtered_files = [file for file in large_files if not is_extra_file(file.filepath)]
+            large_files = filtered_files  # Update large_files after filtering extras
+        
+        # Only include folders with more than one qualifying file
+        if len(large_files) > 1:
+            big_folders.append((folder, large_files))  # Pass folder and filtered large files together
 
+    # Generate descriptive output
     total_str = size_as_string(min_folder_size * 2)
     size_str = size_as_string(min_folder_size)
     description = f"{len(big_folders):,} of {len(media_folders):,} folders have a total size > {total_str} and more than one file > {size_str}."
     print(description)
-    for folder in big_folders:
+    
+    # Print detailed information for matching folders
+    for folder, large_files in big_folders:
         print(folder)
-        for file in folder.files:
-            if file.filesize > min_folder_size:
-                print(f"  {file}")
+        for file in large_files:
+            print(f"  {file}")
         print()
+    
+    if len(big_folders) == 0:
+        print("No folders found matching the criteria.")
+    elif len(big_folders) > 10:
+        print(description)
+
+    # Generate descriptive output
+    total_str = size_as_string(min_folder_size * 2)
+    size_str = size_as_string(min_folder_size)
+    description = f"{len(big_folders):,} of {len(media_folders):,} folders have a total size > {total_str} and more than one file > {size_str}."
+    print(description)
+    
     if len(big_folders) == 0:
         print("No folders found matching the criteria.")
     elif len(big_folders) > 10:
@@ -314,12 +360,15 @@ def main():
     parser = argparse.ArgumentParser(description="Roger's Media File Tool")
     parser.add_argument('search', nargs='?', default=None, help="Case-insensitive search string for media files")
     parser.add_argument('-a', "--all", action="store_true", help="List all media files")
-    parser.add_argument('-f', "--folders", action="store_true", help="List media folders")
+    parser.add_argument('-f', "--folders", action="store_true", help="List media folders with more than one large files")
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
+    parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one  large files not named 'other'")
     parser.add_argument('-p', "--path", default="/mnt/media*/Media", help="Path to search for media files")
     parser.add_argument('-s', "--server", default="pi5", help="Server hostname or IP address")
     parser.add_argument('-u', "--username", default="rog", help="Username for SSH connection")
     args = parser.parse_args()
+
+    print("Rog's Media File Tool")
 
     # Check cache and fetch last modified time
     cache_last_modified = get_cache_last_modified()
@@ -377,9 +426,9 @@ def main():
         for title, disks in duplicates.items():
             print(f"{title}: {', '.join(disks)}")
             
-    if args.folders:
+    if args.folders or args.other:
         # Get MediaFolders where the total size > 1GB and more than one file is > 500MB
-        show_folders(media_folders)
+        show_folders(media_folders, not_other=args.other)
 
 if __name__ == "__main__":
     main()
