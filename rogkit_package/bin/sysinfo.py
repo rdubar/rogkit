@@ -9,7 +9,20 @@ def basic_info():
     print(f"OS: {platform.system()} {platform.release()}")
     print(f"Version: {platform.version()}")
     print(f"Machine: {platform.machine()}")
-    print(f"Processor: {platform.processor()}")
+    
+    # Processor details
+    if platform.system() == "Linux" and "raspberrypi" in platform.uname().nodename.lower():
+        try:
+            with open("/proc/cpuinfo") as f:
+                cpu_info = [line.strip() for line in f if line.startswith("Model")]
+                if cpu_info:
+                    print(f"Processor: {cpu_info[0].split(':', 1)[1].strip()}")
+                else:
+                    print("Processor information not found in /proc/cpuinfo")
+        except FileNotFoundError:
+            print("Processor information not available: /proc/cpuinfo not found")
+    else:
+        print(f"Processor: {platform.processor()}")
 
 
 def cpu_info():
