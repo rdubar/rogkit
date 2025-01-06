@@ -86,6 +86,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | strike   | Strikethru text    | from strike import strikethru          |
 | tim      | Sync system clock  |                                        |
 | space    | Show free space    |                                        |
+| sysinfo  | Show system info   |                                        |
 | tomlr    | Rogkit TOML tools  | from tomlr import load_rogkit_toml     |
 | update   | Update system      |                                        |
 | wikipedia| Query Wikipedia    | from wikipedia import search_wikipedia |
