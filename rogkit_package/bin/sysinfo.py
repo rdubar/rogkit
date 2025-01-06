@@ -9,9 +9,9 @@ def basic_info():
     print(f"OS: {platform.system()} {platform.release()}")
     print(f"Version: {platform.version()}")
     print(f"Machine: {platform.machine()}")
-    
+
     # Processor details
-    if platform.system() == "Linux" and "raspberrypi" in platform.uname().nodename.lower():
+    if platform.system() == "Linux" and "raspberrypi" in platform.uname().node.lower():
         try:
             with open("/proc/cpuinfo") as f:
                 cpu_info = [line.strip() for line in f if line.startswith("Model")]
