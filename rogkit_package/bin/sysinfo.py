@@ -88,28 +88,26 @@ def main():
     parser.add_argument("-a", "--all", action="store_true", help="Show all information")
 
     args = parser.parse_args()
-
-    # Default behavior: Show basic info if no options are provided
+    
+    basic_info()
+    
     if not any(vars(args).values()):
-        basic_info()
         print("\nUse -h or --help for usage information.")
-    else:
-        if args.all:
-            basic_info()
-            cpu_info()
-            memory_info()
-            disk_usage()
-            network_info()
-        if args.basic:
-            basic_info()
-        if args.cpu:
-            cpu_info()
-        if args.memory:
-            memory_info()
-        if args.disk:
-            disk_usage()
-        if args.network:
-            network_info()
+        return
+    
+    # Map flags to their respective functions
+    options = [
+        (args.all or args.cpu, cpu_info),
+        (args.all or args.memory, memory_info),
+        (args.all or args.disk, disk_usage),
+        (args.all or args.network, network_info),
+    ]
+
+    # Execute the appropriate functions based on flags
+    for condition, function in options:
+        if condition:
+            function()
+    
 
 if __name__ == "__main__":
     main()
