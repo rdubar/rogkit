@@ -11,12 +11,14 @@ def basic_info():
     print(f"Machine: {platform.machine()}")
 
     # Processor details
-    if platform.system() == "Linux" and "raspberrypi" in platform.uname().node.lower():
+    if platform.system() == "Linux":
         try:
             with open("/proc/cpuinfo") as f:
-                cpu_info = [line.strip() for line in f if line.startswith("Model")]
-                if cpu_info:
-                    print(f"Processor: {cpu_info[0].split(':', 1)[1].strip()}")
+                lines = f.readlines()
+                model_line = next((line for line in lines if line.startswith("Model")), None)
+                if model_line:
+                    model = model_line.split(":", 1)[1].strip()
+                    print(f"Processor: {model}")
                 else:
                     print("Processor information not found in /proc/cpuinfo")
         except FileNotFoundError:
