@@ -9,7 +9,15 @@ from .seconds import convert_seconds
 
 user_home = os.path.expanduser('~')
 
-folders_to_backup = [ 'apv', 'bin', 'dev', 'opt', '/usr/local/bin' ]
+
+# TODO: add backup info to rogkit.toml
+is_pi = os.path.exists('/usr/home')
+
+folders_to_backup = [ 'apv', 'bin', 'dev', 'opt']
+
+# For Pi add /usr/local/bin
+if is_pi:
+    folders_to_backup.append('/usr/local/bin')
 
 files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.gz', '.pyc', '.DS_Store', '.git', 
                    '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__', '.log', '.sqlite', 
@@ -17,7 +25,10 @@ files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.g
 
 folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages', 'data/', '/venv', '.git', '.idea', 'logs', 'data_dir', 'mvs']
 
-BACKUP_FOLDERS = ['Dropbox/Archive/MacBookPro/', '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups', '/mnt/media1/Archive/Backups', '/mnt/media2/Archive/Backups']
+if is_pi:
+    BACKUP_FOLDERS = ['/mnt/media1/Archive/Backups', '/mnt/media2/Archive/Backups']
+else:
+    BACKUP_FOLDERS = ['Dropbox/Archive/MacBookPro/', '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups']
 
 MEGA_BYTE = 1024 * 1024
 
@@ -53,7 +64,14 @@ def create_backup(verbose=False):
                     if not any(exclude in file for exclude in files_to_exlude) and not any(exclude in root for exclude in folders_to_exclude):
                         file_list.write(os.path.join(root, file) + '\n')
                         file_count += 1
-                        size = os.path.getsize(os.path.join(root, file))
+                        try:
+                            size = os.path.getsize(os.path.join(root, file))
+                        except FileNotFoundError:
+                            print(f"Skipping missing file: {os.path.join(root, file)}")
+                            continue
+                        except PermissionError:
+                            print(f"Skipping file due to permissions: {os.path.join(root, file)}")
+                            continue
                         file_total_size += size
                         if verbose:
                             warning = 'cd ' if size < MEGA_BYTE else '****'

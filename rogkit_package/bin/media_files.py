@@ -343,17 +343,6 @@ def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_00
     elif len(big_folders) > 10:
         print(description)
 
-    # Generate descriptive output
-    total_str = size_as_string(min_folder_size * 2)
-    size_str = size_as_string(min_folder_size)
-    description = f"{len(big_folders):,} of {len(media_folders):,} folders have a total size > {total_str} and more than one file > {size_str}."
-    print(description)
-    
-    if len(big_folders) == 0:
-        print("No folders found matching the criteria.")
-    elif len(big_folders) > 10:
-        print(description)
-
 
 def main():
     # Set up argument parser
@@ -362,7 +351,7 @@ def main():
     parser.add_argument('-a', "--all", action="store_true", help="List all media files")
     parser.add_argument('-f', "--folders", action="store_true", help="List media folders with more than one large files")
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
-    parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one  large files not named 'other'")
+    parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one  large files not classed as an 'extra'")
     parser.add_argument('-p', "--path", default="/mnt/media*/Media", help="Path to search for media files")
     parser.add_argument('-s', "--server", default="pi5", help="Server hostname or IP address")
     parser.add_argument('-u', "--username", default="rog", help="Username for SSH connection")
@@ -428,6 +417,10 @@ def main():
             
     if args.folders or args.other:
         # Get MediaFolders where the total size > 1GB and more than one file is > 500MB
+        if args.other:
+            print("Showing folders with more than one large file not classed as an 'extra':")
+        else:
+            print("Showing folders with more than one large file:")
         show_folders(media_folders, not_other=args.other)
 
 if __name__ == "__main__":
