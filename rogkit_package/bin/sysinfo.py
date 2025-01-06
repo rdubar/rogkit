@@ -11,16 +11,14 @@ def basic_info():
     print(f"Machine: {platform.machine()}")
 
     # Processor details
-    if platform.system() == "Linux":
+    if platform.system() == "Linux" and "raspberrypi" in platform.uname().node.lower():
         try:
             with open("/proc/cpuinfo") as f:
-                lines = f.readlines()
-                model_line = next((line for line in lines if line.startswith("Model")), None)
-                if model_line:
-                    model = model_line.split(":", 1)[1].strip()
-                    print(f"Processor: {model}")
+                cpu_info = [line.strip() for line in f if line.startswith("Model")]
+                if cpu_info:
+                    print(f"Processor: {cpu_info[0].split(':', 1)[1].strip()}")
                 else:
-                    print("Processor information not found in /proc/cpuinfo")
+                    print("Processor information not found i")
         except FileNotFoundError:
             print("Processor information not available: /proc/cpuinfo not found")
     else:
@@ -78,24 +76,17 @@ def network_info():
         print(f"Error retrieving network info: {e}")
 
 
+import argparse
+
 def main():
     parser = argparse.ArgumentParser(description="System Information Tool")
-    parser.add_argument(
-        "-b", "--basic", action="store_true", help="Show basic system information (default)"
-    )
-    parser.add_argument(
-        "-c", "--cpu", action="store_true", help="Show CPU information"
-    )
-    parser.add_argument(
-        "-m", "--memory", action="store_true", help="Show memory information"
-    )
-    parser.add_argument(
-        "-d", "--disk", action="store_true", help="Show disk usage"
-    )
-    parser.add_argument(
-        "-n", "--network", action="store_true", help="Show network interfaces"
-    )
-    
+    parser.add_argument("-b", "--basic", action="store_true", help="Show basic system information (default)")
+    parser.add_argument("-c", "--cpu", action="store_true", help="Show CPU information")
+    parser.add_argument("-m", "--memory", action="store_true", help="Show memory information")
+    parser.add_argument("-d", "--disk", action="store_true", help="Show disk usage")
+    parser.add_argument("-n", "--network", action="store_true", help="Show network interfaces")
+    parser.add_argument("-a", "--all", action="store_true", help="Show all information")
+
     args = parser.parse_args()
 
     # Default behavior: Show basic info if no options are provided
@@ -103,6 +94,12 @@ def main():
         basic_info()
         print("\nUse -h or --help for usage information.")
     else:
+        if args.all:
+            basic_info()
+            cpu_info()
+            memory_info()
+            disk_usage()
+            network_info()
         if args.basic:
             basic_info()
         if args.cpu:
@@ -114,6 +111,6 @@ def main():
         if args.network:
             network_info()
 
-
 if __name__ == "__main__":
     main()
+    
