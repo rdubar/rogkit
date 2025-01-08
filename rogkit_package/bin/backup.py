@@ -11,7 +11,7 @@ user_home = os.path.expanduser('~')
 
 
 # TODO: add backup info to rogkit.toml
-is_pi = os.path.exists('/usr/home')
+is_pi = os.path.exists('/home')
 
 folders_to_backup = [ 'apv', 'bin', 'dev', 'opt']
 
