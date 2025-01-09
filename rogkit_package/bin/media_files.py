@@ -342,13 +342,53 @@ def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_00
         print("No folders found matching the criteria.")
     elif len(big_folders) > 10:
         print(description)
+        
+def show_extras(media_files: List[MediaFile]):
+    
+        folders = set()
+        for file in media_files:
+            parts = file.filepath.split('/')
+            if len(parts) > 7:
+                folder = '/'.join(parts[:-1])
+                folders.add(folder)
+    
+        print("Extra folders found:")
 
+        # Define the categories you're looking for
+        collate = ['Subs', 'Extras', 'Behind the Scenes', 'Deleted Scenes', 'Featurettes', 'Interviews', 'Trailers']
+        
+        # Dictionary to keep count of the collated folders
+        collate_counts = {}
+
+        # Loop through the EXTRAS_FOLDERS and categorize them
+        for folder in folders:
+            # Extract the last part of the folder path (the actual folder name)
+            last_dir = folder.split('/')[-1]
+
+            # Check if this folder name is in our collate categories
+            if last_dir in collate:
+                collate_counts[last_dir] = collate_counts.get(last_dir, 0) + 1
+
+        # Display the results
+        print(f"Total extra folders: {len(folders)}")
+
+        # Print counts for collated folders
+        for folder, count in collate_counts.items():
+            print(f"{folder}: {count}")
+        print()
+
+        # Print all folders that don't belong to the collate categories
+        for folder in folders:
+            last_dir = folder.split('/')[-1]
+            if last_dir not in collate:
+                print(folder)
 
 def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Roger's Media File Tool")
     parser.add_argument('search', nargs='?', default=None, help="Case-insensitive search string for media files")
     parser.add_argument('-a', "--all", action="store_true", help="List all media files")
+    parser.add_argument('-e', "--extras", action="store_true", help="Check extra folders")
     parser.add_argument('-f', "--folders", action="store_true", help="List media folders with more than one large files")
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one  large files not classed as an 'extra'")
@@ -361,7 +401,6 @@ def main():
 
     # Check cache and fetch last modified time
     cache_last_modified = get_cache_last_modified()
-
     if not args.refresh and cache_last_modified:
         print(f"Cache found. Last saved on: {cache_last_modified.strftime('%Y-%m-%d %H:%M:%S')}")
         media_files = load_file_list_from_cache()
@@ -422,6 +461,9 @@ def main():
         else:
             print("Showing folders with more than one large file:")
         show_folders(media_folders, not_other=args.other)
+        
+    if args.extras:
+        show_extras(media_files)
 
 if __name__ == "__main__":
     main()
