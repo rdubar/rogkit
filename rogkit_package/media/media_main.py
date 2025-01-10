@@ -156,7 +156,7 @@ def main():
     # Iterate over the sorting arguments and check if the corresponding argument is set
     for arg, sort_by_candidate in [('title', 'title'),('year', 'year'), ('video', 'resolution'), ('size', 'size'), ('rating', 'rating')]:
         if getattr(args, arg):
-            results = sort_results_by_attribute(results, sort_by_candidate)
+            sort_by = sort_by_candidate
             break
 
     # Now, sort based on the selected attribute (if one was chosen)

@@ -426,7 +426,6 @@ def main():
         
     # Apply search filter if provided
     if args.search:
-        print(args.search)
         filtered_files = filter_media_files(media_files, args.search)
         print(f"Filtered media files matching '{args.search or 'all'}': {len(filtered_files):,} of {len(media_files):,}")
         # Display results
