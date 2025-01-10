@@ -119,7 +119,7 @@ def main():
             if hasattr(result, 'added_at') and not result.added_at:
                 result.added_at = datetime.datetime(2000, 1, 1)
         # remove results that don't have an added at value
-        results = [result for result in results if getattr(result, 'added_at', None)]
+        #results = [result for result in results if getattr(result, 'added_at', None)]
         # sort by added at
         results = sorted(results, key=lambda x: x.added_at, reverse=True)
         # results = plex_library.latest()
@@ -150,10 +150,26 @@ def main():
         results = [result for result in results if result.codec == 'mpeg2video']
         matches_text = f' of {len(results):,} uncompressed DVDs'
         
-    # sort results by the specified attribute
-    for arg, sort_by in [('year', 'year'), ('video', 'resolution'), ('size', 'size'), ('rating', 'rating')]:
-        if getattr(args, arg):
-            results = sort_results_by_attribute(results, sort_by)
+    # Initialize the sort_by variable to None
+    sort_by = None
+
+    # Check if specific sorting arguments are provided and assign accordingly
+    if args.year:
+        sort_by = 'year'
+    elif args.video:
+        sort_by = 'resolution'
+    elif args.size:
+        sort_by = 'size'
+    elif args.rating:
+        sort_by = 'rating'
+    # elif args.latest:
+    #     sort_by = 'added_at'
+    else:
+        sort_by = 'added_at'  # Default fallback if no argument is passed
+
+    # Now, sort based on the selected attribute (if one was chosen)
+    if sort_by:
+        results = sort_results_by_attribute(results, sort_by)
 
     reverse_text = 'reversed' if args.reverse else ''
     if args.reverse:
