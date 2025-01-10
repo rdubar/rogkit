@@ -150,22 +150,14 @@ def main():
         results = [result for result in results if result.codec == 'mpeg2video']
         matches_text = f' of {len(results):,} uncompressed DVDs'
         
-    # Initialize the sort_by variable to None
-    sort_by = None
+    # Initialize the sort_by variable to default
+    sort_by = 'added_at'
 
-    # Check if specific sorting arguments are provided and assign accordingly
-    if args.year:
-        sort_by = 'year'
-    elif args.video:
-        sort_by = 'resolution'
-    elif args.size:
-        sort_by = 'size'
-    elif args.rating:
-        sort_by = 'rating'
-    # elif args.latest:
-    #     sort_by = 'added_at'
-    else:
-        sort_by = 'added_at'  # Default fallback if no argument is passed
+    # Iterate over the sorting arguments and check if the corresponding argument is set
+    for arg, sort_by_candidate in [('title', 'title'),('year', 'year'), ('video', 'resolution'), ('size', 'size'), ('rating', 'rating')]:
+        if getattr(args, arg):
+            results = sort_results_by_attribute(results, sort_by_candidate)
+            break
 
     # Now, sort based on the selected attribute (if one was chosen)
     if sort_by:
