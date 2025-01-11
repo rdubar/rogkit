@@ -15,10 +15,6 @@ is_pi = os.path.exists('/home')
 
 folders_to_backup = [ 'apv', 'bin', 'dev', 'opt']
 
-# For Pi add /usr/local/bin
-if is_pi:
-    folders_to_backup.append('/usr/local/bin')
-
 files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.gz', '.pyc', '.DS_Store', '.git', 
                    '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__', '.log', '.sqlite', 
                     'package.json', '.virtual', '.docker', 'yarn.lock', 'yarn-error.log']
