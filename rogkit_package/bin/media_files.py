@@ -11,6 +11,9 @@ from dataclasses import dataclass, field
 from typing import List, Optional
 from colorama import Fore, Style
 
+from .media_scan import get_media_info
+
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(script_dir, "media_files_cache.json")
 
@@ -389,6 +392,7 @@ def main():
     parser.add_argument('search', nargs='?', default=None, help="Case-insensitive search string for media files")
     parser.add_argument('-a', "--all", action="store_true", help="List all media files")
     parser.add_argument('-e', "--extras", action="store_true", help="Check extra folders")
+    parser.add_argument('-i', "--info", action="store_true", help="Show media file details (for local files)")
     parser.add_argument('-f', "--folders", action="store_true", help="List media folders with more than one large files")
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one  large files not classed as an 'extra'")
@@ -429,8 +433,17 @@ def main():
         filtered_files = filter_media_files(media_files, args.search)
         print(f"Filtered media files matching '{args.search or 'all'}': {len(filtered_files):,} of {len(media_files):,}")
         # Display results
+        
+        if filtered_files and args.info:
+            if not os.path.exists(filtered_files[0].filepath):
+                print('Media info not available for remote files.')
+                args.info = False
+        
         for file in filtered_files:
             print(file)
+            if args.info:
+                if os.path.exists(file.filepath):
+                    print(get_media_info(file.filepath))
         total_size = sum(file.filesize for file in filtered_files)
         print(f"Total size: {size_as_string(total_size)}")
         return
