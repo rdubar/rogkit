@@ -109,12 +109,25 @@ def create_backup(verbose=False, archive_locations=DEFAULT_ARCHIVE_LOCATIONS):
 
     print(f'Backing up the following folders: {DEFAULT_SOURCE_FOLDERS}')
     print(f'Backup path: {backup_file_path}')
+    
+    source_folders = []
+    user_home = os.path.expanduser('~')
+    for folder in DEFAULT_SOURCE_FOLDERS:
+        if is_path_valid(folder):
+            source_folders.append(folder)
+        else:
+            user_folder = os.path.join(user_home, folder)
+            if is_path_valid(user_folder):
+                source_folders.append(user_folder)
+    if not source_folders:
+        print(f'No valid source folders found in {DEFAULT_SOURCE_FOLDERS}.')
+        sys.exit(1)
 
     file_count, total_file_size, skipped_count = 0, 0, 0
 
     # Collect files to backup
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as file_list:
-        for folder in DEFAULT_SOURCE_FOLDERS:
+        for folder in source_folders:
             for root, _, files in os.walk(folder):
                 for file in files:
                     if not any(exclude in file for exclude in DEFAULT_FILE_EXCLUDES) and not any(exclude in root for exclude in DEFAULT_FOLDER_EXCLUDES):
