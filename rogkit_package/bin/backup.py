@@ -2,15 +2,14 @@ import os
 import sys
 import argparse
 import tempfile
-import yaml
 from datetime import datetime
 from time import perf_counter
 from pathlib import Path
 
+import yaml
+
 from .bytes import byte_size
 from .seconds import convert_seconds
-
-USER_HOME = os.path.expanduser('~')
 
 """
 Sample ~/.backup.yaml configuration file:
@@ -50,14 +49,14 @@ archive_locations:
 DEFAULT_SOURCE_FOLDERS = ['apv', 'bin', 'dev', 'opt']
 
 DEFAULT_FILE_EXCLUDES = [
-    'node_modules', 'build', 'dist', 'package-lock.json', 'tar.gz', '.pyc', '.DS_Store', '.git',
-    '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__', '.log', '.sqlite',
-    'package.json', '.virtual', '.docker', 'yarn.lock', 'yarn-error.log', '.mp3', '.exe',
+    '.DS_Store', '.docker', '.exe', '.git', '.idea', '.ipynb_checkpoints', '.log', '.mp3', '.pyc', '.sqlite', '.virtual', 
+    '.vscode', '__pycache__', 'build', 'dist', 'node_modules', 'package-lock.json', 'package.json', 'tar.gz', 'yarn-error.log', 'yarn.lock'
 ]
+
 DEFAULT_FOLDER_EXCLUDES = [
-    '/eggs', 'env/', 'parts/', 'v27', 'internal_packages', 'data/', '/venv', '.git',
-    '.idea', 'logs', 'data_dir', 'mvs', 'open-webui'
+    '.git', '.idea', '/eggs', '/venv', 'data/', 'data_dir', 'env/', 'internal_packages', 'logs', 'mvs', 'open-webui', 'parts/', 'v27'
 ]
+
 DEFAULT_ARCHIVE_LOCATIONS = [
     '/mnt/media1/Archive/Backups',
     '/mnt/media2/Archive/Backups',
@@ -65,8 +64,9 @@ DEFAULT_ARCHIVE_LOCATIONS = [
     '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups'
 ]
 
-MEGABYTE = 1024 * 1024
 
+USER_HOME = Path.home() 
+MEGABYTE = 1024 * 1024
 
 def load_config():
     """Load and merge configuration from ~/.backup.yaml."""
@@ -112,12 +112,11 @@ def create_backup(verbose=False, archive_locations=DEFAULT_ARCHIVE_LOCATIONS):
     print(f'Backup path: {backup_file_path}')
     
     source_folders = []
-    user_home = Path.home() 
     for folder in DEFAULT_SOURCE_FOLDERS:
         if is_path_valid(folder):
             source_folders.append(folder)
         else:
-            user_folder = os.path.join(user_home, folder)
+            user_folder = os.path.join(USER_HOME, folder)
             if is_path_valid(user_folder):
                 source_folders.append(user_folder)
     if not source_folders:
@@ -229,3 +228,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+    
