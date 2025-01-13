@@ -1,173 +1,217 @@
-# New experimental backup tool
-
-import os, sys, argparse, tempfile
+import os
+import sys
+import argparse
+import tempfile
+import yaml
 from datetime import datetime
 from time import perf_counter
 
 from .bytes import byte_size
 from .seconds import convert_seconds
 
-user_home = os.path.expanduser('~')
+USER_HOME = os.path.expanduser('~')
+
+"""
+Sample ~/.backup.yaml configuration file:
+
+# Folders to back up
+source_folders:
+  - /home/user/documents
+  - /home/user/photos
+  - /home/user/projects
+
+# File patterns to exclude from backup
+file_excludes:
+  - node_modules
+  - build
+  - dist
+  - package-lock.json
+  - '*.pyc'
+  - '.DS_Store'
+  - '.git'
+  - '*.log'
+
+# Folder patterns to exclude from backup
+folder_excludes:
+  - /home/user/temp
+  - /home/user/cache
+  - /home/user/projects/old_versions
+  - /home/user/.config
+
+# Locations to store backups
+archive_locations:
+  - /mnt/external_drive/backups
+  - /mnt/network_drive/backups
+  - /home/user/cloud_backups
+"""
+
+# Default configurations
+DEFAULT_SOURCE_FOLDERS = ['apv', 'bin', 'dev', 'opt']
+
+DEFAULT_FILE_EXCLUDES = [
+    'node_modules', 'build', 'dist', 'package-lock.json', 'tar.gz', '.pyc', '.DS_Store', '.git',
+    '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__', '.log', '.sqlite',
+    'package.json', '.virtual', '.docker', 'yarn.lock', 'yarn-error.log', '.mp3', '.exe',
+]
+DEFAULT_FOLDER_EXCLUDES = [
+    '/eggs', 'env/', 'parts/', 'v27', 'internal_packages', 'data/', '/venv', '.git',
+    '.idea', 'logs', 'data_dir', 'mvs', 'open-webui'
+]
+DEFAULT_ARCHIVE_LOCATIONS = [
+    '/mnt/media1/Archive/Backups',
+    '/mnt/media2/Archive/Backups',
+    'Dropbox/Archive/MacBookPro/',
+    '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups'
+]
+
+MEGABYTE = 1024 * 1024
 
 
-# TODO: add backup info to rogkit.toml
-is_pi = os.path.exists('/home')
+def load_config():
+    """Load and merge configuration from ~/.backup.yaml."""
+    global DEFAULT_SOURCE_FOLDERS, DEFAULT_FILE_EXCLUDES, DEFAULT_FOLDER_EXCLUDES, DEFAULT_ARCHIVE_LOCATIONS
 
-folders_to_backup = [ 'apv', 'bin', 'dev', 'opt']
+    config_path = os.path.join(USER_HOME, '.backup.yaml')
+    if os.path.exists(config_path):
+        print(f'Loading configuration from {config_path}')
+        with open(config_path, 'r') as config_file:
+            user_config = yaml.safe_load(config_file)
 
-files_to_exlude = [ 'node_modules', 'build', 'dist', 'package-lock.json', 'tar.gz', '.pyc', '.DS_Store', '.git', 
-                   '.idea', '.vscode', '.ipynb_checkpoints', '__pycache__', '.log', '.sqlite', 
-                    'package.json', '.virtual', '.docker', 'yarn.lock', 'yarn-error.log']
+        # Override defaults if keys are provided
+        DEFAULT_SOURCE_FOLDERS = user_config.get('source_folders', DEFAULT_SOURCE_FOLDERS)
+        DEFAULT_FILE_EXCLUDES = user_config.get('file_excludes', DEFAULT_FILE_EXCLUDES)
+        DEFAULT_FOLDER_EXCLUDES = user_config.get('folder_excludes', DEFAULT_FOLDER_EXCLUDES)
+        DEFAULT_ARCHIVE_LOCATIONS = user_config.get('archive_locations', DEFAULT_ARCHIVE_LOCATIONS)
 
-folders_to_exclude = ['/eggs', 'env/', 'parts/', 'v27', 'internal_packages', 'data/', '/venv', '.git', '.idea', 'logs', 'data_dir', 'mvs']
 
-if is_pi:
-    BACKUP_FOLDERS = ['/mnt/media1/Archive/Backups', '/mnt/media2/Archive/Backups']
-else:
-    BACKUP_FOLDERS = ['Dropbox/Archive/MacBookPro/', '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups']
+def is_path_valid(path):
+    return os.path.exists(path)
 
-MEGA_BYTE = 1024 * 1024
 
-def create_backup(verbose=False):
-
+def create_backup(verbose=False, archive_locations=DEFAULT_ARCHIVE_LOCATIONS):
+    """Create a new backup."""
     start_time = perf_counter()
-    
-    backup_path = BACKUP_FOLDERS[0]
-    backup_extras = BACKUP_FOLDERS[1:] if len(BACKUP_FOLDERS) > 1 else []
 
-    # current date and time for backup filename withhours and minutes
-    current_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
+    valid_archive_locations = [loc for loc in archive_locations if is_path_valid(loc)]
 
-    backup_name = f'backup-{current_date}.tar.gz'
-
-    # make sure the backup path folder exists
-    os.makedirs(os.path.join(user_home, backup_path), exist_ok=True)
-
-    path_for_backup = os.path.join(user_home,backup_path, backup_name)
-
-    print(f'Backing up the following folders: {folders_to_backup}') 
-    print(f'Backup path: {path_for_backup}')
-
-    file_count = 0
-    file_total_size = 0
-    skipped = 0
-
-    # create a temporary file to store the list of files to backup
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as file_list:
-        for folder in folders_to_backup:
-            for root, dirs, files in os.walk(os.path.join(user_home, folder)):
-                for file in files:
-                    if not any(exclude in file for exclude in files_to_exlude) and not any(exclude in root for exclude in folders_to_exclude):
-                        file_list.write(os.path.join(root, file) + '\n')
-                        file_count += 1
-                        try:
-                            size = os.path.getsize(os.path.join(root, file))
-                        except FileNotFoundError:
-                            print(f"Skipping missing file: {os.path.join(root, file)}")
-                            continue
-                        except PermissionError:
-                            print(f"Skipping file due to permissions: {os.path.join(root, file)}")
-                            continue
-                        file_total_size += size
-                        if verbose:
-                            warning = 'cd ' if size < MEGA_BYTE else '****'
-                            print(f'{byte_size(size):>10}   {os.path.join(root, file)} {warning}')
-                    else:
-                        skipped += 1
-                        
-        current_elapsed_time = convert_seconds(perf_counter() - start_time)
-        print(f'Found {file_count:,} files to backup ({byte_size(file_total_size)}). Skipped {skipped:,}. Elapsed time: {current_elapsed_time}.')
-        
-        print(f'Creating backup file: {path_for_backup}')
-        
-        temp_backup_name = path_for_backup + '.tmp'
-
-        # create the backup
-        try:
-            os.system(f'tar -czf {temp_backup_name} -T {file_list.name}')
-        except Exception as e:
-            print(f'Error during backup: {e}')
-            os.remove(temp_backup_name)
-        finally:
-            # remove the temporary file with the list of files
-            os.remove(file_list.name)
-
-    if not os.path.exists(temp_backup_name):
-        print('Backup failed.')
-        os.remove(temp_backup_name)
-        sys.exit(1)        
-
-    try:
-        os.rename(temp_backup_name, path_for_backup)
-    except Exception as e:
-        print(f'Error moving backup to final location: {e}')
+    if not valid_archive_locations:
+        print('No valid archive location found.')
         sys.exit(1)
 
-    # Now copy the backup to the other locations
-    for extra_backup in backup_extras:
+    primary_archive_path = valid_archive_locations[0]
+    extra_archive_paths = valid_archive_locations[1:] if len(valid_archive_locations) > 1 else []
+
+    current_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
+    backup_filename = f'backup-{current_date}.tar.gz'
+    os.makedirs(primary_archive_path, exist_ok=True)
+
+    backup_file_path = os.path.join(primary_archive_path, backup_filename)
+
+    print(f'Backing up the following folders: {DEFAULT_SOURCE_FOLDERS}')
+    print(f'Backup path: {backup_file_path}')
+
+    file_count, total_file_size, skipped_count = 0, 0, 0
+
+    # Collect files to backup
+    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as file_list:
+        for folder in DEFAULT_SOURCE_FOLDERS:
+            for root, _, files in os.walk(folder):
+                for file in files:
+                    if not any(exclude in file for exclude in DEFAULT_FILE_EXCLUDES) and not any(exclude in root for exclude in DEFAULT_FOLDER_EXCLUDES):
+                        file_path = os.path.join(root, file)
+                        file_list.write(file_path + '\n')
+                        file_count += 1
+                        try:
+                            total_file_size += os.path.getsize(file_path)
+                        except (FileNotFoundError, PermissionError):
+                            skipped_count += 1
+                            continue
+                    else:
+                        skipped_count += 1
+                        
+    if verbose: 
+        [print(f'Added: {line.strip()}') for line in open(file_list.name)]
+
+    elapsed_time = convert_seconds(perf_counter() - start_time)
+    print(f'Found {file_count:,} files to backup ({byte_size(total_file_size)}). Skipped {skipped_count:,}. Elapsed time: {elapsed_time}.')
+
+    # Create backup archive
+    temp_backup_path = backup_file_path + '.tmp'
+    try:
+        os.system(f'tar -czf {temp_backup_path} -T {file_list.name}')
+    except Exception as e:
+        print(f'Error during backup: {e}')
+        os.remove(temp_backup_path)
+    finally:
+        os.remove(file_list.name)
+
+    if not os.path.exists(temp_backup_path):
+        print('Backup failed.')
+        sys.exit(1)
+
+    os.rename(temp_backup_path, backup_file_path)
+
+    # Copy backup to extra locations
+    for extra_path in extra_archive_paths:
         try:
-            os.makedirs(os.path.join(user_home, extra_backup), exist_ok=True)
-            os.system(f'cp {path_for_backup} "{os.path.join(user_home, extra_backup)}"')
-            print(f'Backup copied to {extra_backup}')
+            os.makedirs(extra_path, exist_ok=True)
+            os.system(f'cp {backup_file_path} "{os.path.join(extra_path, backup_filename)}"')
+            print(f'Backup copied to {extra_path}')
         except Exception as e:
-            print(f'Error copying backup to {extra_backup}: {e}')
-        
-    elapsed_time = perf_counter() - start_time
-    archive_size = os.path.getsize(path_for_backup)
-    print(f'Backup created with {file_count:,} files ({byte_size(archive_size)}) in {convert_seconds(elapsed_time)}.')
-    print(f'Backup path: {path_for_backup}')
-    
+            print(f'Error copying backup to {extra_path}: {e}')
+
+    total_elapsed = convert_seconds(perf_counter() - start_time)
+    archive_size = os.path.getsize(backup_file_path)
+    print(f'Backup created with {file_count:,} files ({byte_size(archive_size)}) in {total_elapsed}.')
+    print(f'Backup path: {backup_file_path}')
+
+
 def list_backups():
-    backups = [f for f in os.listdir(os.path.join(user_home, 'Dropbox/Archive/MacBookPro')) if f.startswith('backup-')]
-    # Create a list of tuples containing backup information
-    backup_info = []
-    for backup in backups:
-        backup_path = os.path.join(user_home, 'Dropbox/Archive/MacBookPro', backup)
-        backup_size = byte_size(os.path.getsize(backup_path))
-        backup_date = datetime.strptime(backup[7:22], '%Y-%m-%d-%H-%M')
-        backup_info.append((backup_size, backup_path, backup_date))
+    """List existing backups from all archive locations."""
+    print("Listing backups from all configured archive locations...\n")
 
-    # Sort the list by backup date
-    backup_info.sort(key=lambda x: x[2])
-
-    # Print the sorted backup information
-    for size, path, date in backup_info:
-        print(f'{size:10}   {date:%Y-%m-%d %H:%M}   {path}')
-        
-def extract_latest():
-    backups = [f for f in os.listdir(os.path.join(user_home, 'Dropbox/Archive/MacBookPro')) if f.startswith('backup-')]
-    if not backups:
-        print('No backups found.')
-        return
-    latest_backup = max(backups)
-    backup_path = os.path.join(user_home, BACKUP_FOLDER, latest_backup)
-    extract_dir = os.path.join(user_home, BACKUP_FOLDER, latest_backup[:-7])
-    if not os.path.exists(extract_dir):
-        os.makedirs(extract_dir)
-    print(f'Extracting latest backup: {backup_path} to {extract_dir}')
-    os.system(f'tar -xzf {backup_path} -C {extract_dir}')
+    folder_count = 0
+    for location in DEFAULT_ARCHIVE_LOCATIONS:
+        if os.path.exists(location):
+            folder_count += 1
+            print(f'\nBackups in: {location}')
+            try:
+                # List all backups in the location
+                backups = [f for f in os.listdir(location) if f.startswith('backup-') and f.endswith('.tar.gz')]
+                if backups:
+                    for backup in sorted(backups):
+                        # Build the full path
+                        backup_path = os.path.join(location, backup)
+                        backup_size = os.path.getsize(backup_path)
+                        # Print full path along with details
+                        print(f' {byte_size(backup_size):<10}    {backup_path:60} ')
+                else:
+                    print("No backups found in this location.")
+            except Exception as e:
+                print(f"Error listing backups in {location}: {e}")
     
-
+    if folder_count == 0:
+        print("\nNo valid archive locations found.")
+        
+            
 def main():
-    # create argparse with options -b --backup and -l --list
+    load_config()  # Load YAML configuration
+
     parser = argparse.ArgumentParser(description='Backup and list backups')
     parser.add_argument('-b', '--backup', action='store_true', help='Create a new backup')
-    parser.add_argument('-l', '--list', action='store_true', help='List backups')
+    parser.add_argument('-l', '--list', action='store_true', help='List existing backups')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
-    parser.add_argument('-x', '--extract', action='store_true', help='Extract the latest backup')
     args = parser.parse_args()
-    
-    if args.extract:
-        extract_latest()
-        exit(0)
     
     if args.list:
         list_backups()
-    elif args.backup:
+        
+    if args.backup:
         create_backup(verbose=args.verbose)
-    else:
-        print("Rog's New Macbook Backup Tool")
-        parser.print_help()
     
+    if not any(vars(args).values()):
+        parser.print_help()
+
+
 if __name__ == '__main__':
     main()
