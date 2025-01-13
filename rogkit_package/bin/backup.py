@@ -5,6 +5,7 @@ import tempfile
 import yaml
 from datetime import datetime
 from time import perf_counter
+from pathlib import Path
 
 from .bytes import byte_size
 from .seconds import convert_seconds
@@ -45,7 +46,7 @@ archive_locations:
   - /home/user/cloud_backups
 """
 
-# Default configurations
+# Default configurations (absolute or in user home)
 DEFAULT_SOURCE_FOLDERS = ['apv', 'bin', 'dev', 'opt']
 
 DEFAULT_FILE_EXCLUDES = [
@@ -60,7 +61,7 @@ DEFAULT_FOLDER_EXCLUDES = [
 DEFAULT_ARCHIVE_LOCATIONS = [
     '/mnt/media1/Archive/Backups',
     '/mnt/media2/Archive/Backups',
-    'Dropbox/Archive/MacBookPro/',
+    '/Users/rdubar/Dropbox/Archive/MacBookPro/',
     '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups'
 ]
 
@@ -111,7 +112,7 @@ def create_backup(verbose=False, archive_locations=DEFAULT_ARCHIVE_LOCATIONS):
     print(f'Backup path: {backup_file_path}')
     
     source_folders = []
-    user_home = os.path.expanduser('~')
+    user_home = Path.home() 
     for folder in DEFAULT_SOURCE_FOLDERS:
         if is_path_valid(folder):
             source_folders.append(folder)
