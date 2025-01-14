@@ -451,7 +451,7 @@ def main():
         # Display all files
         for file in media_files:
             print(file)
-    print(f"Total media files: {len(media_files):,} on {len(disks)} disks ({', '.join(disks)})")
+    print(f"Total media files: {len(media_files):,} on {len(disks)} disks ({', '.join(disks)}) in {len(media_folders):,} media folders.")
     total_size = sum(file.filesize for file in media_files)
     print(f"Total size: {size_as_string(total_size)}")
 
