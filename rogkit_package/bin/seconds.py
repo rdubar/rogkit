@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from datetime import datetime
 from .bignum import bignum
 from .plural import plural
 
@@ -58,6 +59,11 @@ def convert_seconds(seconds, long_format=False, show_seconds=True, no_commas=Fal
     else:
         return ", ".join(time_list[:-1]) + " and " + time_list[-1]
 
+def time_ago_in_words(seconds):
+    time_now = datetime.now().timestamp()  # Current time as a timestamp
+    time_difference = int(time_now - seconds)  # Difference in seconds
+    time_ago = convert_seconds(time_difference)  # Convert to human-readable format
+    return time_ago
 
 def main():
     """Main function to parse arguments and print the converted time."""

@@ -12,6 +12,7 @@ from typing import List, Optional
 from colorama import Fore, Style
 
 from .media_scan import get_media_info
+from .seconds import time_ago_in_words
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -406,7 +407,8 @@ def main():
     # Check cache and fetch last modified time
     cache_last_modified = get_cache_last_modified()
     if not args.refresh and cache_last_modified:
-        print(f"Cache found. Last saved on: {cache_last_modified.strftime('%Y-%m-%d %H:%M:%S')}")
+        time_ago = time_ago_in_words(cache_last_modified.timestamp())
+        print(f"Cache found. Last saved {cache_last_modified.strftime('%Y-%m-%d %H:%M:%S')}: {time_ago} ago.")
         media_files = load_file_list_from_cache()
     else:
         # Fetch from the server
@@ -451,9 +453,8 @@ def main():
         # Display all files
         for file in media_files:
             print(file)
-    print(f"Total media files: {len(media_files):,} on {len(disks)} disks ({', '.join(disks)}) in {len(media_folders):,} media folders.")
-    total_size = sum(file.filesize for file in media_files)
-    print(f"Total size: {size_as_string(total_size)}")
+    size = size_as_string(sum(file.filesize for file in media_files))
+    print(f"Total media files: {len(media_files):,} ({size}) on {len(disks)} disks ({', '.join(disks)}) in {len(media_folders):,} media folders.")
 
     # Find duplicates (titles that appear on more than one disk)
     duplicates = find_duplicates(media_files)
