@@ -408,7 +408,7 @@ def main():
     cache_last_modified = get_cache_last_modified()
     if not args.refresh and cache_last_modified:
         time_ago = time_ago_in_words(cache_last_modified.timestamp())
-        print(f"Cache found. Last saved {cache_last_modified.strftime('%Y-%m-%d %H:%M:%S')}: {time_ago} ago.")
+        print(f"Cache loaded from {cache_last_modified.strftime('%Y-%m-%d %H:%M:%S')}: {time_ago} ago.")
         media_files = load_file_list_from_cache()
     else:
         # Fetch from the server
@@ -454,7 +454,7 @@ def main():
         for file in media_files:
             print(file)
     size = size_as_string(sum(file.filesize for file in media_files))
-    print(f"Total media files: {len(media_files):,} ({size}) on {len(disks)} disks ({', '.join(disks)}) in {len(media_folders):,} media folders.")
+    print(f"Total {len(media_files):,} files ({size}) on {len(disks)} disks ({', '.join(disks)}) in {len(media_folders):,} media folders.")
 
     # Find duplicates (titles that appear on more than one disk)
     duplicates = find_duplicates(media_files)
