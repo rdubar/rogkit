@@ -170,7 +170,7 @@ def save_file_list_to_cache(file_list: List[MediaFile]):
     """
     with open(CACHE_FILE, 'w') as cache_file:
         json.dump([file.__dict__ for file in file_list], cache_file)
-    print(f"File list saved to cache: {CACHE_FILE}")
+    print(f"File list saved to cache:\n{CACHE_FILE}")
 
 
 def load_file_list_from_cache() -> Optional[List[MediaFile]]:
