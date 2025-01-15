@@ -114,6 +114,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * mscan: scan media for resolution, bitrate etc. 
 * miso: make video from an iso file
 * mongo: basic MongoDB tools
+* media_play: attempt to play video by ssh (not yet working)
 * nose: run nosetests in ERP
 * padding: delete Internet Archive padding files
 * pdfer: experimental images to pdf
