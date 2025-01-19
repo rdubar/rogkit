@@ -395,7 +395,7 @@ def show_extras(media_files: List[MediaFile]):
 def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Roger's Media File Tool")
-    parser.add_argument('search', nargs='?', default=None, help="Case-insensitive search string for media files")
+    parser.add_argument('search', nargs='*', default=None, help="Case-insensitive search string for media files")
     parser.add_argument('-a', "--all", action="store_true", help="List all media files")
     parser.add_argument('-e', "--extras", action="store_true", help="Check extra folders")
     parser.add_argument('-i', "--info", action="store_true", help="Show media file details (for local files)")
@@ -406,6 +406,7 @@ def main():
     parser.add_argument('-s', "--server", default="pi5", help="Server hostname or IP address")
     parser.add_argument('-u', "--username", default="rog", help="Username for SSH connection")
     args = parser.parse_args()
+    search = ' '.join(args.search) if args.search else None
 
     print("Rog's Media File Tool")
 
@@ -436,9 +437,9 @@ def main():
     media_folders = group_files_into_folders(media_files)
         
     # Apply search filter if provided
-    if args.search:
-        filtered_files = filter_media_files(media_files, args.search)
-        print(f"Filtered media files matching '{args.search or 'all'}': {len(filtered_files):,} of {len(media_files):,}")
+    if search:
+        filtered_files = filter_media_files(media_files, search)
+        print(f"Filtered media files matching '{search or 'all'}': {len(filtered_files):,} of {len(media_files):,}")
         # Display results
         
         if filtered_files and args.info:
