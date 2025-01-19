@@ -6,8 +6,8 @@ from dataclasses import dataclass, field
 
 DEFAULT_FOLDER_LIST = [
     "/Users/rdubar/apv/openerp-addons",
-    "/mnt/media1/Media/Movies/",
-    "/mnt/media2/Media/Movies/"
+    "/mnt/media1/Media/",
+    "/mnt/media2/Media/"
 ]
 
 def process_purge_list(raw_list):

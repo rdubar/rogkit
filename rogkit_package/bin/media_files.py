@@ -39,6 +39,11 @@ class MediaFile:
     filetype: str
     filesize: int = 0
     
+    # def __post_init__(self):
+    #     index = self.filepath.rfind('Complete')
+    #     if index > -1:
+    #         print(self.title[:index])
+    
     def __str__(self):
         """Return a formatted string with size and file path"""
         return f"{self.size_str():<18} {self.filepath}"
@@ -293,7 +298,7 @@ def is_extra_file(name: str) -> bool:
     :param name: The file name to check.
     :return: True if the file name contains any of the keywords, False otherwise.
     """
-    for keyword in ['sample', 'trailer', 'featurette', 'extra', 'other', 'interview', 'behindthescenes', 'deleted']:
+    for keyword in ['sample', 'trailer', 'featurette', 'extra', 'other', 'interview', 'behindthescenes', 'deleted', '.pt']:
         if keyword in name.lower():
             return True
     return False  # Explicitly return False if no keywords match
