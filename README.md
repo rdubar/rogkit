@@ -121,6 +121,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * speeder: run with python interpreters as a benchmark
 * tkm: am experimentl graphical front end for media searches
 * transparent: make image transparent
+* watched: experimental tool to attempt to mark Plex titles as watched
 * xmlr: an xmlrpc tool
 
 Use `streamlit run Home.py` to try out the Streamlit frontend.

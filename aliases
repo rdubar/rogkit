@@ -79,6 +79,7 @@ alias vido='$ROGKIT_PYTHON -m rogkit_package.bin.vido "$@"'
 alias yout='$ROGKIT_PYTHON -m rogkit_package.bin.vido "$@"'
 alias wikipedia='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
 alias w='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
+alias watched='$ROGKIT_PYTHON -m rogkit_package.bin.watched "$@"'
 alias xmlr='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
 alias xml='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
 
