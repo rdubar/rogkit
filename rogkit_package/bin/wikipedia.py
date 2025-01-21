@@ -4,7 +4,7 @@ import wikipedia
 def search_wikipedia(search_term, full_article=False):
     try:
         # Search for the page
-        page = wikipedia.page(search_term)
+        page = wikipedia.summary(search_term) 
         
         # Return the full text if requested, otherwise return the summary
         return page.content if full_article else page.summary
@@ -21,6 +21,8 @@ def main():
 
     # Join the search terms into a single string
     search_query = ' '.join(args.search_term)
+    
+    print(f"Searching Wikipedia for: {search_query}")
 
     result = search_wikipedia(search_query, args.full)
     print(result)

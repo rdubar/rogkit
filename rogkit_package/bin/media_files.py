@@ -82,23 +82,52 @@ def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
     Parse a file line (size and file path) into a MediaFile dataclass.
 
     :param file_line: A line containing size and file path (e.g., "123456 /path/to/file").
-    :return: MediaFile object
+    :return: MediaFile object or None if the line is invalid.
     """
-    # Split the line into size and path
     try:
-        size_str, file_path = file_line.split(maxsplit=1)
-        filesize = int(size_str)
+        # Strip leading/trailing whitespace and split into size and path
+        file_line = file_line.strip()
+        size_str, file_path = file_line.split(maxsplit=1)  # Split only at the first whitespace
+        filesize = int(size_str)  # Convert size to integer
+        
+        # Split the file path into parts
         parts = file_path.split('/')
+        
+        # Validate that the parts list has enough elements
+        if len(parts) < 6:
+            print(f"Skipping line due to insufficient parts: {parts}")
+            return None
+        
+        # Extract disk, location, and title with safe indexing
         disk = parts[2] if len(parts) > 2 else "unknown"
-        location = parts[4] if len(parts) > 3 else "unknown"
-        if 'tv' in location.lower():  # Normalize TV location to 'TV Shows'
+        location = parts[4] if len(parts) > 4 else "unknown"
+        
+        # Normalize 'TV Shows' location for consistency
+        if 'tv' in location.lower():
             location = 'TV Shows'
+        
         title = parts[5] if len(parts) > 5 else "unknown"
-        filename = os.path.basename(file_path)
-        filetype = os.path.splitext(filename)[1][1:]  
-        return MediaFile(title=title, disk=disk, location=location, filepath=file_path, filename=filename, filetype=filetype, filesize=filesize)
+        filename = os.path.basename(file_path)  # Extract the file name
+        filetype = os.path.splitext(filename)[1][1:]  # Extract the file extension without the dot
+        
+        # Create and return the MediaFile object
+        return MediaFile(
+            title=title,
+            disk=disk,
+            location=location,
+            filepath=file_path,
+            filename=filename,
+            filetype=filetype,
+            filesize=filesize
+        )
+    
     except ValueError as e:
+        # Handle issues with splitting or integer conversion
         print(f"Error parsing line: {file_line}. Error: {e}")
+        return None
+    except IndexError as e:
+        # Handle issues with unexpected path structure
+        print(f"Index error with line: {file_line}. Error: {e}")
         return None
 
 def get_remote_media_files(path: str, server_ip: str, username: str) -> List[MediaFile]:
@@ -221,18 +250,37 @@ def filter_media_files(media_files: List[MediaFile], search: Optional[str]) -> L
     
 def find_duplicates(media_files: List[MediaFile]) -> dict:
     """
-    Find duplicate media files based on title and group them by disks.
+    Find duplicate media files based on title and group them by disks, 
+    including the total size of the files on each disk.
 
     :param media_files: List of MediaFile objects
-    :return: Dictionary where keys are duplicate titles and values are lists of disks
+    :return: Dictionary where keys are duplicate titles, and values are dictionaries
+             with disk names as keys and total sizes as values.
     """
-    titles = defaultdict(set)
+    # Create a mapping of titles to disk sizes
+    title_disk_sizes = defaultdict(lambda: defaultdict(int))
+
     for file in media_files:
-        titles[file.title].add(file.disk)
-    
-    # Filter titles that appear on more than one disk
-    duplicates = {title: disks for title, disks in titles.items() if len(disks) > 1}
+        title_disk_sizes[file.title][file.disk] += file.filesize
+
+    # Filter to include only titles that appear on more than one disk
+    duplicates = {
+        title: sizes for title, sizes in title_disk_sizes.items() if len(sizes) > 1
+    }
+
     return duplicates
+
+def display_duplicates(duplicates: dict):
+    """
+    Display duplicate titles with total folder sizes on each disk.
+
+    :param duplicates: Dictionary of duplicates returned by `find_duplicates`.
+    """
+    for title, disk_sizes in duplicates.items():
+        print(f"{title}:")
+        for disk, size in disk_sizes.items():
+            size_str = size_as_string(size)  # Convert size to human-readable format
+            print(f"  - {disk}: {size_str}")
 
 def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
     """
@@ -470,8 +518,7 @@ def main():
         print("No duplicate titles found.")
     else:
         print(f"Duplicate titles found: {len(duplicates)}")
-        for title, disks in duplicates.items():
-            print(f"{title}: {', '.join(disks)}")
+        display_duplicates(duplicates)
             
     if args.folders or args.other:
         # Get MediaFolders where the total size > 1GB and more than one file is > 500MB
