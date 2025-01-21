@@ -90,12 +90,12 @@ def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
         size_str, file_path = file_line.split(maxsplit=1)  # Split only at the first whitespace
         filesize = int(size_str)  # Convert size to integer
         
-        # Split the file path into parts
+        # Split the file path into giot statusparts
         parts = file_path.split('/')
         
         # Validate that the parts list has enough elements
         if len(parts) < 6:
-            print(f"Skipping line due to insufficient parts: {parts}")
+            # print(f"Skipping line due to insufficient parts: {parts}")
             return None
         
         # Extract disk, location, and title with safe indexing
@@ -276,11 +276,21 @@ def display_duplicates(duplicates: dict):
 
     :param duplicates: Dictionary of duplicates returned by `find_duplicates`.
     """
+    exact_matches = []
     for title, disk_sizes in duplicates.items():
+        duplicates = {}
         print(f"{title}:")
         for disk, size in disk_sizes.items():
             size_str = size_as_string(size)  # Convert size to human-readable format
             print(f"  - {disk}: {size_str}")
+            duplicates[disk] = size
+            
+        # check if the item on each disk has the same size
+        if len(set(duplicates.values())) == 1:
+            exact_matches.append(title)
+    
+    return exact_matches
+        
 
 def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
     """
@@ -439,6 +449,35 @@ def show_extras(media_files: List[MediaFile]):
             last_dir = folder.split('/')[-1]
             if last_dir not in collate:
                 print(folder)
+                
+def process_exact_matches(exact_matches: List[str], media_files: List[MediaFile]) -> List[str]:
+    """
+    Get a list of the main folder paths on media3 for exact matches.
+
+    :param exact_matches: List of titles with exact matches across disks.
+    :param media_files: List of MediaFile objects containing file information.
+    :return: List of main folder paths on media3 for exact matches.
+    """
+    main_folders = set()
+
+    # Iterate through media files and find exact matches on media3
+    for file in media_files:
+        if file.title in exact_matches and file.disk == "media3":
+            # Extract the main folder path (up to title level)
+            parts = file.filepath.split('/')
+            if len(parts) > 6:  # Ensure valid structure
+                main_folder = '/'.join(parts[:6])  # Keep up to "/disk/Media/Location/Title"
+                main_folders.add(main_folder)  # Add to the set
+
+    # Convert the set to a sorted list for consistent output
+    sorted_folders = sorted(main_folders)
+
+    # Print the main folders for verification
+    print(f"Main folders on media3 ({len(sorted_folders)}):")
+    for folder in sorted_folders:
+        print(f'trash-put "{folder}"')
+    
+    return sorted_folders
 
 def main():
     # Set up argument parser
@@ -518,7 +557,9 @@ def main():
         print("No duplicate titles found.")
     else:
         print(f"Duplicate titles found: {len(duplicates)}")
-        display_duplicates(duplicates)
+        exact_matches = display_duplicates(duplicates)
+        print(f"Exact matches: {len(exact_matches)}")
+        process_exact_matches(exact_matches, media_files)
             
     if args.folders or args.other:
         # Get MediaFolders where the total size > 1GB and more than one file is > 500MB
