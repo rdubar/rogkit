@@ -106,7 +106,7 @@ def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
         if 'tv' in location.lower():
             location = 'TV Shows'
         
-        title = parts[5] if len(parts) > 5 else "unknown"
+        title = parts[5].lower() if len(parts) > 5 else "unknown"
         filename = os.path.basename(file_path)  # Extract the file name
         filetype = os.path.splitext(filename)[1][1:]  # Extract the file extension without the dot
         
