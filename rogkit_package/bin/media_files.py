@@ -91,7 +91,6 @@ def standardize_title(title: str) -> str:
     title = re.sub(r'[^a-zA-Z0-9\s]', '', title)
     # Convert to lowercase and strip leading/trailing whitespace
     title = title.lower().strip()
-    print(title)
     return title
 
 def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
