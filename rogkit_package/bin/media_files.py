@@ -4,6 +4,7 @@ import json
 import os
 import argparse
 import glob
+import re
 from time import perf_counter
 from collections import defaultdict
 from datetime import datetime
@@ -76,6 +77,22 @@ class MediaFolder:
         size_str = size_as_string(self.total_size())
         return f"Folder: {self.foldername} ({size_str}, {len(self.files)} files)"
 
+def standardize_title(title: str) -> str:
+    """
+    Standardize the title by:
+    - Removing special characters (excluding spaces and alphanumerics)
+    - Converting to lowercase
+    - Trimming spaces
+    - Removing any text after a closing parenthesis ")"
+    """
+    # Remove anything after a ")"
+    title = re.split(r'\)', title, maxsplit=1)[0]
+    # Remove special characters except spaces and alphanumerics
+    title = re.sub(r'[^a-zA-Z0-9\s]', '', title)
+    # Convert to lowercase and strip leading/trailing whitespace
+    title = title.lower().strip()
+    print(title)
+    return title
 
 def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
     """
@@ -106,7 +123,7 @@ def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
         if 'tv' in location.lower():
             location = 'TV Shows'
         
-        title = parts[5].lower() if len(parts) > 5 else "unknown"
+        title = standardize_title(parts[5]) if len(parts) > 5 else "unknown"
         filename = os.path.basename(file_path)  # Extract the file name
         filetype = os.path.splitext(filename)[1][1:]  # Extract the file extension without the dot
         
