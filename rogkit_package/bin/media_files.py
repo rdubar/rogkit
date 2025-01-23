@@ -40,14 +40,13 @@ class MediaFile:
     filetype: str
     filesize: int = 0
     
-    # def __post_init__(self):
-    #     index = self.filepath.rfind('Complete')
-    #     if index > -1:
-    #         print(self.title[:index])
-    
     def __str__(self):
         """Return a formatted string with size and file path"""
         return f"{self.size_str():<18} {self.filepath}"
+    
+    def match_title(self, title):
+        """Return the standardized title for matching."""
+        return standardize_title(self.title)
     
     def size_str(self):
         """Return GB, MB, KB, or bytes with color coding"""
@@ -76,6 +75,10 @@ class MediaFolder:
         """Display folder details, including total size and file count."""
         size_str = size_as_string(self.total_size())
         return f"Folder: {self.foldername} ({size_str}, {len(self.files)} files)"
+    
+    def match_title(self, title):
+        """Return the standardized title for matching."""
+        return standardize_title(self.title)
 
 def standardize_title(title: str) -> str:
     """

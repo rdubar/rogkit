@@ -161,11 +161,13 @@ def main():
 
     # Now, sort based on the selected attribute (if one was chosen)
     if sort_by:
-        results = sort_results_by_attribute(results, sort_by)
+        results = sort_results_by_attribute(results, sort_by, reverse=args.reverse)
 
+
+    print("REVERSE IS SET TO: ", args.reverse)
     reverse_text = 'reversed' if args.reverse else ''
-    if args.reverse:
-        results = list(reversed(results))
+    # if args.reverse:
+    #     results = list(reversed(results))
 
     if args.all:
         args.number = len(results)

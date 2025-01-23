@@ -104,13 +104,28 @@ def last_updated():
     except FileNotFoundError:
         return "Library not found."
     
-def sort_results_by_attribute(results, attribute_name):
+def sort_results_by_attribute(results, attribute_name, reverse=False):
     """
     Sort a list of media results by an attribute, filtering out results without the attribute.
+
+    :param results: List of media results.
+    :param attribute_name: Attribute to sort by.
+    :param reverse: Boolean flag to indicate sorting order. True for descending, False for ascending.
+    :return: Sorted list of media results.
     """
+    reverse = not reverse  # Reverse the reverse flag to sort in ascending order
+
     if attribute_name == 'year':
         # Numeric sort with default value for non-numeric or absent values
-        return sorted(results, key=lambda x: int(getattr(x, attribute_name, 0)) if str(getattr(x, attribute_name, '0')).isdigit() else 0, reverse=True)
+        return sorted(
+            results,
+            key=lambda x: int(getattr(x, attribute_name, 0)) if str(getattr(x, attribute_name, '0')).isdigit() else 0,
+            reverse=reverse
+        )
     else:
-        # Generic sort for other attributes, filtering out results without the attribute
-        return sorted((result for result in results if getattr(result, attribute_name, None)), key=lambda x: getattr(x, attribute_name), reverse=True)
+        # Generic sort for other attributes
+        return sorted(
+            results,
+            key=lambda x: getattr(x, attribute_name, None) or '',  # Handle missing or None attributes
+            reverse=reverse
+        )
