@@ -44,11 +44,11 @@ class Config:
     def __init__(self, config_file):
         try:
             self.config = toml.load(config_file)
-            self.temp_folder = self.config['yout']['temp_folder']
-            self.download_folder = self.config['yout']['download_folder']
-            self.default_input_file = self.config['yout']['default_input_file']
+            self.temp_folder = self.config['vido']['temp_folder']
+            self.download_folder = self.config['vido']['download_folder']
+            self.default_input_file = self.config['vido']['default_input_file']
         except Exception as e:
-            print(Fore.MAGENTA + f"Failed to load [yout] section of config file {config_file}: {e}")
+            print(Fore.MAGENTA + f"Failed to load [vido] section of config file {config_file}: {e}")
             exit(1)
 
     def get_download_options(self):
