@@ -7,6 +7,7 @@ import argparse
 
 from dotenv import load_dotenv
 import spotipy
+from spotipy.oauth2 import SpotifyOAuth
 
 from ..bin.tomlr import load_rogkit_toml
 from .seconds import time_ago_in_words
@@ -19,12 +20,11 @@ class SpotifyClient:
     client_id: str
     client_secret: str
     redirect_uri: str
-    scope: str = 'user-library-read'
+    scope: str = 'user-library-read playlist-read-private playlist-read-collaborative'
     cache_path: str = ".spotify_cache"
     sp: spotipy.Spotify = None
 
     def authenticate(self):
-        from spotipy.oauth2 import SpotifyOAuth  # Import only when needed
         auth_manager = SpotifyOAuth(
             client_id=self.client_id,
             client_secret=self.client_secret,
@@ -51,7 +51,7 @@ class SpotifyClient:
             results = self.sp.next(results)
         return tracks
 
-    def get_user_playlists(self, limit=50, offset=0):
+    def get_user_playlists(self, limit=50, offset=0):  # TODO: fix this
         if not self.sp:
             raise Exception("Spotify client is not authenticated.")
         playlists = []
