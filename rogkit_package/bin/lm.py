@@ -15,7 +15,7 @@ def connect_to_lm(show_history=False, model=MODEL):
         {"role": "user", "content": "Hello, introduce yourself to someone opening this program for the first time. Be concise."},
     ]
 
-    wmhile True:
+    while True:
         completion = client.chat.completions.create(
             messages=history,
             temperature=0.7,
