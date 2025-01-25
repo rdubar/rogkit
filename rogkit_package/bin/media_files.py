@@ -79,6 +79,7 @@ class MediaFolder:
     def match_title(self, title):
         """Return the standardized title for matching."""
         return standardize_title(self.title)
+    
 
 def standardize_title(title: str) -> str:
     """
@@ -498,7 +499,47 @@ def process_exact_matches(exact_matches: List[str], media_files: List[MediaFile]
     
     return sorted_folders
 
+
+def find_small_media_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_000_000):
+    """
+    Find media folders with a total size less than the threshold.
+
+    :param media_folders: List of MediaFolder objects to inspect.
+    :param min_folder_size: Minimum total size to consider (default: 500MB).
+    """
+    small_folders = []
+    
+    for folder in media_folders:
+        # Skip Music folders
+        if 'music' in folder.location.lower() or 'audiobook' in folder.location.lower():
+            continue
+        # Skip folders with a total size greater than the threshold
+        if folder.total_size() > min_folder_size:
+            continue
+        
+        small_folders.append(folder)
+
+    # Generate descriptive output
+    total_str = size_as_string(min_folder_size)
+    description = f"{len(small_folders):,} of {len(media_folders):,} folders have a total size < {total_str}."
+    print(description)
+    
+    # Print detailed information for matching folders
+    for folder in small_folders:
+        print(folder)
+        # print the files in the folder
+        for file in folder.files:
+            print(f"  {file}")
+    
+    if len(small_folders) == 0:
+        print("No folders found matching the criteria.")
+    elif len(small_folders) > 10:
+        print(description)
+
 def main():
+    
+    DEFAULT_MINIMUM = 100_000_000
+    
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Roger's Media File Tool")
     parser.add_argument('search', nargs='*', default=None, help="Case-insensitive search string for media files")
@@ -509,8 +550,10 @@ def main():
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one  large files not classed as an 'extra'")
     parser.add_argument('-p', "--path", default="/mnt/media*/Media", help="Path to search for media files")
-    parser.add_argument('-s', "--server", default="pi5", help="Server hostname or IP address")
-    parser.add_argument('-u', "--username", default="rog", help="Username for SSH connection")
+    parser.add_argument('-s', "--small", action="store_true", help="Find 'small' media folders")
+    parser.add_argument('-m', "--minimum", type=int, default=DEFAULT_MINIMUM, help=f"Minimum folder size for 'small' folders (default: {DEFAULT_MINIMUM})")
+    parser.add_argument("--server", default="pi5", help="Server hostname or IP address")
+    parser.add_argument("--username", default="rog", help="Username for SSH connection")
     args = parser.parse_args()
     search = ' '.join(args.search) if args.search else None
 
@@ -518,8 +561,15 @@ def main():
 
     # Check cache and fetch last modified time
     cache_last_modified = get_cache_last_modified()
+    seconds_now = datetime.now().timestamp()
+    seconds_ago = seconds_now - cache_last_modified.timestamp() if cache_last_modified else 0
+    time_ago = time_ago_in_words(cache_last_modified.timestamp())
+    if (not args.refresh) and seconds_ago > 3600:
+        check = input("Cache was last modified {time_ago}. Refresh now? Enter 'y' to refresh or any other key to continue:")
+        if check.lower() in ['y', 'yes']:
+            args.refresh = True
+    
     if not args.refresh and cache_last_modified:
-        time_ago = time_ago_in_words(cache_last_modified.timestamp())
         print(f"Cache loaded from {cache_last_modified.strftime('%Y-%m-%d %H:%M:%S')}: {time_ago} ago.")
         media_files = load_file_list_from_cache()
     else:
@@ -590,6 +640,9 @@ def main():
         
     if args.extras:
         show_extras(media_files)
+    
+    if args.small:
+        find_small_media_folders(media_folders, args.minimum)
 
 if __name__ == "__main__":
     main()
