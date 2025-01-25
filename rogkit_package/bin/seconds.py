@@ -59,9 +59,11 @@ def convert_seconds(seconds, long_format=False, show_seconds=True, no_commas=Fal
     else:
         return ", ".join(time_list[:-1]) + " and " + time_list[-1]
 
-def time_ago_in_words(seconds):
-    time_now = datetime.now().timestamp()  # Current time as a timestamp
-    time_difference = int(time_now - seconds)  # Difference in seconds
+def time_ago_in_words(seconds, time_from=None): 
+    # Current time as a timestamp
+    if time_from is None:
+        time_from = datetime.now().timestamp()
+    time_difference = int(time_from - seconds)  # Difference in seconds
     time_ago = convert_seconds(time_difference)  # Convert to human-readable format
     return time_ago
 

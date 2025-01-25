@@ -116,16 +116,24 @@ def main():
     text = " ".join(args.text)
 
     # Generate and print ASCII art
-    ascii_art = generate_ascii_art(
-        text,
-        color=args.color,
-        font=args.font,
-        horizontal_layout=args.horizontal_layout,
-        vertical_layout=args.vertical_layout,
-        width=args.width,
-    )
-    print(ascii_art)
-
+    try:
+        ascii_art = generate_ascii_art(
+            text,
+            color=args.color,
+            font=args.font,
+            horizontal_layout=args.horizontal_layout,
+            vertical_layout=args.vertical_layout,
+            width=args.width,
+        )
+        print(ascii_art)
+    except pyfiglet.FontNotFound:
+        print(f"Error: Font '{args.font}' not found. Use --list-fonts to see available fonts.")
+    except pyfiglet.LayoutError:
+        print("Error: Invalid layout configuration.")
+    except pyfiglet.SizeError:
+        print("Error: Invalid width configuration.")
+    except Exception as e:
+        print(f"An error occurred: {e}")
 
 
 if __name__ == "__main__":

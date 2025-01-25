@@ -563,14 +563,14 @@ def main():
     cache_last_modified = get_cache_last_modified()
     seconds_now = datetime.now().timestamp()
     seconds_ago = seconds_now - cache_last_modified.timestamp() if cache_last_modified else 0
-    time_ago = time_ago_in_words(cache_last_modified.timestamp())
+    time_ago = time_ago_in_words(cache_last_modified.timestamp(), time_from=seconds_ago)
+    print(f"Cache last modified {time_ago} ago.")
     if (not args.refresh) and seconds_ago > 3600:
-        check = input("Cache was last modified {time_ago}. Refresh now? Enter 'y' to refresh or any other key to continue:")
+        check = input("Refresh now? Enter 'y' to refresh or any other key to continue:")
         if check.lower() in ['y', 'yes']:
             args.refresh = True
     
     if not args.refresh and cache_last_modified:
-        print(f"Cache loaded from {cache_last_modified.strftime('%Y-%m-%d %H:%M:%S')}: {time_ago} ago.")
         media_files = load_file_list_from_cache()
     else:
         # Fetch from the server
