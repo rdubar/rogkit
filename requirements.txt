@@ -11,6 +11,7 @@ paramiko==3.4.0
 paramiko==3.5.0
 Pillow==11.1.0
 PlexAPI==4.15.7
+psutil==5.9.8
 pyclip==0.7.0
 pyfiglet==1.0.2
 pyheif==0.7.1
@@ -29,4 +30,4 @@ streamlit==1.33.0
 thefuzz==0.22.1
 toml==0.10.2
 tqdm==4.66.1
-yt_dlp==2025.1.15
+yt_dlp==2025.1.26
