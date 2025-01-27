@@ -539,6 +539,7 @@ def find_small_media_folders(media_folders: List[MediaFolder], min_folder_size: 
 def main():
     
     DEFAULT_MINIMUM = 100_000_000
+    DEFAULT_MINUTES = 120
     
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Roger's Media File Tool")
@@ -548,6 +549,7 @@ def main():
     parser.add_argument('-i', "--info", action="store_true", help="Show media file details (for local files)")
     parser.add_argument('-f', "--folders", action="store_true", help="List media folders with more than one large files")
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
+    parser.add_argument('-t', "--time", type=int, default=60, help=f"Prompt for refresh after -t minutes since last refresh (default: {DEFAULT_MINUTES})")
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one  large files not classed as an 'extra'")
     parser.add_argument('-p', "--path", default="/mnt/media*/Media", help="Path to search for media files")
     parser.add_argument('-s', "--small", action="store_true", help="Find 'small' media folders")
@@ -578,8 +580,8 @@ def main():
         seconds_ago = float('inf')
 
     # Prompt for refresh if needed
-    if (not args.refresh) and seconds_ago > 3600:
-        print(f"Cache is older than 1 hour ({int(seconds_ago)} seconds ago).")
+    if (not args.refresh) and seconds_ago > (args.time * 60):
+        print(f"Cache is older than {args.time} minutes.")
         check = input("Refresh now? Enter 'y' to refresh or any other key to continue: ")
         if check.lower() in ['y', 'yes']:
             args.refresh = True
