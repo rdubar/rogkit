@@ -28,6 +28,7 @@ def process_arguments():
     parse('-n', '--number', type=int, default=10, help='Number of results to return')
     parse('-p', '--path', action='store_true', help='Show main video file path')
     parse('-v', '--video', action='store_true', help='Sort by video resolution')
+    parse('--vars', action='store_true', help='Show all internal variables for a title')
     parse('-y', '--year', action='store_true', help='Sort by year of release') 
     parse('-s', '--size', action='store_true', help='Sort by file size')
     parse('-S', '--summary', action='store_true', help='Show a summary for each title')

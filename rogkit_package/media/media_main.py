@@ -196,6 +196,8 @@ def main():
             print(pp(vars(result)))   
         if args.path:
             print(result.video_path)
+        if args.vars:
+            print(vars(result))
     remaining = len(results) - args.number
     if remaining > 0:
         print(f"...and {remaining:,} more.")
