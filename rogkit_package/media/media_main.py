@@ -19,6 +19,10 @@ def main():
     print(last_updated())
     args, search_text = process_arguments()
     
+    if args.zoom:  # turn on popular options
+        args.year = True
+        args.all = True
+    
     plex_library = PlexLibrary()
 
     if args.afi:

@@ -31,6 +31,7 @@ def process_arguments():
     parse('-y', '--year', action='store_true', help='Sort by year of release') 
     parse('-s', '--size', action='store_true', help='Sort by file size')
     parse('-S', '--summary', action='store_true', help='Show a summary for each title')
+    parse('-z', '--zoom', action='store_true', help='Show all sorted by year (equivalent to -ya)')
     parse('--delete', type=int, help='Delete a record by ID')
     parse('--rating', action='store_true', help='Sort by rating')
     parse('--shrink', action='store_true', help='Run the experimental database shrink function')
