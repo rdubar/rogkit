@@ -65,6 +65,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | bytes    | Bytes to KB/MB/GB  | from bytes import byte_size            |
 | clean    | Clean translation  |                                        |
 | clip     | Copy to clipboard  | from clipboard import clipboard        |
+| collate  | Collate files      |                                        |
 | empties  | Check for empties  |                                        |
 | fakes    | Generate text etc  | from fakes import fake_data            |
 | gen      | show generations   |                                        |
