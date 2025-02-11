@@ -2,6 +2,7 @@
 import argparse
 import secrets
 import string
+import math
 from dataclasses import dataclass
 from .bignum import bignum, seconds_time
 from .clipboard import copy_to_clipboard
@@ -75,10 +76,20 @@ class PasswordGenerator:
 
     def estimate_crack_time(self, guesses_per_second):
         combinations = self.calculate_combinations()
+        
+        if guesses_per_second <= 0:
+            return "Infinity (error: Invalid guesses per second)"
+        
         try:
-            seconds = combinations / guesses_per_second
-        except:
-            return "Infinity"
+            if combinations > 10**18:  # Arbitrary threshold for large numbers
+                # Avoid floating-point overflow by using logarithms
+                seconds_log = math.log(combinations) - math.log(guesses_per_second)
+                seconds = math.exp(seconds_log)
+            else:
+                seconds = combinations // guesses_per_second  # Integer division
+        except Exception as e:
+            return f"Infinity (error: {e})"
+        
         return self._format_time(seconds)
 
     def _format_time(self, seconds):
@@ -93,13 +104,15 @@ class PasswordGenerator:
         else:
             print("No password generated to copy.")
 
-    def display_password_info(self, guesses_per_second):
+    def display_password_info(self, guesses_per_second, size_limit=500):
         try:
             if self.password is not None:   
                 print(self.password)
                 if self.info:
                     print(f'Length: {bignum(self.length)}')
-                    if self.length < 200:
+                    if self.length >= size_limit:
+                        print(f'Password length of {self.length} is too large to calculate combinations.')
+                    else:
                         print(f'Combinations: {bignum(self.calculate_combinations())}')
                         print(f"Estimated max time to crack: {self.estimate_crack_time(guesses_per_second)}")
                         print(f'Assumes {bignum(guesses_per_second)} guesses per second.')

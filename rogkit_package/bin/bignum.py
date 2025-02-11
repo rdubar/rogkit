@@ -143,8 +143,7 @@ def bignum(number, round_to=2, show_e=2, minimum=1000):
         formatter = PrettyNumberFormatter()
         return formatter.zillions(number, round_to=round_to, show_e=show_e, minimum=minimum)
     except Exception as e:
-        print(f"Error converting number to text: {e}")
-        return f'{number:,}'
+        return f'{number:,} ({e})'
 
 def seconds_time(seconds, granularity=2):
     formatter = PrettyNumberFormatter()
