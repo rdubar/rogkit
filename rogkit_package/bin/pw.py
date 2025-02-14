@@ -93,9 +93,6 @@ class PasswordGenerator:
         return self._format_time(seconds)
 
     def _format_time(self, seconds):
-        # Assuming this function formats the time in a human-readable way
-        # Placeholder implementation here
-
         return seconds_time(seconds)
 
     def copy_to_clipboard(self):
