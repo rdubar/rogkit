@@ -2,7 +2,7 @@ import os
 import sys
 import argparse
 
-def collate_files(directory, output_file="collated.txt", match=None, ignore_case=False, report=False):
+def collate_files(directory, output_file="collated.txt", match=None, ignore_case=False, report=False, exclude_dirs = ["__pycache__", "eggs"]):
     """Recursively collates all text and code files from a given directory into one file."""
     matched = 0
     total = 0
@@ -12,6 +12,11 @@ def collate_files(directory, output_file="collated.txt", match=None, ignore_case
 
     with open(output_file, "w", encoding="utf-8") as out_file:
         for root, _, files in os.walk(directory):
+            
+            # Skip excluded directories
+            if any(excluded in root.split(os.sep) for excluded in exclude_dirs):
+                continue
+            
             for file in files:
                 file_path = os.path.join(root, file)
 
@@ -32,7 +37,9 @@ def collate_files(directory, output_file="collated.txt", match=None, ignore_case
                             out_file.write(content + "\n")
                             matched += 1
                     except Exception as e:
-                        out_file.write(f"\n--- {file_path} ---\n[Error reading file: {e}]\n")
+                        if report:
+                            print(f"Error reading {file_path}: {e}")
+                        # out_file.write(f"\n--- {file_path} ---\n[Error reading file: {e}]\n")
 
     if report:
         print(f"Matched {matched:,} out of {total:,} files.")
@@ -44,7 +51,7 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--ignore", action="store_true", help="Ignore case in text matches.")
     parser.add_argument("-p", "--path", type=str, default=os.getcwd(), help="Path of the directory to collate files from.")
     parser.add_argument("-o", "--output", type=str, default="collated.txt", help="Output file name.")
-    parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode: do no print a report summary after processing.")
+    parser.add_argument("-q", "--quiet", action="store_true", help="Quiet mode: do not print a report summary after processing.")
 
     args = parser.parse_args()
     
