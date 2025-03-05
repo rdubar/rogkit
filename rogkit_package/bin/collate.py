@@ -2,13 +2,16 @@ import os
 import sys
 import argparse
 
-def collate_files(directory, output_file="collated.txt", match=None, ignore_case=False, report=False, exclude_dirs = ["__pycache__", "eggs"]):
+def collate_files(directory, output_file="collated.txt", match=None, ignore_case=False, report=False):
     """Recursively collates all text and code files from a given directory into one file."""
     matched = 0
     total = 0
 
     if match and ignore_case:
         match = match.lower()  # Ensure match text is lowercase before processing
+        
+    # Exclude directories
+    exclude_dirs = ["__pycache__", "eggs"]
 
     with open(output_file, "w", encoding="utf-8") as out_file:
         for root, _, files in os.walk(directory):
