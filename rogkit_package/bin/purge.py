@@ -41,7 +41,7 @@ VISIT ME ON FACEBOOK.txt
 AhaShare.com.txt
 *ownloaded from *.txt
 .DS_Store
-._.*
+._*
 """)
 
 @dataclass
