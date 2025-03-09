@@ -642,6 +642,10 @@ def main():
         print(f"Filtered media files matching '{search}': {len(filtered_files):,} of {len(media_files):,}")
         for file in filtered_files:
             print(file)
+            if args.info:
+                info = get_media_info(file.filepath)
+                if "|" in info:
+                    print('|'.join(info.split("|")[1:]))
         return
 
     print(f"Total {len(media_files):,} files in {len(media_folders):,} media folders.")
