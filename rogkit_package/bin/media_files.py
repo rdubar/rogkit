@@ -270,18 +270,17 @@ def filter_media_files(media_files: List[MediaFile], search: Optional[str]) -> L
     
 def find_duplicates(media_files: List[MediaFile]) -> dict:
     """
-    Find duplicate media files based on title and group them by disks, 
-    including the total size of the files on each disk.
-
+    Find duplicate media files based on standardized title and group them by disk.
+    
     :param media_files: List of MediaFile objects
     :return: Dictionary where keys are duplicate titles, and values are dictionaries
              with disk names as keys and total sizes as values.
     """
-    # Create a mapping of titles to disk sizes
     title_disk_sizes = defaultdict(lambda: defaultdict(int))
 
     for file in media_files:
-        title_disk_sizes[file.title][file.disk] += file.filesize
+        standardized_title = standardize_title(file.title)
+        title_disk_sizes[standardized_title][file.disk] += file.filesize
 
     # Filter to include only titles that appear on more than one disk
     duplicates = {
@@ -292,24 +291,20 @@ def find_duplicates(media_files: List[MediaFile]) -> dict:
 
 def display_duplicates(duplicates: dict):
     """
-    Display duplicate titles with total folder sizes on each disk.
+    Display duplicate media titles with their total file sizes on each disk.
 
-    :param duplicates: Dictionary of duplicates returned by `find_duplicates`.
+    :param duplicates: Dictionary of duplicates returned by `find_duplicates()`.
     """
-    exact_matches = []
+    if not duplicates:
+        print("No duplicate titles found.")
+        return
+
+    print("\n==== Duplicate Media Titles ====")
     for title, disk_sizes in duplicates.items():
-        duplicates = {}
-        print(f"{title}:")
+        print(f"\n{Fore.CYAN}{title}{Style.RESET_ALL}:")
         for disk, size in disk_sizes.items():
             size_str = size_as_string(size)  # Convert size to human-readable format
-            print(f"  - {disk}: {size_str}")
-            duplicates[disk] = size
-            
-        # check if the item on each disk has the same size
-        if len(set(duplicates.values())) == 1:
-            exact_matches.append(title)
-    
-    return exact_matches
+            print(f"  - {disk}: {Fore.YELLOW}{size_str}{Style.RESET_ALL}")
         
 
 def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
@@ -580,10 +575,6 @@ def find_hidden_files(media_files: List[MediaFile], report=True) -> List[MediaFi
 
 
 def main():
-    DEFAULT_MINIMUM_SIZE = 100_000_000  # Default for small folders
-    DEFAULT_MAX_SMALL_FILE_SIZE = 300_000_000  # Default for small media files (300MB)
-    DEFAULT_MINUTES = 120  # Default cache refresh interval
-
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Roger's Media File Tool")
     parser.add_argument('search', nargs='*', default=None, help="Case-insensitive search string for media files")
@@ -591,15 +582,11 @@ def main():
     parser.add_argument('-e', "--extras", action="store_true", help="Check extra folders")
     parser.add_argument('-i', "--info", action="store_true", help="Show media file details (for local files)")
     parser.add_argument('-f', "--folders", action="store_true", help="List media folders with more than one large file")
+    parser.add_argument('-d', "--duplicates", action="store_true", help="Show duplicate media titles across disks (default)")
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
-    parser.add_argument('-t', "--time", type=int, default=60, help=f"Refresh automatically after -t minutes since last refresh (default: {DEFAULT_MINUTES})")
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one large file not classed as an 'extra'")
     parser.add_argument('-p', "--path", default="/mnt/media*/Media", help="Path to search for media files")
-    parser.add_argument('-s', "--small", action="store_true", help="Find 'small' media folders")
-    parser.add_argument('-m', "--minimum", type=int, default=DEFAULT_MINIMUM_SIZE, help=f"Minimum folder size for 'small' folders (default: {DEFAULT_MINIMUM_SIZE})")
-    parser.add_argument('--hidden', action="store_true", help="Include hidden files and folders")
-    parser.add_argument('--small-files', action="store_true", help="Find small media files below the given size threshold")
-    parser.add_argument('--max-small-file-size', type=int, default=DEFAULT_MAX_SMALL_FILE_SIZE, help=f"Maximum size for small media files (default: {DEFAULT_MAX_SMALL_FILE_SIZE})")
+    parser.add_argument('--hidden', action="store_true", help="Include hidden files")
     parser.add_argument("--server", default="pi5", help="Server hostname or IP address")
     parser.add_argument("--username", default="rog", help="Username for SSH connection")
     
@@ -612,18 +599,12 @@ def main():
     cache_last_modified = get_cache_last_modified()
 
     if cache_last_modified:
-        seconds_now = datetime.now().timestamp()
-        seconds_ago = seconds_now - cache_last_modified.timestamp()
-        time_ago = time_ago_in_words(seconds_ago)
+        time_ago = time_ago_in_words(datetime.now().timestamp() - cache_last_modified.timestamp())
         print(f"Cache last modified {time_ago} ago.")
     else:
-        print(f"Cache file {CACHE_FILE} not found or never modified.")
-        seconds_ago = float('inf')
+        print("Cache not found or never modified.")
 
-    if not args.refresh and seconds_ago > (args.time * 60):
-        print(f"Cache is older than {args.time} minutes. Refreshing...")
-        args.refresh = True
-
+    # Refresh cache if requested or outdated
     if not args.refresh and cache_last_modified:
         media_files = load_file_list_from_cache()
     else:
@@ -635,6 +616,7 @@ def main():
         print(f"Found {len(media_files):,} media files.")
         save_file_list_to_cache(media_files)
 
+    # Group media files into folders
     media_folders = group_files_into_folders(media_files)
 
     if search:
@@ -643,27 +625,23 @@ def main():
         for file in filtered_files:
             print(file)
             if args.info:
-                info = get_media_info(file.filepath)
-                if "|" in info:
-                    print('|'.join(info.split("|")[1:]))
+                print(get_media_info(file.filepath))
         return
 
     print(f"Total {len(media_files):,} files in {len(media_folders):,} media folders.")
 
+    # Display duplicates if requested
+    if True or args.duplicates:
+        duplicates = find_duplicates(media_files)
+        display_duplicates(duplicates)
+
+    # Show folders with multiple large files
     if args.folders or args.other:
-        print("Showing folders with more than one large file:")
         show_folders(media_folders, not_other=args.other)
 
     if args.extras:
         show_extras(media_files)
 
-    if args.small:
-        find_small_media_folders(media_folders, args.minimum)
-
-    if args.small_files:
-        print(f"Finding small media files below {size_as_string(args.max_small_file_size)}...")
-        find_small_media_files(media_files, args.max_small_file_size)
-        
     if args.hidden:
         find_hidden_files(media_files)
 
