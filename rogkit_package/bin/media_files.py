@@ -597,12 +597,18 @@ def main():
 
     # Check cache and fetch last modified time
     cache_last_modified = get_cache_last_modified()
+    time_ago_in_seconds = datetime.now().timestamp() - cache_last_modified.timestamp()
 
     if cache_last_modified:
-        time_ago = time_ago_in_words(datetime.now().timestamp() - cache_last_modified.timestamp())
-        print(f"Cache last modified {time_ago} ago.")
+        time_ago_str = time_ago_in_words(time_ago_in_seconds)
+        print(f"Cache last modified {time_ago_str} ago.")
     else:
         print("Cache not found or never modified.")
+        
+    # Auto-refresh if cache older than one hour
+    if time_ago_in_seconds > 3600:
+        print("Cache is older than one hour, refreshing...")
+        args.refresh = True
 
     # Refresh cache if requested or outdated
     if not args.refresh and cache_last_modified:
