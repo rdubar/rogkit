@@ -39,7 +39,6 @@ sample.m*
 YTSProxies.*
 VISIT ME ON FACEBOOK.txt
 AhaShare.com.txt
-*ownloaded from *.txt
 YTSYifyUP... (TOR).txt
 .DS_Store
 ._*
