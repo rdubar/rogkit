@@ -744,12 +744,14 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
             
             size_of_existing = os.path.getsize(new_file_path)
             if size_of_backup == size_of_existing:
-                print(f"Skipping identical file: {new_file_path}")
+                if verbose: 
+                    print(f"Skipping identical file: {new_file_path}")
                 continue
             else:
                 print(f"Replacing {new_file_path} with {record.filepath}")
         
         # Copy the file from the backup disk to the main media disk
+        print(f"Copying {record.filepath} to {record.disk}")
         try:
             shutil.copy(record.filepath, new_file_path)
         except Exception as e:
