@@ -5,6 +5,9 @@ import os
 import argparse
 import glob
 import re
+import shutil
+import sys
+from typing import List
 from time import perf_counter
 from collections import defaultdict
 from datetime import datetime
@@ -19,6 +22,12 @@ from .bytes import byte_size
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(script_dir, "media_files_cache.json")
+ARCHIVE_FILE = os.path.join(script_dir, "media_files_cache_archive.json")
+
+MIN_FILE_SIZE_MB = 200  # Minimum file size to consider as a valid replacement
+
+MEDIA_TYPES = { 'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mpg', 'mpeg', 'm4v', '3gp', 'vob', 'ts', 'divx', 'xvid' }
+
 
 def size_as_string(size):
     """
@@ -193,7 +202,9 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
         ssh.connect(server_ip, username=username)
 
         # Define the command to find all files in the specified path with sizes
-        find_command = f"find {path} -type f -exec du -b {{}} +"
+        if ' ' in path:
+            path = f'"{path}"'
+        find_command = f'find {path} -type f -exec du -b {{}} +'
         stdin, stdout, stderr = ssh.exec_command(find_command)
         file_lines = stdout.read().decode('utf-8').splitlines()
 
@@ -540,7 +551,7 @@ def find_small_media_files(media_files: List[MediaFile], max_size: int = 300_000
     :param max_size: Maximum file size in bytes (default: 300MB).
     :return: List of small MediaFile objects.
     """
-    types = [ 'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mpg', 'mpeg', 'm4v', '3gp', 'vob', 'ts', 'divx', 'xvid' ]
+    types = MEDIA_TYPES
     
     small_files = [file for file in media_files if file.filesize < max_size and file.filetype in types]
 
@@ -573,12 +584,192 @@ def find_hidden_files(media_files: List[MediaFile], report=True) -> List[MediaFi
             print(file)
     return hidden_files
 
+def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCHIVE_FILE):
+    """
+    Compare the archive cache with the current media files and detect missing media.
+    If a folder exists in the new cache with at least 200MB of media files, we ignore it.
+    """
+
+    if not os.path.exists(archive_file):
+        print(f"❌ Archive file not found: {archive_file}")
+        return
+
+    # Load archive data
+    try:
+        with open(archive_file, 'r') as f:
+            archive_data = json.load(f)
+    except json.JSONDecodeError as e:
+        print(f"❌ Error reading JSON from archive: {e}")
+        return
+
+    # Extract file paths and sizes from the archive
+    archive_files = {file['filepath']: (file['filesize'], file['disk']) for file in archive_data}
+
+    # Get current media file paths and map total sizes per folder
+    media_file_paths = {media_file.filepath for media_file in media_files}
+
+    # Track folder-level media sizes in the new cache
+    media_folder_sizes = defaultdict(int)  # {folder_path: total_size}
+    for media_file in media_files:
+        folder_path = os.path.dirname(media_file.filepath)
+        media_folder_sizes[folder_path] += media_file.filesize
+
+    # Identify missing files
+    missing_files = {
+        path: (size, disk)
+        for path, (size, disk) in archive_files.items()
+        if path not in media_file_paths
+    }
+
+    # Define valid media file extensions
+    media_extensions = MEDIA_TYPES
+
+    # Identify missing media by grouping them by folder
+    candidate_missing_folders = defaultdict(lambda: defaultdict(int))  # {folder_path: {disk: total_size}}
+
+    for filepath, (filesize, disk) in missing_files.items():
+        filename = os.path.basename(filepath)
+        file_extension = filename.lower().split('.')[-1]
+
+        if file_extension in media_extensions:
+            folder_path = os.path.dirname(filepath)
+            candidate_missing_folders[folder_path][disk] += filesize
+
+    # **Filter out missing folders if they contain at least 200MB in the new cache**
+    filtered_missing = {}
+    MIN_VALID_SIZE_BYTES = MIN_FILE_SIZE_MB * 1_000_000  # 200MB in bytes
+
+    for folder, disks in candidate_missing_folders.items():
+        total_size = media_folder_sizes.get(folder, 0)
+        if total_size < MIN_VALID_SIZE_BYTES:  # Keep only folders below 200MB
+            filtered_missing[folder] = disks
+
+    # **Compute total missing size**
+    total_missing_size = sum(sum(sizes.values()) for sizes in filtered_missing.values())
+
+    # **Final Output**
+    if not filtered_missing:
+        print("✅ No important media files are missing.")
+        return
+
+    print(f"⚠️ {len(filtered_missing):,} missing movies detected, totaling {size_as_string(total_missing_size)}.")
+
+    # **Limit output to 10 missing movies**
+    displayed_count = 0
+    show_count = 20
+    for folder, disks in sorted(filtered_missing.items(), key=lambda x: -sum(x[1].values())):
+        if displayed_count >= show_count:
+            break  # Stop printing after show_count items
+
+        title = os.path.basename(folder)  # Extract the title from the folder name
+        disk_info = ", ".join(f"{disk}: {size_as_string(size)}" for disk, size in disks.items())
+        print(f"{title} ({disk_info})")
+        displayed_count += 1
+
+    # Show summary if there are more missing movies
+    if displayed_count < len(filtered_missing):
+        print(f"...and {len(filtered_missing) - displayed_count:,} more missing movies.")
+
+def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
+    """
+    Restore media files from a backup disk based on the main media file list.
+    """
+    from .media_scan import get_media_info  # Optional, for debugging or extra info
+
+    backup_disk_path = "/media/rog/1 TB ExFat"
+    default_restore_disk = "media1"
+    print(f'Checking backup media files in: "{backup_disk_path}"')
+
+    # Wrap path in quotes to handle spaces when running remotely
+    backup_media_files = get_remote_media_files(backup_disk_path, "pi5", "rog")
+    print(f"Found {len(backup_media_files):,} total files on backup disk.")
+
+    # Create a set of standardized titles from the existing media files    
+    main_titles_dict = {standardize_title(media.title): media for media in media_files}
+
+    matched = []
+    unmatched = []
+    title_list = []
+    records_to_check = []
+
+    for record in backup_media_files:
+        
+        # Try to extract the folder name as the title
+        parts = record.filepath.split('/')
+        if len(parts) < 6:
+            continue
+
+        backup_title = standardize_title(parts[5])  # Folder name as title
+
+        folder = record.filepath.split('/')[4].lower()
+        if not folder in ['movies', 'new']: 
+            continue
+
+        if backup_title in main_titles_dict:
+            record.disk = main_titles_dict[backup_title].disk
+            message = f"Matched backup: {backup_title}"
+            matched.append(backup_title)
+        else:
+            record.disk = default_restore_disk
+            message = f"Not in main cache: {backup_title}"
+            unmatched.append(backup_title)
+        
+        if backup_title not in title_list:
+
+            title_list.append(backup_title)
+            if verbose:
+                print(message)
+                
+        records_to_check.append(record)
+
+    print(f"Matching complete: {len(matched)} matched, {len(unmatched)} unmatched in {len(title_list)} titles.")
+    
+    # Now see if we are on the local disk for perform a backup restore
+    if not os.path.exists(backup_disk_path):
+        print(f'Backup disk not found: "{backup_disk_path}"')
+        return
+    
+    # Restore the files from the backup disk
+    for record in records_to_check:
+        # print(f"Restoring: {record.filepath} to {record.disk}")
+        new_file_path = f'/mnt/{record.disk}/Media/Movies/' + '/'.join(record.filepath.split('/')[5:])
+
+
+        if not os.path.exists(record.filepath):
+            print(f"File not found: {record.filepath}")
+            sys.exit(1)
+
+        size_of_backup = os.path.getsize(record.filepath)
+        if os.path.exists(new_file_path):
+            
+            size_of_existing = os.path.getsize(new_file_path)
+            if size_of_backup == size_of_existing:
+                print(f"Skipping identical file: {new_file_path}")
+                continue
+            else:
+                print(f"Replacing {new_file_path} with {record.filepath}")
+        
+        # Copy the file from the backup disk to the main media disk
+        try:
+            shutil.copy(record.filepath, new_file_path)
+        except Exception as e:
+            print(f"Error copying {record.filepath} to {new_file_path}: {e}")
+            sys.exit(1)
+        size_of_new = os.path.getsize(new_file_path)
+        if size_of_new != size_of_backup:
+            print(f"Error copying {record.filepath} to {new_file_path}")
+        else:
+            print(f"Copied {record.filepath} to {new_file_path}")
+            
+    print(f"Restore complete: {len(records_to_check)} files restored.")
+
 
 def main():
     # Set up argument parser
     parser = argparse.ArgumentParser(description="Roger's Media File Tool")
     parser.add_argument('search', nargs='*', default=None, help="Case-insensitive search string for media files")
     parser.add_argument('-a', "--all", action="store_true", help="List all media files")
+    parser.add_argument('-c', "--check", action="store_true", help="Check against archive")
     parser.add_argument('-e', "--extras", action="store_true", help="Check extra folders")
     parser.add_argument('-i', "--info", action="store_true", help="Show media file details (for local files)")
     parser.add_argument('-f', "--folders", action="store_true", help="List media folders with more than one large file")
@@ -587,6 +778,8 @@ def main():
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one large file not classed as an 'extra'")
     parser.add_argument('-p', "--path", default="/mnt/media*/Media", help="Path to search for media files")
     parser.add_argument('--hidden', action="store_true", help="Include hidden files")
+    parser.add_argument('-R', "--restore", action="store_true", help="Restore media files from backup disk")
+    parser.add_argument('-v', "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--server", default="pi5", help="Server hostname or IP address")
     parser.add_argument("--username", default="rog", help="Username for SSH connection")
     
@@ -597,7 +790,7 @@ def main():
 
     # Check cache and fetch last modified time
     cache_last_modified = get_cache_last_modified()
-    time_ago_in_seconds = datetime.now().timestamp() - cache_last_modified.timestamp()
+    time_ago_in_seconds = datetime.now().timestamp() - cache_last_modified.timestamp() if cache_last_modified else 0
 
     if cache_last_modified:
         time_ago_str = time_ago_in_words(time_ago_in_seconds)
@@ -650,6 +843,12 @@ def main():
 
     if args.hidden:
         find_hidden_files(media_files)
+    
+    if args.check:
+        check_against_archive(media_files)
+        
+    if args.restore:
+        restore_backup_media(media_files, verbose = args.verbose)
 
 if __name__ == "__main__":
     main()

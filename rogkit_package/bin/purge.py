@@ -108,7 +108,8 @@ def main():
     print(f"Found {len(results.files_to_delete):,} files to delete from {results.total_files:,} files scanned.")
 
     if args.confirm:
-        delete_files(results.files_to_delete)
+        print('Delete option disabled.')
+        ### delete_files(results.files_to_delete)
     elif results.files_to_delete:
         print("Files to be deleted (use --confirm to actually delete):")
         for file in results.files_to_delete:
