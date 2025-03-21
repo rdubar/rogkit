@@ -691,6 +691,7 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
     unmatched = []
     title_list = []
     records_to_check = []
+    errors = []
 
     for record in backup_media_files:
         
@@ -756,7 +757,8 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
             shutil.copy(record.filepath, new_file_path)
         except Exception as e:
             print(f"Error copying {record.filepath} to {new_file_path}: {e}")
-            sys.exit(1)
+            errors.append([record.filepath, e])
+            continue
         size_of_new = os.path.getsize(new_file_path)
         if size_of_new != size_of_backup:
             print(f"Error copying {record.filepath} to {new_file_path}")
@@ -764,6 +766,12 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
             print(f"Copied {record.filepath} to {new_file_path}")
             
     print(f"Restore complete: {len(records_to_check)} files restored.")
+    
+    if errors:
+        print(f"Errors: {len(errors)}")
+        for error in errors:
+            path, e = error
+            print(f"{path}: {e}")
 
 
 def main():
