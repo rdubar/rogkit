@@ -7,6 +7,7 @@ from dataclasses import dataclass, field
 from colorama import Fore
 
 from ..bin.bytes import byte_size
+from ..bin.delete import safe_delete
 
 
 DEFAULT_FOLDER_LIST = [
@@ -45,10 +46,8 @@ YTSProxies.*
 VISIT ME ON FACEBOOK.txt
 AhaShare.com.txt
 YTSYifyUP... (TOR).txt
-.DS_Store
 ._*
 """)
-
 @dataclass
 class PurgeResults:
     files_to_delete: list = field(default_factory=list)
@@ -77,16 +76,6 @@ def search_and_collect_files(folders, patterns):
                     results.files_to_delete.append(filepath)
                 results.total_files += 1
     return results
-
-def move_to_trash(path):
-    try:
-        result = subprocess.call(['trash-put', path])
-        if result == 0:
-            print(Fore.GREEN + f"[TRASH] Moved to trash: {path}")
-        else:
-            print(Fore.RED + f"[ERROR] Failed to trash {path} (code {result})")
-    except Exception as e:
-        print(Fore.RED + f"[EXCEPTION] Error using trash-put: {e}")
         
 def _is_sample_media_file(path):
     file = os.path.basename(path)
@@ -98,11 +87,12 @@ def delete_files(file_list):
         if file.endswith(('.mkv', '.mp4', '.avi', '.srt')) and not _is_sample_media_file(file):
             print(f"Skipping media file: {file}")
             continue
-        move_to_trash(file)
+        safe_delete(file)
 
 def main():
     parser = argparse.ArgumentParser(description='Search and delete files based on a pattern.')
     parser.add_argument('pattern', nargs='?', default=PURGE_LIST, help='Pattern to search for [or use defaults].')
+    parser.add_argument('-d', '--dsstore', action='store_true', help='Include .DS_Store files.')
     parser.add_argument('-c', '--confirm', action='store_true', help='Confirm deletion of files.')
     parser.add_argument('-f', '--folder', type=str, help='Folder to search.')
     parser.add_argument('-p', '--purge_list', action='store_true', help='Show the purge list.')
@@ -120,6 +110,10 @@ def main():
     if not folders:
         print("No valid folder found. Exiting.")
         return
+    
+    if args.dsstore:
+        print("Including .DS_Store files.")
+        PURGE_LIST.append('.DS_Store')
 
     print(f"Searching {folders} for files to purge...")
 
