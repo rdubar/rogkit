@@ -584,7 +584,7 @@ def find_hidden_files(media_files: List[MediaFile], report=True) -> List[MediaFi
             print(file)
     return hidden_files
 
-def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCHIVE_FILE):
+def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCHIVE_FILE, show_all: bool = False):
     """
     Compare the archive cache with the current media files and detect missing media.
     If a folder exists in the new cache with at least 200MB of media files, we ignore it.
@@ -638,8 +638,16 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
     # **Filter out missing folders if they contain at least 200MB in the new cache**
     filtered_missing = {}
     MIN_VALID_SIZE_BYTES = MIN_FILE_SIZE_MB * 1_000_000  # 200MB in bytes
+    
+    # Ignore bonus folders like 'Extras', 'Featurettes', etc.
+    EXCLUDED_SUBFOLDERS = {'extras', 'featurettes', 'deleted scenes', 'behind the scenes', 'interviews', 'sample'}
 
     for folder, disks in candidate_missing_folders.items():
+        folder_name = os.path.basename(folder).lower()
+    
+        if folder_name in EXCLUDED_SUBFOLDERS:
+            continue  # Skip extras folders entirely
+    
         total_size = media_folder_sizes.get(folder, 0)
         if total_size < MIN_VALID_SIZE_BYTES:  # Keep only folders below 200MB
             filtered_missing[folder] = disks
@@ -658,7 +666,7 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
     displayed_count = 0
     show_count = 20
     for folder, disks in sorted(filtered_missing.items(), key=lambda x: -sum(x[1].values())):
-        if displayed_count >= show_count:
+        if not show_all and displayed_count >= show_count:
             break  # Stop printing after show_count items
 
         title = os.path.basename(folder)  # Extract the title from the folder name
@@ -669,6 +677,8 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
     # Show summary if there are more missing movies
     if displayed_count < len(filtered_missing):
         print(f"...and {len(filtered_missing) - displayed_count:,} more missing movies.")
+    else:
+        print(f"All {len(filtered_missing):,} missing movies displayed.")
 
 def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
     """
@@ -857,10 +867,10 @@ def main():
         find_hidden_files(media_files)
     
     if args.check:
-        check_against_archive(media_files)
+        check_against_archive(media_files, show_all=args.all)
         
     if args.restore:
-        restore_backup_media(media_files, verbose = args.verbose)
+        restore_backup_media(media_files, verbose=args.verbose)
 
 if __name__ == "__main__":
     main()
