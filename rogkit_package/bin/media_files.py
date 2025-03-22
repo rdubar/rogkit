@@ -676,7 +676,7 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
     """
     from .media_scan import get_media_info  # Optional, for debugging or extra info
 
-    backup_disk_path = "/media/rog/1 TB ExFat"
+    backup_disk_path = "/media/rog/?"
     default_restore_disk = "media1"
     print(f'Checking backup media files in: "{backup_disk_path}"')
 
@@ -731,10 +731,10 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
         return
     
     # Restore the files from the backup disk
-    for record in records_to_check:
+    total = len(records_to_check)
+    for count, record in enumerate(records_to_check):
         # print(f"Restoring: {record.filepath} to {record.disk}")
         new_file_path = f'/mnt/{record.disk}/Media/Movies/' + '/'.join(record.filepath.split('/')[5:])
-
 
         if not os.path.exists(record.filepath):
             print(f"File not found: {record.filepath}")
@@ -752,26 +752,28 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
                 print(f"Replacing {new_file_path} with {record.filepath}")
         
         # Copy the file from the backup disk to the main media disk
-        print(f"Copying {record.filepath} to {record.disk}")
+        print(f"[{count}/{total}] Copying {record.filename} to {record.disk}")
         try:
+            os.makedirs(os.path.dirname(new_file_path), exist_ok=True)
             shutil.copy(record.filepath, new_file_path)
         except Exception as e:
-            print(f"Error copying {record.filepath} to {new_file_path}: {e}")
+            print(f"Error copying {record.filename} to {new_file_path}: {e}")
             errors.append([record.filepath, e])
             continue
         size_of_new = os.path.getsize(new_file_path)
         if size_of_new != size_of_backup:
-            print(f"Error copying {record.filepath} to {new_file_path}")
-        else:
+            print(f"Error copying {record.filepath} to {record.disk}")
+        elif verbose:
             print(f"Copied {record.filepath} to {new_file_path}")
             
     print(f"Restore complete: {len(records_to_check)} files restored.")
     
     if errors:
         print(f"Errors: {len(errors)}")
-        for error in errors:
-            path, e = error
-            print(f"{path}: {e}")
+        if verbose: 
+            for error in errors:
+                path, e = error
+                print(f"{path}: {e}")
 
 
 def main():

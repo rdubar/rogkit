@@ -2,7 +2,12 @@
 import argparse
 import os
 import fnmatch
+import subprocess
 from dataclasses import dataclass, field
+from colorama import Fore
+
+from ..bin.bytes import byte_size
+
 
 DEFAULT_FOLDER_LIST = [
     "/Users/rdubar/apv/openerp-addons",
@@ -73,13 +78,27 @@ def search_and_collect_files(folders, patterns):
                 results.total_files += 1
     return results
 
+def move_to_trash(path):
+    try:
+        result = subprocess.call(['trash-put', path])
+        if result == 0:
+            print(Fore.GREEN + f"[TRASH] Moved to trash: {path}")
+        else:
+            print(Fore.RED + f"[ERROR] Failed to trash {path} (code {result})")
+    except Exception as e:
+        print(Fore.RED + f"[EXCEPTION] Error using trash-put: {e}")
+        
+def _is_sample_media_file(path):
+    file = os.path.basename(path)
+    return file.lower().startswith('sample.') or file.lower().endswith('.sample')
+
 def delete_files(file_list):
     for file in file_list:
-        try:
-            os.remove(file)
-            print(f"Deleted: {file}")
-        except Exception as e:
-            print(f"Failed to delete {file}: {e}")
+        # check for media files
+        if file.endswith(('.mkv', '.mp4', '.avi', '.srt')) and not _is_sample_media_file(file):
+            print(f"Skipping media file: {file}")
+            continue
+        move_to_trash(file)
 
 def main():
     parser = argparse.ArgumentParser(description='Search and delete files based on a pattern.')
@@ -108,12 +127,12 @@ def main():
     print(f"Found {len(results.files_to_delete):,} files to delete from {results.total_files:,} files scanned.")
 
     if args.confirm:
-        print('Delete option disabled.')
-        ### delete_files(results.files_to_delete)
+        delete_files(results.files_to_delete)
     elif results.files_to_delete:
         print("Files to be deleted (use --confirm to actually delete):")
         for file in results.files_to_delete:
-            print(file)
+            size = os.path.getsize(file)
+            print(f"{byte_size(size):>10}   {file}")
 
 if __name__ == "__main__":
     main()
