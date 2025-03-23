@@ -640,7 +640,7 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
     MIN_VALID_SIZE_BYTES = MIN_FILE_SIZE_MB * 1_000_000  # 200MB in bytes
     
     # Ignore bonus folders like 'Extras', 'Featurettes', etc.
-    EXCLUDED_SUBFOLDERS = {'extras', 'featurettes', 'deleted scenes', 'behind the scenes', 'interviews', 'sample'}
+    EXCLUDED_SUBFOLDERS = {'extras', 'featurettes', 'deleted scenes', 'behind the scenes', 'interviews', 'sample', 'trailers', 'picture gallery', 'promo material'} 
 
     for folder, disks in candidate_missing_folders.items():
         folder_name = os.path.basename(folder).lower()
