@@ -587,14 +587,13 @@ def find_hidden_files(media_files: List[MediaFile], report=True) -> List[MediaFi
 def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCHIVE_FILE, show_all: bool = False):
     """
     Compare the archive cache with the current media files and detect missing media.
-    If a folder exists in the new cache with at least 200MB of media files, we ignore it.
+    A movie is only considered missing if its main folder doesn't exist with at least 200MB of media on *any* disk.
     """
 
     if not os.path.exists(archive_file):
         print(f"❌ Archive file not found: {archive_file}")
         return
 
-    # Load archive data
     try:
         with open(archive_file, 'r') as f:
             archive_data = json.load(f)
@@ -602,79 +601,74 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
         print(f"❌ Error reading JSON from archive: {e}")
         return
 
-    # Extract file paths and sizes from the archive
+    # Prepare lookup for archive file info
     archive_files = {file['filepath']: (file['filesize'], file['disk']) for file in archive_data}
-
-    # Get current media file paths and map total sizes per folder
     media_file_paths = {media_file.filepath for media_file in media_files}
 
-    # Track folder-level media sizes in the new cache
+    # Track folder-level total sizes in the current cache
     media_folder_sizes = defaultdict(int)  # {folder_path: total_size}
     for media_file in media_files:
         folder_path = os.path.dirname(media_file.filepath)
         media_folder_sizes[folder_path] += media_file.filesize
 
-    # Identify missing files
+    # Identify missing file paths
     missing_files = {
         path: (size, disk)
         for path, (size, disk) in archive_files.items()
         if path not in media_file_paths
     }
 
-    # Define valid media file extensions
     media_extensions = MEDIA_TYPES
+    MIN_VALID_SIZE_BYTES = MIN_FILE_SIZE_MB * 1_000_000  # 200MB in bytes
 
-    # Identify missing media by grouping them by folder
+    # Candidate folders that might be missing
     candidate_missing_folders = defaultdict(lambda: defaultdict(int))  # {folder_path: {disk: total_size}}
-
     for filepath, (filesize, disk) in missing_files.items():
-        filename = os.path.basename(filepath)
-        file_extension = filename.lower().split('.')[-1]
-
-        if file_extension in media_extensions:
+        ext = filepath.lower().split('.')[-1]
+        if ext in media_extensions:
             folder_path = os.path.dirname(filepath)
             candidate_missing_folders[folder_path][disk] += filesize
 
-    # **Filter out missing folders if they contain at least 200MB in the new cache**
+    # Ignore folders that are actually present elsewhere
     filtered_missing = {}
-    MIN_VALID_SIZE_BYTES = MIN_FILE_SIZE_MB * 1_000_000  # 200MB in bytes
-    
-    # Ignore bonus folders like 'Extras', 'Featurettes', etc.
-    EXCLUDED_SUBFOLDERS = {'extras', 'featurettes', 'deleted scenes', 'behind the scenes', 'interviews', 'sample', 'trailers', 'picture gallery', 'promo material'} 
+    EXCLUDED_SUBFOLDERS = {'extras', 'featurettes', 'deleted scenes', 'behind the scenes', 'interviews', 'sample', 'trailers', 'picture gallery', 'promo material'}
 
-    for folder, disks in candidate_missing_folders.items():
-        folder_name = os.path.basename(folder).lower()
-    
+    for folder_path, disk_info in candidate_missing_folders.items():
+        folder_name = os.path.basename(folder_path).lower()
+
         if folder_name in EXCLUDED_SUBFOLDERS:
             continue  # Skip extras folders entirely
-    
-        total_size = media_folder_sizes.get(folder, 0)
-        if total_size < MIN_VALID_SIZE_BYTES:  # Keep only folders below 200MB
-            filtered_missing[folder] = disks
 
-    # **Compute total missing size**
-    total_missing_size = sum(sum(sizes.values()) for sizes in filtered_missing.values())
+        # Find if this folder (basename match) exists *anywhere* in current media
+        folder_basename = os.path.basename(folder_path)
+        found_equivalent = any(
+            os.path.basename(existing_folder) == folder_basename and
+            size >= MIN_VALID_SIZE_BYTES
+            for existing_folder, size in media_folder_sizes.items()
+        )
 
-    # **Final Output**
+        if not found_equivalent:
+            filtered_missing[folder_path] = disk_info
+
+    # Report
     if not filtered_missing:
         print("✅ No important media files are missing.")
         return
 
+    total_missing_size = sum(sum(sizes.values()) for sizes in filtered_missing.values())
     print(f"⚠️ {len(filtered_missing):,} missing movies detected, totaling {size_as_string(total_missing_size)}.")
 
-    # **Limit output to 10 missing movies**
+    # Display top N
     displayed_count = 0
     show_count = 20
     for folder, disks in sorted(filtered_missing.items(), key=lambda x: -sum(x[1].values())):
         if not show_all and displayed_count >= show_count:
-            break  # Stop printing after show_count items
-
-        title = os.path.basename(folder)  # Extract the title from the folder name
+            break
+        title = os.path.basename(folder)
         disk_info = ", ".join(f"{disk}: {size_as_string(size)}" for disk, size in disks.items())
         print(f"{title} ({disk_info})")
         displayed_count += 1
 
-    # Show summary if there are more missing movies
     if displayed_count < len(filtered_missing):
         print(f"...and {len(filtered_missing) - displayed_count:,} more missing movies.")
     else:
