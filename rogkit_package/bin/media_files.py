@@ -24,7 +24,7 @@ script_dir = os.path.dirname(os.path.abspath(__file__))
 CACHE_FILE = os.path.join(script_dir, "media_files_cache.json")
 ARCHIVE_FILE = os.path.join(script_dir, "media_files_cache_archive.json")
 
-MIN_FILE_SIZE_MB = 200  # Minimum file size to consider as a valid replacement
+MIN_FILE_SIZE_MB = 150  # Minimum file size to consider as a valid replacement
 
 MEDIA_TYPES = { 'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mpg', 'mpeg', 'm4v', '3gp', 'vob', 'ts', 'divx', 'xvid' }
 
