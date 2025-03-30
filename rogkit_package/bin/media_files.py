@@ -823,7 +823,7 @@ def main():
     if not args.refresh and cache_last_modified:
         media_files = load_file_list_from_cache()
     else:
-        print(f"Connecting to {args.server} and fetching media file list from {args.path}...")
+        print(f"Fetching media file list from {args.server}:{args.path}...")
         media_files = get_remote_media_files(args.path, args.server, args.username)
         if not media_files:
             print("No media files found or error occurred.")
