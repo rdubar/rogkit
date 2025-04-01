@@ -2,7 +2,6 @@
 import argparse
 import os
 import fnmatch
-import subprocess
 from dataclasses import dataclass, field
 from colorama import Fore
 

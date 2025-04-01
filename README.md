@@ -112,6 +112,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * catyears: show a cat's age in human years
 * dice: throw dice
 * inter: run Open Interpreter
+* iso: extract the largest media file from an ISO file
 * large: show folders with multiple very large files
 * lm: run a local LLM (using the LM application)
 * mfiles media files utility
