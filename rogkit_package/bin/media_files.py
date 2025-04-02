@@ -506,41 +506,41 @@ def process_exact_matches(exact_matches: List[str], media_files: List[MediaFile]
     return sorted_folders
 
 
-def find_small_media_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_000_000):
+def find_small_media_folders(media_folders: List[MediaFolder], min_folder_size: int = 1_000_000, ignore_subs: bool = False):
     """
     Find media folders with a total size less than the threshold.
 
     :param media_folders: List of MediaFolder objects to inspect.
-    :param min_folder_size: Minimum total size to consider (default: 500MB).
+    :param min_folder_size: Minimum total size to consider (default: 100KB).
+    :param ignore_subs: If True, exclude folders that only contain subtitle files.
     """
     small_folders = []
-    
+
+    subtitle_exts = {'srt', 'sub', 'idx', 'ass', 'ssa', 'vtt'}
+
     for folder in media_folders:
-        # Skip Music folders
-        if 'music' in folder.location.lower() or 'audiobook' in folder.location.lower():
+        total = folder.total_size()
+        if total > min_folder_size:
             continue
-        # Skip folders with a total size greater than the threshold
-        if folder.total_size() > min_folder_size:
-            continue
-        
+
+        if ignore_subs:
+            # Only skip folders if **all files** are subtitle-related
+            if all(f.filetype.lower() in subtitle_exts for f in folder.files):
+                continue
+
         small_folders.append(folder)
 
-    # Generate descriptive output
-    total_str = size_as_string(min_folder_size)
-    description = f"{len(small_folders):,} of {len(media_folders):,} folders have a total size < {total_str}."
-    print(description)
-    
-    # Print detailed information for matching folders
+    size_str = size_as_string(min_folder_size)
+    print(f"{len(small_folders):,} of {len(media_folders):,} folders have a total size < {size_str}.")
+
     for folder in small_folders:
         print(folder)
-        # print the files in the folder
         for file in folder.files:
             print(f"  {file}")
-    
-    if len(small_folders) == 0:
+        print()
+
+    if not small_folders:
         print("No folders found matching the criteria.")
-    elif len(small_folders) > 10:
-        print(description)
 
 
 def find_small_media_files(media_files: List[MediaFile], max_size: int = 300_000_000, report=True) -> List[MediaFile]:
@@ -796,6 +796,7 @@ def main():
     parser.add_argument('--hidden', action="store_true", help="Include hidden files")
     parser.add_argument('-R', "--restore", action="store_true", help="Restore media files from backup disk")
     parser.add_argument('-v', "--verbose", action="store_true", help="Verbose output")
+    parser.add_argument("--small", action="store_true", help="Find small media folders")
     parser.add_argument("--server", default="pi5", help="Server hostname or IP address")
     parser.add_argument("--username", default="rog", help="Username for SSH connection")
     
@@ -865,6 +866,9 @@ def main():
         
     if args.restore:
         restore_backup_media(media_files, verbose=args.verbose)
+        
+    if args.small:
+        find_small_media_folders(media_folders)
 
 if __name__ == "__main__":
     main()
