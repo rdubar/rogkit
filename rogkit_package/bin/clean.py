@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python3
 import os
 import fnmatch
@@ -39,8 +38,10 @@ def main():
     desired_filenames = ['*.po', '*.pot']
 
     parser = argparse.ArgumentParser(description="Clean .po and .pot files modified within a certain time frame.")
-    parser.add_argument("--test", action="store_true", help="Test run only")
+    parser.add_argument("--confirm", action="store_true", help="Confirm that files should be cleaned")
     parser.add_argument('-m', "--minutes", type=int, default=default_minutes, help="Minutes to look back for modified files")
+    parser.add_argument('-a', "--all", action="store_true", help="Clean all matching files, ignoring modification time")
+    parser.add_argument('search', nargs='?', default=None, help="Optional: only clean files containing this string")
     args = parser.parse_args()
 
     if not os.path.exists(root_directory):
@@ -54,20 +55,35 @@ def main():
     print(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
     all_files = list(find_files(root_directory, desired_filenames))
     total_files = len(all_files)
-    time_limit = time.time() - (args.minutes * 60)
-    recent_files = [file for file in all_files if os.path.getmtime(file) > time_limit]
 
-    print(f"Cleaning {len(recent_files)} of {total_files:,} files named {', '.join(desired_filenames)} modified within the last {args.minutes} minutes.")
+    if args.all:
+        files_to_clean = all_files
+        print(f"Cleaning ALL {total_files:,} matching files.")
+    else:
+        time_limit = time.time() - (args.minutes * 60)
+        files_to_clean = [file for file in all_files if os.path.getmtime(file) > time_limit]
+        print(f"Cleaning {len(files_to_clean)} of {total_files:,} files modified within the last {args.minutes} minutes.")
 
-    if args.test:
-        print("Test run only. No files were modified.")
+    # New: warn if no files selected
+    if not files_to_clean:
+        print(f"⚠️  No files found to clean. Tip: use --all to clean/search across all files.")
+
+    # New: Filter by search string if provided
+    if args.search:
+        before_filter = len(files_to_clean)
+        search_term = args.search.lower()
+        files_to_clean = [file for file in files_to_clean if search_term in file.lower()]
+        print(f"After fuzzy search filter '{args.search}': {len(files_to_clean)} files (from {before_filter})")
+
+    if not args.confirm:
+        print("Test run only. No files were modified. Use --confirm to proceed.")
         return
 
     if not os.path.exists(script_path):
         print(f"Script path {script_path} does not exist. Exiting.")
         return
 
-    for path in recent_files:
+    for path in files_to_clean:
         print(f'Running translation_clean.sh on {path}')
         command = f'{script_path} {path}'
         output, error = run_command(command)
