@@ -34,7 +34,7 @@ def main():
     print("Translation Clean Script")
 
     default_minutes = 10
-    root_directory = '/Users/rdubar/apv/openerp-addons'
+    root_directory = '/Users/rdubar/apv/openerp-addons/src/addons'
     desired_filenames = ['*.po', '*.pot']
 
     parser = argparse.ArgumentParser(description="Clean .po and .pot files modified within a certain time frame.")
@@ -62,7 +62,7 @@ def main():
     else:
         time_limit = time.time() - (args.minutes * 60)
         files_to_clean = [file for file in all_files if os.path.getmtime(file) > time_limit]
-        print(f"Cleaning {len(files_to_clean)} of {total_files:,} files modified within the last {args.minutes} minutes.")
+        print(f"Found {len(files_to_clean)} of {total_files:,} files modified within the last {args.minutes} minutes. (Use --all to match all files).")
 
     # New: warn if no files selected
     if not files_to_clean:
@@ -74,6 +74,8 @@ def main():
         search_term = args.search.lower()
         files_to_clean = [file for file in files_to_clean if search_term in file.lower()]
         print(f"After fuzzy search filter '{args.search}': {len(files_to_clean)} files (from {before_filter})")
+        for file in files_to_clean:
+            print(f"  {file}")
 
     if not args.confirm:
         print("Test run only. No files were modified. Use --confirm to proceed.")

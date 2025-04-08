@@ -33,7 +33,7 @@ def collate_files(directory, output_file=None, match=None, ignore_case=False, re
             continue
         for file in files:
             file_path = os.path.join(root, file)
-            if file.endswith((".txt", ".py", ".java", ".cpp", ".html", ".css", ".js", ".json", ".md")):
+            if file.endswith((".txt", ".py", ".java", ".cpp", ".html", ".css", ".js", ".json", ".md", ".mako")):
                 file_list.append(file_path)
 
     if sort_files:
