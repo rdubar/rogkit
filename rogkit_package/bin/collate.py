@@ -8,7 +8,7 @@ def clean_name(name):
     """Create a file-friendly name from a given string."""
     return name.replace(" ", "_").lower()
 
-def collate_files(directory, output_file=None, match=None, ignore_case=False, report=False, sort_files=False):
+def collate_files(directory, output_file=None, match=None, ignore_case=False, report=False, sort_files=False, verbose=False):
     """Recursively collates all text and code files from a given directory into one file."""
     matched = 0
     total = 0
@@ -25,7 +25,7 @@ def collate_files(directory, output_file=None, match=None, ignore_case=False, re
         else:
             output_file = "collated_files.txt"
 
-    exclude_dirs = ["__pycache__", "eggs", "venv", ".git", ".vscode", ".idea", ".ropeproject", ".mypy_cache", ".pytest_cache"]
+    exclude_dirs = ["__pycache__", "eggs", "v27", "venv", ".git", ".vscode", ".idea", ".ropeproject", ".mypy_cache", ".pytest_cache"]
     file_list = []
 
     for root, _, files in os.walk(directory):
@@ -33,7 +33,7 @@ def collate_files(directory, output_file=None, match=None, ignore_case=False, re
             continue
         for file in files:
             file_path = os.path.join(root, file)
-            if file.endswith((".txt", ".py", ".java", ".cpp", ".html", ".css", ".js", ".json", ".md", ".mako")):
+            if file.endswith((".txt", ".py", ".java", ".cpp", ".html", ".css", ".js", ".json", ".md", ".mako", ".csv", ".xml", ".yaml", ".yml")):
                 file_list.append(file_path)
 
     if sort_files:
@@ -51,6 +51,8 @@ def collate_files(directory, output_file=None, match=None, ignore_case=False, re
                 output.append("\n--- {} ---\n".format(file_path))
                 output.append(content + "\n")
                 matched += 1
+                if verbose:
+                    print("[MATCH] {}: {}".format(file_path, match))
         except Exception as e:
             if report:
                 print("[SKIP] {}: {}".format(file_path, e))
@@ -79,6 +81,7 @@ if __name__ == "__main__":
     parser.add_argument("-o", "--output", type=str, default=None, help="Output file name.")
     parser.add_argument("-q", "--quiet", action="store_true", help="Suppress summary output.")
     parser.add_argument("-s", "--sort", action="store_true", help="Sort files alphabetically before collating.")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Enable verbose output.")
 
     args = parser.parse_args()
 
@@ -106,5 +109,6 @@ if __name__ == "__main__":
         match=args.match,
         ignore_case=args.ignore,
         report=not args.quiet,
-        sort_files=args.sort
+        sort_files=args.sort,
+        verbose=args.verbose,
     )

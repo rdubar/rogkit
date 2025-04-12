@@ -1,6 +1,7 @@
 import argparse
 import subprocess
 import platform
+import shutil
 from openai import OpenAI
 from ..bin.tomlr import load_rogkit_toml
 
@@ -58,31 +59,44 @@ def execute_command(command):
     except Exception as e:
         print(f"Command execution failed: {e}")
 
+def command_exists(command):
+    """Check if a command exists in PATH."""
+    return shutil.which(command.split()[0]) is not None
+
 def chat_loop(os_name, expertise_level, engine=DEFAULT_ENGINE):
     history = []
-    print(f"Welcome to the AI Shell for {os_name}. Type your task in natural language. Type 'exit' to quit.")
-    
+    print(f"Welcome to the AI Shell for {os_name}. Type your task or command. Type 'exit' to quit.")
+
     while True:
-        user_input = input("Enter task: ")
+        user_input = input("$ ").strip()
         if user_input.lower() in ['exit', 'quit', 'q']:
             break
+        
+        if not user_input:
+            continue
 
+        # First, try to run the command directly
+        if command_exists(user_input):
+            execute_command(user_input)
+            continue
+        
+        # Command doesn't exist, ask AI
+        print("Unrecognized command. Asking AI for help...")
         try:
             response = query_chatgpt(user_input, os_name, expertise_level, engine=engine, history=history)
             output = response.choices[0].message.content.strip()
 
-            # Confirm and execute
+            # Show suggestion
             print(f"AI Suggestion: {output}")
             confirm = input("Run this command? (y/n): ").strip().lower()
             if confirm == 'y':
                 execute_command(output)
 
-            # Update history
             history.append({"role": "user", "content": user_input})
             history.append({"role": "assistant", "content": output})
-
+        
         except Exception as e:
-            print(f"Error: {e}")
+            print(f"Error during AI query: {e}")
 
 def main():
     parser = argparse.ArgumentParser(description="AI Shell for executing tasks.")

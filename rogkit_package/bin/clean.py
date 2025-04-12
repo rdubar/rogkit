@@ -34,7 +34,7 @@ def main():
     print("Translation Clean Script")
 
     default_minutes = 10
-    root_directory = '/Users/rdubar/apv/openerp-addons/src/addons'
+    root_directory = '/Users/rdubar/apv/openerp-addons/src/'
     desired_filenames = ['*.po', '*.pot']
 
     parser = argparse.ArgumentParser(description="Clean .po and .pot files modified within a certain time frame.")
