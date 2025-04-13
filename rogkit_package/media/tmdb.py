@@ -57,30 +57,43 @@ class DataList:
             return False
 
     def get_movie_details(self, title, year=None):
-        if not self.api_key:
-            print("No TMDb API key found")
-            return None
-
         url = f"https://api.themoviedb.org/3/search/movie?api_key={self.api_key}&query={title}"
         response = requests.get(url)
-        if response.status_code == 200:
-            results = response.json().get('results', [])
-            if results:
-                # If year is provided, filter by year
-                if year:
-                    results = [
-                        result for result in results
-                        if result.get('release_date') and result['release_date'][:4] == str(year)
-                    ]
-                    if not results:
-                        print(f"No match for {title} ({year})")
-                        return None
-                movie_id = results[0]['id']
-                detailed_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={self.api_key}&append_to_response=credits"
-                detailed_response = requests.get(detailed_url)
-                if detailed_response.status_code == 200:
-                    return detailed_response.json()
-        print(f"No TMDB match for {title} {year}")
+        
+        if response.status_code != 200:
+            print(f"Failed TMDB search for {title} ({year}): Status {response.status_code}")
+            return None
+        
+        results = response.json().get('results', [])
+        
+        if not results:
+            print(f"No TMDB search results found for {title} ({year})")
+            return None
+
+        # If year is provided, try filtering results by year first
+        filtered_results = results
+        if year:
+            filtered_results = [
+                result for result in results
+                if result.get('release_date') and result['release_date'][:4] == str(year)
+            ]
+            
+            if not filtered_results:
+                print(f"No exact year match for {title} ({year}). Retrying without year filter...")
+                filtered_results = results  # fallback to all results
+
+        if len(filtered_results) > 1:
+            print(f"⚠️ Multiple TMDB matches found for {title} ({year if year else ''}) - using first match.")
+
+        # Pick first match safely
+        movie_id = filtered_results[0]['id']
+        detailed_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={self.api_key}&append_to_response=credits"
+        detailed_response = requests.get(detailed_url)
+        
+        if detailed_response.status_code == 200:
+            return detailed_response.json()
+        
+        print(f"Failed TMDB detail fetch for movie ID {movie_id}")
         return None
     
     def delete_record(self, title, year=None):
