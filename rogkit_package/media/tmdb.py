@@ -68,7 +68,10 @@ class DataList:
             if results:
                 # If year is provided, filter by year
                 if year:
-                    results = [result for result in results if result.get('release_date')[:4] == str(year)]
+                    results = [
+                        result for result in results
+                        if result.get('release_date') and result['release_date'][:4] == str(year)
+                    ]
                     if not results:
                         print(f"No match for {title} ({year})")
                         return None
