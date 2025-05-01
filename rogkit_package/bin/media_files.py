@@ -832,6 +832,28 @@ def main():
         print(f"Found {len(media_files):,} media files.")
         save_file_list_to_cache(media_files)
 
+    # Load data, refresh if needed
+    media_files = None
+    should_try_fetch = args.refresh or not cache_last_modified or time_ago_in_seconds > 3600
+
+    if should_try_fetch:
+        print(f"Fetching media file list from {args.server}:{args.path}...")
+        media_files = get_remote_media_files(args.path, args.server, args.username)
+
+        if media_files:
+            print(f"Found {len(media_files):,} media files.")
+            save_file_list_to_cache(media_files)
+        else:
+            print("⚠️ Failed to fetch new media files — attempting to load from cache.")
+
+    if not media_files:
+        media_files = load_file_list_from_cache()
+
+    if not media_files:
+        print("❌ No media files available from server or cache. Aborting.")
+        return
+
+
     # Group media files into folders
     media_folders = group_files_into_folders(media_files)
 
