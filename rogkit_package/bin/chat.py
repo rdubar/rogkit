@@ -5,24 +5,23 @@ from ..bin.tomlr import load_rogkit_toml
 # Load the configuration from TOML file
 TOML = load_rogkit_toml()
 DEFAULT_API_KEY = TOML.get('openai', {}).get('openai_api_key', '')
-# Set the API key globally
 DEFAULT_ENGINE = "gpt-4o"
 
+# Instantiate OpenAI client using MCP
 client = OpenAI(api_key=DEFAULT_API_KEY)
 
 def query_chatgpt(prompt, engine=DEFAULT_ENGINE, history=[]):
-    # Prepare the prompt with history as context
     messages = history + [{"role": "user", "content": prompt}]
-
-    # Send the prompt to ChatGPT using the correct method
-    response = client.chat.completions.create(model=engine,
-    messages=messages)
-
+    
+    response = client.chat.completions.create(
+        model=engine,
+        messages=messages
+    )
     return response
 
 def chat_loop(prompt=None, engine=DEFAULT_ENGINE, history=[]):
     full_prompt = prompt or input("Enter your prompt: ")
-    history = [] 
+    history = []
 
     while True:
         response = query_chatgpt(full_prompt, engine=engine, history=history)
@@ -30,7 +29,6 @@ def chat_loop(prompt=None, engine=DEFAULT_ENGINE, history=[]):
             output = response.choices[0].message.content
             print(output)
 
-            # Update the history with both user and assistant roles
             history.append({"role": "user", "content": full_prompt})
             history.append({"role": "assistant", "content": output})
 
@@ -40,7 +38,6 @@ def chat_loop(prompt=None, engine=DEFAULT_ENGINE, history=[]):
         full_prompt = input("> ")
         if full_prompt.lower() in ['exit', 'quit', 'q']:
             break
-
 
 def main():
     parser = argparse.ArgumentParser(description="CLI for querying ChatGPT.")
@@ -52,13 +49,13 @@ def main():
     
     if args.info:
         print(f'Connected to OpenAI engine: {args.engine}')
-    
+
     if args.prompt:
         full_prompt = ' '.join(args.prompt)
     else:
-        args.prompt = input("Enter your prompt: ")
+        full_prompt = input("Enter your prompt: ")
 
-    history = []  # Initialize the history list
+    history = []
 
     while True:
         response = query_chatgpt(full_prompt, engine=args.engine, history=history)
@@ -66,7 +63,6 @@ def main():
             output = response.choices[0].message.content
             print(output)
 
-            # Update the history with both user and assistant roles
             history.append({"role": "user", "content": full_prompt})
             history.append({"role": "assistant", "content": output})
 
@@ -76,7 +72,6 @@ def main():
         full_prompt = input("> ")
         if full_prompt.lower() in ['exit', 'quit', 'q']:
             break
-
 
 if __name__ == "__main__":
     main()
