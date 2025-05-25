@@ -235,14 +235,14 @@ def search_plex_live(plex_connection, search_query):
     return plex_connection.search_plex(search_query)
 
 
-def media_info(item, args=None, length=40):
+def media_info(item, args=None, length=50):
     """Return formatted string with title, size, resolution, duration (hh:mm), and optional file path/info."""
     args = args or argparse.Namespace()
     show_path = getattr(args, "path", False)
     show_info = getattr(args, "info", False)
 
     size = item.get('file_size_bytes')
-    resolution = item.get('resolution') or "??"
+    resolution = item.get('resolution') or ""
     duration = item.get('duration_seconds')
     title = item.get('title', 'Unknown Title')
     year = item.get('year', None)
@@ -258,7 +258,7 @@ def media_info(item, args=None, length=40):
         h_m_string = ""
 
     # Format size
-    size_str = byte_size(size) if size is not None else "??"
+    size_str = byte_size(size) if size is not None else ""
 
     # Crop and pad title
     if len(title) > length:
@@ -278,67 +278,58 @@ def media_info(item, args=None, length=40):
 
 
 def main():
-    print("Plex Media Search and Mark as Watched Tool")
+    print("Rog's Plex Media Tool")
+    
+    default_number = 10
 
     parser = argparse.ArgumentParser(description="Search or manage your Plex library.")
     general_group = parser.add_argument_group('General Settings')
     action_group = parser.add_argument_group('Action Settings')
+    server_group = parser.add_argument_group('Server Settings') 
 
     general_group.add_argument('search', nargs='*', help="Search string for media titles")
-    general_group.add_argument('-u', '--update', action='store_true', help="Update the local metadata cache")
-    general_group.add_argument('--live', action='store_true', help="Search directly on Plex server instead of using cache")
-    general_group.add_argument('--server', default=PLEX_SERVER_URL, help="Plex server URL")
-    general_group.add_argument('--token', default=PLEX_SERVER_TOKEN, help="Plex server token")
-    general_group.add_argument('--port', default=PLEX_SERVER_PORT, help="Plex server port (default: 32400)")
-    general_group.add_argument('-i', '--info', action='store_true', help="Show media information")
     general_group.add_argument('-a', '--all', action='store_true', help="Show all media items")
+    general_group.add_argument('-i', '--info', action='store_true', help="Show media information")
     general_group.add_argument('-p', '--path', action='store_true', help="Show media path")
-    general_group.add_argument('--number', '-n', type=int, default=10, help="Show N most recently added items if no search is given")
+    general_group.add_argument('-u', '--update', action='store_true', help="Update the local metadata cache")
+    general_group.add_argument('-y', '--year', action='store_true', help="Sort by year")
+    general_group.add_argument('--number', '-n', type=int, default=default_number, help=f"Show N items (default: {default_number})")
+    server_group.add_argument('--live', action='store_true', help="Search directly on Plex server instead of using cache")
+    server_group.add_argument('--server', default=PLEX_SERVER_URL, help="Plex server URL")
+    server_group.add_argument('--token', default=PLEX_SERVER_TOKEN, help="Plex server token")
+    server_group.add_argument('--port', default=PLEX_SERVER_PORT, help="Plex server port (default: 32400)")
 
     action_group.add_argument('-w', '--watched', action='store_true', help="Mark search results as watched (live only)")
 
     args = parser.parse_args()
     search_query = ' '.join(args.search) if args.search else None
 
-    # Handle cache generation
-    if args.update or not os.path.exists(CACHE_PATH):
-        if not args.update:
-            print("Cache file not found. Generating cache...")
-        else:
-            print("Updating Plex metadata cache...")
-
+    # Handle cache update
+    cache_missing = not os.path.exists(CACHE_PATH)
+    if args.update or cache_missing:
+        print("Updating Plex metadata cache..." if args.update else "Cache file not found. Generating cache...")
         plex_connection = PlexConnection(args.server, args.token, args.port)
         plex_connection.save_cache(cache_path=CACHE_PATH, include_file_size=True)
         return
 
+    # Load cache
+    with open(CACHE_PATH, encoding='utf-8') as f:
+        all_items = json.load(f)
+
+    total_items = len(all_items)
+
     # Show cache age
-    if os.path.exists(CACHE_PATH):
-        cache_age_seconds = time.time() - os.path.getmtime(CACHE_PATH)
-        print(f"Cache file age: {convert_seconds(cache_age_seconds, long_format=True, show_seconds=True)}")
+    cache_age_seconds = time.time() - os.path.getmtime(CACHE_PATH)
+    print(f"Cache last updated {convert_seconds(cache_age_seconds, long_format=True, show_seconds=True)} ago.")
 
-    # If no search query is provided, show the last N items added to Plex
+    # No search = show last N added
     if not search_query:
-        print(f"\nShowing last {args.number} items added to Plex:")
-
-        if not os.path.exists(CACHE_PATH):
-            print("Cache is missing. Please run with --cache first.")
-            sys.exit(1)
-
-        with open(CACHE_PATH, encoding='utf-8') as f:
-            items = json.load(f)
-        
-        total_items = len(items)
-        print(f"Total items in cache: {total_items:,}")
-        
-        if args.all:
-            args.number = total_items
-
-        items_with_dates = [item for item in items if item.get("added_at")]
+        print(f"\nShowing last {args.number} items added of {total_items:,} on the Plex server:")
+        items_with_dates = [item for item in all_items if item.get("added_at")]
         recent_items = sorted(items_with_dates, key=lambda x: x["added_at"], reverse=True)[:args.number]
 
         for item in recent_items:
-            added_str = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(item["added_at"]))
-            print(f"    {media_info(item, args=args)}")
+            print("  " + media_info(item, args=args))
         return
 
     # Perform search
@@ -352,17 +343,27 @@ def main():
         print("No matches found.")
         return
 
-    print(f"\nFound {len(results)} match(es) for '{search_query}':")
-    for item in results:
+    if args.all:
+        args.number = len(results)
+
+    if args.year:
+        results = sorted(results, key=lambda x: x.get('year', 0), reverse=True)
+
+    match_str = "match" if len(results) == 1 else "matches"
+    showing_count = len(results) if args.all else min(args.number, len(results))
+    number_str = "all" if args.all or showing_count == len(results) else f"{showing_count:,} of"
+    print(f"Showing {number_str} {len(results):,} {match_str} for '{search_query}' in {total_items:,} items:")
+    for item in results[:args.number]:
         if isinstance(item, dict):
-            print("  " + media_info(item, args=args, length=40))
+            print("  " + media_info(item, args=args))
         else:
-            # Live PlexAPI item — fallback to basic info
+            # Live PlexAPI fallback
             title = getattr(item, 'title', 'Unknown Title')
             year = getattr(item, 'year', 'N/A')
             print(f"  - {title} ({year})")
+    if number := len(results) > args.number:
+        print(f"  ...and {len(results) - args.number:,} more results.")
 
-    # Mark watched (only in live mode)
     if args.watched:
         if args.live:
             plex_connection.mark_as_watched(results)
