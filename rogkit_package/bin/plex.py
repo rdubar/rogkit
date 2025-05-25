@@ -3,6 +3,7 @@ import sys
 import time
 import json
 import argparse
+import pickle
 from dataclasses import dataclass
 from typing import List
 from pathlib import Path
@@ -22,7 +23,7 @@ PLEX_SERVER_TOKEN = TOML.get('plex', {}).get('plex_server_token', None)
 PLEX_SERVER_PORT = TOML.get('plex', {}).get('plex_server_port', 32400)
 
 # put the cache file in the rogkit package directory
-CACHE_PATH = os.path.join(root_dir, 'plex_cache.json')
+CACHE_PICKLE_PATH = os.path.join(root_dir, 'plex_cache.pkl')
 
 
 @dataclass
@@ -188,9 +189,7 @@ class PlexConnection:
                 if duration:
                     total_seconds += duration
 
-        # Write to JSON file
-        with open(cache_file, "w", encoding="utf-8") as f:
-            json.dump(data, f, indent=2)
+        save_cache_data(data)
 
         size_kb = cache_file.stat().st_size / 1024
         elapsed_time = time.perf_counter() - start_time
@@ -202,14 +201,28 @@ class PlexConnection:
         print(f"Cache operation completed in {elapsed_time:.2f} seconds.")
 
 
+def save_cache_data(data):
+    # Save as Pickle (for speed)
+    with open(CACHE_PICKLE_PATH, "wb") as f:
+        pickle.dump(data, f)
+
+    print(f"Saved cache: {len(data)} items to .pkl")
+    
+def load_cache_data():
+    if os.path.exists(CACHE_PICKLE_PATH):
+        with open(CACHE_PICKLE_PATH, "rb") as f:
+            return pickle.load(f)
+    else:
+        raise FileNotFoundError("No cache file found. Please run with --update.")
+
+
 def search_cache(search_query):
     """Search the local Plex metadata cache for matching titles, resolution, or other metadata."""
-    if not os.path.exists(CACHE_PATH):
+    if not os.path.exists(CACHE_PICKLE_PATH):
         print("Cache file not found. Please generate it with --cache.")
         return []
 
-    with open(CACHE_PATH, encoding='utf-8') as f:
-        items = json.load(f)
+    items = load_cache_data()
 
     query = search_query.lower()
 
@@ -305,21 +318,20 @@ def main():
     search_query = ' '.join(args.search) if args.search else None
 
     # Handle cache update
-    cache_missing = not os.path.exists(CACHE_PATH)
+    cache_missing = not os.path.exists(CACHE_PICKLE_PATH)
     if args.update or cache_missing:
         print("Updating Plex metadata cache..." if args.update else "Cache file not found. Generating cache...")
         plex_connection = PlexConnection(args.server, args.token, args.port)
-        plex_connection.save_cache(cache_path=CACHE_PATH, include_file_size=True)
+        plex_connection.save_cache(cache_path=CACHE_PICKLE_PATH, include_file_size=True)
         return
 
     # Load cache
-    with open(CACHE_PATH, encoding='utf-8') as f:
-        all_items = json.load(f)
+    all_items = load_cache_data()
 
     total_items = len(all_items)
 
     # Show cache age
-    cache_age_seconds = time.time() - os.path.getmtime(CACHE_PATH)
+    cache_age_seconds = time.time() - os.path.getmtime(CACHE_PICKLE_PATH)
     print(f"Cache last updated {convert_seconds(cache_age_seconds, long_format=True, show_seconds=True)} ago.")
 
     # No search = show last N added

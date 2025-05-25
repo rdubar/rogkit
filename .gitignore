@@ -5,8 +5,9 @@
 .DS_Store
 .spotify_cache
 
-# Ignore json data files
+# Ignore json & pkl data files
 *.json
+*.pkl
 
 # lists of media files to check
 lists/
