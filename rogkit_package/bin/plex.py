@@ -4,6 +4,7 @@ from plexapi.exceptions import NotFound
 import sys
 from dataclasses import dataclass
 from typing import List
+import time
 
 from ..bin.tomlr import load_rogkit_toml
 
@@ -114,6 +115,53 @@ class PlexConnection:
 
             except Exception as e:
                 print(f"Could not mark '{result.title}' as watched: {e}")
+                
+    def save_cache(self, cache_path="~/.rogkit/plex_cache.json", include_file_size=False):
+        """Fetch full Plex library metadata and save to local cache file."""
+        start_time = time.perf_counter()
+        try:
+            from pathlib import Path
+            import json
+
+            cache_file = Path(cache_path).expanduser()
+            cache_file.parent.mkdir(parents=True, exist_ok=True)
+            data = []
+
+            for section in self.plex.library.sections():
+                if section.type in ["movie", "show"]:
+                    print(f"Caching section: {section.title} ({section.type})")
+                    items = section.all()
+                    for item in items:
+                        try:
+                            media_part = item.media[0].parts[0]
+                            entry = {
+                                "title": item.title,
+                                "year": getattr(item, "year", None),
+                                "type": item.TYPE,
+                                "watched": getattr(item, "isWatched", False),
+                                "duration_seconds": item.duration // 1000 if item.duration else None,
+                                "summary": getattr(item, "summary", ""),
+                                "file_path": media_part.file,
+                            }
+                            if include_file_size:
+                                entry["file_size_bytes"] = getattr(media_part, "size", None)
+                            data.append(entry)
+                        except Exception as e:
+                            print(f"Skipping {item.title} due to error: {e}")
+
+            with open(cache_file, "w", encoding="utf-8") as f:
+                json.dump(data, f, indent=2)
+
+            print(f"\nSaved {len(data)} items to cache at {cache_file}")
+            print(f"Cache file size: {cache_file.stat().st_size / 1024:.2f} KB")
+
+        except Exception as e:
+            print(f"Failed to save cache: {e}")
+        
+        finally:
+            end_time = time.perf_counter()
+            elapsed_time = end_time - start_time
+            print(f"Cache operation completed in {elapsed_time:.2f} seconds.")
 
 
 def main():
@@ -128,6 +176,7 @@ def main():
 
     # Add arguments to each group
     general_group.add_argument('search', nargs='*', help="Search string for media titles")
+    general_group.add_argument('-c', "--cache", action="store_true", help="Save full Plex library metadata to local cache file")
     general_group.add_argument('-s', "--server", default=PLEX_SERVER_URL, help="Plex server URL (default from config file)")
     general_group.add_argument('-t', "--token", default=PLEX_SERVER_TOKEN, help="Plex server token (default from config file)")
     general_group.add_argument('-p', "--port", default=PLEX_SERVER_PORT, help="Plex server port (default 32400)")
@@ -136,6 +185,12 @@ def main():
 
     # Parse arguments
     args = parser.parse_args()
+    
+    # If cache is requested, save the full Plex library metadata
+    if args.cache:
+        plex_connection = PlexConnection(args.server, args.token, args.port)
+        plex_connection.save_cache(include_file_size=True)
+        return
 
     # Join the search arguments if provided
     search_query = ' '.join(args.search) if args.search else None
