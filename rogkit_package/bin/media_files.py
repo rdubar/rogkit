@@ -94,18 +94,18 @@ class MediaFolder:
 def standardize_title(title: str) -> str:
     """
     Standardize the title by:
-    - Removing special characters (excluding spaces and alphanumerics)
-    - Converting to lowercase
-    - Trimming spaces
-    - Removing any text after a closing parenthesis ")"
+    - Preserving year in parentheses (e.g., "Movie Title (1991)")
+    - Removing other special characters (excluding alphanumerics, spaces, and parentheses)
+    - Lowercasing
+    - Normalizing whitespace
     """
-    # Remove anything after a ")"
-    title = re.split(r'\)', title, maxsplit=1)[0]
-    # Remove special characters except spaces and alphanumerics
-    title = re.sub(r'[^a-zA-Z0-9\s]', '', title)
-    # Convert to lowercase and strip leading/trailing whitespace
-    title = title.lower().strip()
-    return title
+    # Keep letters, digits, spaces, and parentheses
+    title = re.sub(r'[^a-zA-Z0-9\s()]', '', title)
+    
+    # Collapse multiple spaces
+    title = re.sub(r'\s+', ' ', title)
+
+    return title.lower().strip()
 
 def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
     """

@@ -1,7 +1,6 @@
 import os
 import sys
 import time
-import json
 import argparse
 import pickle
 from dataclasses import dataclass
@@ -154,7 +153,7 @@ class PlexConnection:
                     "file_path": None,
                     "file_size_bytes": None,
                     "added_at": getattr(item, "addedAt", None).timestamp() if getattr(item, "addedAt", None) else None,
-                    "cast": [r.tag for r in getattr(item, "roles", [])],
+                    # "cast": [r.tag for r in getattr(item, "roles", [])],
                     "resolution": None
                 }
 
@@ -234,7 +233,7 @@ def search_cache(search_query):
             item.get("summary", ""),
             item.get("file_path", ""),
             item.get("year", ""),
-            ' '.join(item.get("cast", [])),  # New: searchable cast names
+            # ' '.join(item.get("cast", [])),  # searchable cast names
         ]
         return any(query in str(val).lower() for val in fields if isinstance(val, str))
 
@@ -248,11 +247,12 @@ def search_plex_live(plex_connection, search_query):
     return plex_connection.search_plex(search_query)
 
 
-def media_info(item, args=None, length=50):
+def media_info(item, args=None):
     """Return formatted string with title, size, resolution, duration (hh:mm), and optional file path/info."""
     args = args or argparse.Namespace()
     show_path = getattr(args, "path", False)
     show_info = getattr(args, "info", False)
+    title_length = getattr(args, "length", 50)
 
     size = item.get('file_size_bytes')
     resolution = item.get('resolution') or ""
@@ -274,10 +274,10 @@ def media_info(item, args=None, length=50):
     size_str = byte_size(size) if size is not None else ""
 
     # Crop and pad title
-    if len(title) > length:
-        title_display = title[:length - 1] + "…"
+    if len(title) > title_length:
+        title_display = title[:title_length - 1] + "…"
     else:
-        title_display = title.ljust(length)
+        title_display = title.ljust(title_length)
 
     result = f"{title_display}  {size_str:>9}  {resolution:<5}  {h_m_string}"
     
@@ -306,7 +306,8 @@ def main():
     general_group.add_argument('-p', '--path', action='store_true', help="Show media path")
     general_group.add_argument('-u', '--update', action='store_true', help="Update the local metadata cache")
     general_group.add_argument('-y', '--year', action='store_true', help="Sort by year")
-    general_group.add_argument('--number', '-n', type=int, default=default_number, help=f"Show N items (default: {default_number})")
+    general_group.add_argument('-l', '--length', type=int, default=50, help="Set title length for display (default: 50)")
+    general_group.add_argument('-n', '--number', type=int, default=default_number, help=f"Show N items (default: {default_number})")
     server_group.add_argument('--live', action='store_true', help="Search directly on Plex server instead of using cache")
     server_group.add_argument('--server', default=PLEX_SERVER_URL, help="Plex server URL")
     server_group.add_argument('--token', default=PLEX_SERVER_TOKEN, help="Plex server token")
@@ -384,4 +385,7 @@ def main():
 
 
 if __name__ == "__main__":
+    start_time = time.perf_counter()
     main()
+    elapsed_time = time.perf_counter() - start_time
+    print(f"\nOperation completed in {elapsed_time:.5f} seconds.")
