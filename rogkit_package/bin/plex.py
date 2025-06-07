@@ -308,6 +308,8 @@ def main():
     general_group.add_argument('-y', '--year', action='store_true', help="Sort by year")
     general_group.add_argument('-l', '--length', type=int, default=50, help="Set title length for display (default: 50)")
     general_group.add_argument('-n', '--number', type=int, default=default_number, help=f"Show N items (default: {default_number})")
+    general_group.add_argument('-r', '--reverse', action='store_true', help="Reverse the order of results")
+    general_group.add_argument('-z', '--zed', action='store_true', help="Sort by year and show all")
     server_group.add_argument('--live', action='store_true', help="Search directly on Plex server instead of using cache")
     server_group.add_argument('--server', default=PLEX_SERVER_URL, help="Plex server URL")
     server_group.add_argument('--token', default=PLEX_SERVER_TOKEN, help="Plex server token")
@@ -355,12 +357,18 @@ def main():
     if not results:
         print("No matches found.")
         return
+    
+    if args.zed:
+        args.year = True
+        args.all = True
 
     if args.all:
         args.number = len(results)
 
     if args.year:
-        results = sorted(results, key=lambda x: x.get('year', 0), reverse=True)
+        results = sorted(results, key=lambda x: x.get('year') or 0, reverse=not args.reverse)
+    elif args.reverse:
+        results = list(reversed(results))
 
     match_str = "match" if len(results) == 1 else "matches"
     showing_count = len(results) if args.all else min(args.number, len(results))

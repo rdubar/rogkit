@@ -47,7 +47,7 @@ class PasswordGenerator:
             print("Password length must be greater than 0.")
             exit(1)
         if self.length > self.max_length:
-            print(f"Maxium password length is {self.max_length}.")
+            print(f"Maximum password length is {self.max_length}.")
             exit(1)
         while True:
             self.generate_password()
@@ -57,8 +57,9 @@ class PasswordGenerator:
             break
         return self.password
     
-    def check_password(self):
-        if self.length < 6:
+    def check_password(self, minimum_length=6):
+        if minimum_length and self.length < minimum_length:
+            print(f"Password length must be at least {minimum_length} characters for unique character checks.")
             return True
         if not any(c in self.password for c in string.ascii_lowercase):
             return False
@@ -121,9 +122,12 @@ class PasswordGenerator:
             print(f"Error displaying password info: {e}")
 
 def main():
+    
+    default_length = 20
+    
     parser = argparse.ArgumentParser(description='Generate a password.')
     # Basic password composition options
-    parser.add_argument('-l', '--length', type=int, default=20, help='Length of the password')
+    parser.add_argument('-l', '--length', type=int, default=default_length, help=f'Length of the password (default: {default_length})')
     parser.add_argument('-a', '--alpha', action='store_true', help='Include alphabetic characters')
     parser.add_argument('-n', '--numeric', action='store_true', help='Include numeric characters')
     parser.add_argument('-s', '--special', action='store_true', help='Include special characters')
