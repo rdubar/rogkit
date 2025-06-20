@@ -154,7 +154,7 @@ class PlexConnection:
                     "file_size_bytes": None,
                     "added_at": getattr(item, "addedAt", None).timestamp() if getattr(item, "addedAt", None) else None,
                     # "cast": [r.tag for r in getattr(item, "roles", [])],
-                    "resolution": None
+                    "resolution": None,
                 }
 
                 if hasattr(item, "media") and item.media:
@@ -259,6 +259,9 @@ def media_info(item, args=None):
     duration = item.get('duration_seconds')
     title = item.get('title', 'Unknown Title')
     year = item.get('year', None)
+    disk = item.get('disk', '')
+    path = item.get('file_path', None)
+    disk = f'[{path[10]}]' if path and len(path) > 10 else ''
     if year:
         title += f" ({year})"
 
@@ -279,7 +282,7 @@ def media_info(item, args=None):
     else:
         title_display = title.ljust(title_length)
 
-    result = f"{title_display}  {size_str:>9}  {resolution:<5}  {h_m_string}"
+    result = f"{title_display}  {size_str:>9}  {resolution:<5}  {h_m_string} {disk}"
     
     if show_info:
         result = result + f"\n  {item.get('summary', '')}"
@@ -294,6 +297,7 @@ def main():
     print("Rog's Plex Media Tool")
     
     default_number = 10
+    default_max_length = 45
 
     parser = argparse.ArgumentParser(description="Search or manage your Plex library.")
     general_group = parser.add_argument_group('General Settings')
@@ -306,7 +310,7 @@ def main():
     general_group.add_argument('-p', '--path', action='store_true', help="Show media path")
     general_group.add_argument('-u', '--update', action='store_true', help="Update the local metadata cache")
     general_group.add_argument('-y', '--year', action='store_true', help="Sort by year")
-    general_group.add_argument('-l', '--length', type=int, default=50, help="Set title length for display (default: 50)")
+    general_group.add_argument('-l', '--length', type=int, default=default_max_length, help="Set title length for display (default: {default_max_length})")
     general_group.add_argument('-n', '--number', type=int, default=default_number, help=f"Show N items (default: {default_number})")
     general_group.add_argument('-r', '--reverse', action='store_true', help="Reverse the order of results")
     general_group.add_argument('-z', '--zed', action='store_true', help="Sort by year and show all")
