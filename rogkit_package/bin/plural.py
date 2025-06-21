@@ -37,7 +37,7 @@ def looks_plural(word):
         re.search(r'(ies|ves|ches|shes|xes|zes|s)$', word.lower()) is not None
     )
 
-def plural(word, count):
+def plural(word, count=2):
     if not word or count == 1:
         return word
     
@@ -98,7 +98,7 @@ def main():
 
     try:
         word, count = parse_input(input_str)
-        print(plural(word, count))
+        print(plural(word, count=count))
     except ValueError as e:
         print(f"Error: {e}")
 
