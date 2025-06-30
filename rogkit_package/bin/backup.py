@@ -60,7 +60,7 @@ DEFAULT_FOLDER_EXCLUDES = [
 DEFAULT_ARCHIVE_LOCATIONS = [
     '/mnt/media1/Archive/Backups',
     '/mnt/media2/Archive/Backups',
-    '/Users/rdubar/Dropbox/Archive/MacBookPro/',
+    # '/Users/rdubar/Dropbox/Archive/MacBookPro/',
     '/Users/rdubar/OneDrive - Arden Grange/Archive/Backups'
 ]
 
@@ -151,7 +151,7 @@ def create_backup(verbose=False, archive_locations=DEFAULT_ARCHIVE_LOCATIONS):
     # Create backup archive
     temp_backup_path = backup_file_path + '.tmp'
     try:
-        os.system(f'tar -czf {temp_backup_path} -T {file_list.name}')
+        os.system(f'tar -czf "{temp_backup_path}" -T {file_list.name}')
     except Exception as e:
         print(f'Error during backup: {e}')
         os.remove(temp_backup_path)
