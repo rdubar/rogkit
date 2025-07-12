@@ -128,6 +128,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * tkm: am experimentl graphical front end for media searches
 * transparent: make image transparent
 * Plex: tool to conntect to Plex server (and attempt to mark as watched)
+* shrink: experimental utility to shrink DVD rips
 * stars: print stars or other characters
 * xmlr: an xmlrpc tool
 
