@@ -139,7 +139,12 @@ class PlexConnection:
                 continue  # Skip unsupported types
 
             print(f"Caching section: {section.title} ({section.type})")
-            items = section.all()
+            try:
+                items = section.all()
+                print(f"  Found {len(items):,} items in section '{section.title}'")
+            except Exception as e:
+                print(f"Failed to fetch items from {section.title}: {e}")
+                continue
 
             for item in items:
                 duration = item.duration // 1000 if hasattr(item, "duration") and item.duration else None
@@ -157,8 +162,8 @@ class PlexConnection:
                     "resolution": None,
                 }
 
-                if hasattr(item, "media") and item.media:
-                    try:
+                try:
+                    if hasattr(item, "media") and item.media:
                         media = item.media[0]
                         media_part = media.parts[0]
                         entry["file_path"] = getattr(media_part, "file", None)
@@ -179,9 +184,9 @@ class PlexConnection:
                                     print(f"  [!] Unrecognized resolution '{raw_res}' for '{item.title}'")
                                 entry["resolution"] = normalized  # catch-all fallback
 
-                    except Exception as e:
-                        print(f"  [!] Media access error for '{item.title}': {e}")
-                        continue
+                except Exception as e:
+                    print(f"  [!] Media access error for '{item.title}': {e}")
+                    continue
 
                 # Add to final data list
                 data.append(entry)
