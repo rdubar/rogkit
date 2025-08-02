@@ -117,6 +117,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * iso: extract the largest media file from an ISO file
 * large: show folders with multiple very large files
 * lm: run a local LLM (using the LM application)
+* mapper: create a map from a csv of addresses
 * mfiles media files utility
 * mscan: scan media for resolution, bitrate etc. 
 * miso: make video from an iso file
