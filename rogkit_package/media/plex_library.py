@@ -468,14 +468,17 @@ class PlexLibrary:
         #     for record in self.session.query(PlexRecordORM).all()
         # ]
 
-    def update_test(self):
+    def update_test(self, force=False):
         print("Checking for updates. Please wait...")
         clock = time.perf_counter()
+        database_date = None
         try:
             database_date = self.session.query(func.max(PlexRecordORM.updated_at)).scalar()
         except Exception as e:
             print(f"Error getting database date: {e}")
-            return
+        if not database_date and not force:
+            print("No valid database date found - quitting update.")
+            sys.exit(1)
         print(f"Database date: {database_date}")
         # get time in seconds since database_date
         seconds_ago = convert_seconds(time.time() - database_date.timestamp())
