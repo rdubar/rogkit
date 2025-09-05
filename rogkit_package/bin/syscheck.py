@@ -151,12 +151,18 @@ def free_system_resources(platform_type):
     """Attempt to free swap and caches depending on platform."""
     try:
         if platform_type in ["pi", "linux"]:
-            print("Clearing swap...")
-            subprocess.run(["sudo", "swapoff", "-a"], check=True)
-            subprocess.run(["sudo", "swapon", "-a"], check=True)
-            print("Swap reset complete.")
+            # If using zramswap, restart the service instead of generic swapoff
+            if os.path.exists("/etc/default/zramswap"):
+                print("Detected zram. Restarting zramswap service...")
+                subprocess.run(["sudo", "systemctl", "restart", "zramswap.service"], check=True)
+                print("ZRAM swap cleared.")
+            else:
+                print("Clearing standard swap...")
+                subprocess.run(["sudo", "swapoff", "-a"], check=True)
+                subprocess.run(["sudo", "swapon", "-a"], check=True)
+                print("Swap reset complete.")
 
-            print("Dropping caches...")
+            print("Dropping disk caches...")
             subprocess.run(["sudo", "sync"])
             subprocess.run(["sudo", "sysctl", "-w", "vm.drop_caches=3"], check=True)
             print("Disk caches cleared.")
@@ -168,7 +174,7 @@ def free_system_resources(platform_type):
                 subprocess.run(["sudo", purge_path], check=True)
                 print("Memory purge requested.")
             else:
-                print("The 'purge' command is not available. You may need to install Xcode command line tools.")
+                print("The 'purge' command is not available. Try installing Xcode CLI tools.")
         else:
             print("Freeing resources is not supported on this platform.")
     except Exception as e:
