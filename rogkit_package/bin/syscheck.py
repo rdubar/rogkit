@@ -4,6 +4,9 @@ import platform
 import subprocess
 import psutil
 from datetime import timedelta
+import argparse
+import shutil
+
 
 def get_platform():
     """Detect the platform: mac, pi, or linux."""
@@ -144,13 +147,48 @@ def format_memory(size_in_bytes):
             return f"{size_in_bytes:.2f} {unit}"
         size_in_bytes /= 1024
 
+def free_system_resources(platform_type):
+    """Attempt to free swap and caches depending on platform."""
+    try:
+        if platform_type in ["pi", "linux"]:
+            print("Clearing swap...")
+            subprocess.run(["sudo", "swapoff", "-a"], check=True)
+            subprocess.run(["sudo", "swapon", "-a"], check=True)
+            print("Swap reset complete.")
+
+            print("Dropping caches...")
+            subprocess.run(["sudo", "sync"])
+            subprocess.run(["sudo", "sysctl", "-w", "vm.drop_caches=3"], check=True)
+            print("Disk caches cleared.")
+
+        elif platform_type == "mac":
+            print("macOS manages swap dynamically. Attempting to purge inactive memory...")
+            purge_path = shutil.which("purge")
+            if purge_path:
+                subprocess.run(["sudo", purge_path], check=True)
+                print("Memory purge requested.")
+            else:
+                print("The 'purge' command is not available. You may need to install Xcode command line tools.")
+        else:
+            print("Freeing resources is not supported on this platform.")
+    except Exception as e:
+        print(f"Error while freeing resources: {e}")
+
 def main():
+    parser = argparse.ArgumentParser(description="System Reboot Advisor")
+    parser.add_argument("-f", "--free", action="store_true", help="Free swap and caches if possible")
+    args = parser.parse_args()
+    
     print("Rog's System Reboot Advisor")
     
     platform_type = get_platform()
     if platform_type == "unknown":
         print("Unsupported platform.")
         return
+    
+    if args.free:
+        print("\nAttempting to free memory and swap...\n")
+        free_system_resources(platform_type)
 
     # Get system info
     uptime_seconds = get_uptime(platform_type)
