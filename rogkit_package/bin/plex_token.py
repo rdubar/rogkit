@@ -1,58 +1,47 @@
-import os
-import sys
+import re
 import requests
+import sys
+from pathlib import Path
 
+# Load rogkit settings
 from ..settings import root_dir
 from ..bin.tomlr import load_rogkit_toml
 
-def get_token_from_toml():
-    toml = load_rogkit_toml()
-    return toml.get("plex", {}).get("plex_server_token", None)
+def extract_token_from_root():
+    config = load_rogkit_toml()
+    server_url = config.get("plex", {}).get("plex_server_url", "127.0.0.1")
+    port = config.get("plex", {}).get("plex_server_port", 32400)
+    expected_token = config.get("plex", {}).get("plex_server_token")
 
-def get_token_from_plex():
+    url = f"http://{server_url}:{port}/"
+
     try:
-        toml = load_rogkit_toml()
-        server_url = toml.get("plex", {}).get("plex_server_url", "127.0.0.1")
-        port = toml.get("plex", {}).get("plex_server_port", 32400)
-
-        url = f"http://{server_url}:{port}/myplex/account"
-
-        response = requests.get(url)
+        response = requests.get(url, timeout=5)
         if response.status_code != 200:
-            print(f"Error: Could not fetch token from Plex (HTTP {response.status_code})")
-            return None
+            print(f"❌ HTTP error: {response.status_code}")
+            sys.exit(1)
 
-        import re
+        # Try to extract token from XML body
         match = re.search(r'authenticationToken="([^"]+)"', response.text)
         if match:
-            return match.group(1)
+            live_token = match.group(1)
+            print(f"🔑 Extracted token from Plex: {live_token}")
+            if expected_token:
+                if live_token == expected_token:
+                    print("✅ Token matches rogkit.toml")
+                else:
+                    print("⚠️  Token differs from rogkit.toml!")
+            else:
+                print("⚠️  No token in rogkit.toml to compare against")
         else:
-            print("Token not found in Plex response")
-            return None
+            print("❌ Could not find authenticationToken in response")
 
+    except requests.exceptions.ConnectionError as e:
+        print(f"❌ Connection failed: {e}")
+        sys.exit(1)
     except Exception as e:
-        print(f"Error connecting to Plex: {e}")
-        return None
-
-def main():
-    config_token = get_token_from_toml()
-    plex_token = get_token_from_plex()
-
-    if not config_token:
-        print("❌ No token found in rogkit.toml")
-    else:
-        print(f"🔑 Token from rogkit.toml: {config_token}")
-
-    if not plex_token:
-        print("❌ Failed to retrieve live token from Plex")
-    else:
-        print(f"🔐 Live token from Plex:     {plex_token}")
-
-    if config_token and plex_token:
-        if config_token == plex_token:
-            print("✅ Tokens match")
-        else:
-            print("⚠️ Tokens DO NOT match")
+        print(f"❌ Unexpected error: {e}")
+        sys.exit(1)
 
 if __name__ == "__main__":
-    main()
+    extract_token_from_root()
