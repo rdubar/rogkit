@@ -1,8 +1,33 @@
 #!/bin/bash
+#
+# RogKit comprehensive updater
+#
+
+show_help() {
+    echo "Usage: $0 [OPTIONS]"
+    echo
+    echo "Options:"
+    echo "  --full        Perform full-upgrade (default is upgrade + dist-upgrade only)"
+    echo "  -h, --help    Show this help message and exit"
+    echo
+    echo "Examples:"
+    echo "  $0            Run normal upgrade without full-upgrade"
+    echo "  $0 --full     Run upgrade and full-upgrade"
+}
+
+# --- Parse args ---
+DO_FULL=0
+for arg in "$@"; do
+    case $arg in
+        --full) DO_FULL=1 ;;
+        -h|--help) show_help; exit 0 ;;
+        *) echo "Unknown option: $arg"; show_help; exit 1 ;;
+    esac
+done
 
 echo "RogKit comprehensive updater"
 
-start_time=$(date +%s) # Record start time
+start_time=$(date +%s)
 
 # Capture system versions before upgrade
 system_info_before=$(lsb_release -a 2>/dev/null)
@@ -17,23 +42,16 @@ sudo apt upgrade -y
 echo "Performing dist-upgrade..."
 sudo apt dist-upgrade -y
 
-# Check for further upgrades
-echo "Checking for full-upgrade..."
-upgrade_available=$(sudo apt list --upgradable 2>/dev/null | grep -c "upgradable,")
-
-if [ "$upgrade_available" -ne 0 ]; then
-    echo "Further upgrades are available. Do you want to perform a full-upgrade? (y/n)"
-    read answer
-    if [ "$answer" == "y" ]; then
-        echo "Performing full-upgrade..."
-        sudo apt full-upgrade -y
-    fi
+if [ $DO_FULL -eq 1 ]; then
+    echo "Performing full-upgrade (as requested)..."
+    sudo apt full-upgrade -y
+else
+    echo "Skipping full-upgrade (run with --full to enable)."
 fi
 
 echo "Checking for and fixing broken dependencies..."
 sudo apt --fix-broken install -y
 
-# Clean up
 echo "Cleaning up..."
 sudo apt autoremove -y
 
@@ -45,14 +63,13 @@ else
     echo 'Update and upgrade complete. No reboot required.'
 fi
 
-end_time=$(date +%s) # Record end time
-total_time=$((end_time - start_time)) # Calculate total time
+end_time=$(date +%s)
+total_time=$((end_time - start_time))
 
 # Capture system versions after upgrade
 system_info_after=$(lsb_release -a 2>/dev/null)
 kernel_version_after=$(uname -r)
 
-# Compare and display system versions only if there are changes
 if [ "$system_info_before" != "$system_info_after" ] || [ "$kernel_version_before" != "$kernel_version_after" ]; then
     echo "System versions have been updated."
     echo "Before upgrade:"
