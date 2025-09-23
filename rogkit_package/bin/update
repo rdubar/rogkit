@@ -42,11 +42,20 @@ sudo apt upgrade -y
 echo "Performing dist-upgrade..."
 sudo apt dist-upgrade -y
 
+# Check if a full-upgrade would do more
 if [ $DO_FULL -eq 1 ]; then
     echo "Performing full-upgrade (as requested)..."
     sudo apt full-upgrade -y
 else
     echo "Skipping full-upgrade (run with --full to enable)."
+
+    # Warn if additional upgrades are pending that require full-upgrade
+    FULL_UPGRADE_CHECK=$(apt list --upgradable 2>/dev/null | grep -v "Listing..." | wc -l)
+    if [ "$FULL_UPGRADE_CHECK" -gt 0 ]; then
+        echo "⚠️  WARNING: $FULL_UPGRADE_CHECK packages are still upgradable."
+        echo "   Run with --full if you want to apply them."
+        apt list --upgradable 2>/dev/null | grep -v "Listing..."
+    fi
 fi
 
 echo "Checking for and fixing broken dependencies..."
