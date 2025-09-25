@@ -2,6 +2,8 @@ import os
 import toml
 import argparse
 import sys
+from pathlib import Path
+
 from ..settings import toml_sample_path
 
 
@@ -19,15 +21,29 @@ DEFAULT_ROGKIT_TOML = {
     "clean": {"script_path": ""},
 }
 
+def get_rogkit_toml_path() -> Path:
+    """
+    Get the preferred rogkit config path, falling back to legacy.
+    """
+    xdg_config_home = Path(os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config"))
+    modern_path = xdg_config_home / "rogkit" / "config.toml"
+    legacy_path = Path.home() / ".rogkit.toml"
 
-def user_rogkit_toml_path():
-    return os.path.join(os.path.expanduser('~'), '.rogkit.toml')
+    if modern_path.exists():
+        return modern_path
+    if legacy_path.exists():
+        print(f"Using legacy config path: {legacy_path}")
+        return legacy_path
+
+    # Default to modern path for new creation
+    return modern_path
 
 def setup_rogkit_toml():
-    """ Create ~/.rogkit.toml with default settings if it doesn't exist. """
-    rogkit_toml_path = user_rogkit_toml_path()
-    if not os.path.exists(rogkit_toml_path):
+    """Create rogkit config file with default settings if it doesn't exist."""
+    rogkit_toml_path = get_rogkit_toml_path()
+    if not rogkit_toml_path.exists():
         try:
+            rogkit_toml_path.parent.mkdir(parents=True, exist_ok=True)
             with open(rogkit_toml_path, 'w') as f:
                 toml.dump(DEFAULT_ROGKIT_TOML, f)
             print(f"Created {rogkit_toml_path} with default settings.")
@@ -38,7 +54,7 @@ def setup_rogkit_toml():
 
 def load_rogkit_toml(*args):
     """ Load and return the contents of ~/.rogkit.toml as a dict. """
-    rogkit_toml_path = user_rogkit_toml_path()
+    rogkit_toml_path = get_rogkit_toml_path()
     if not os.path.exists(rogkit_toml_path):
         setup_rogkit_toml()
 
@@ -64,7 +80,7 @@ def make_cuttent_rogkit_toml_lowercase():
     """ Load the current rogkit toml and make all keys lowercase. """
     toml_lower = make_keys_lowercase(load_rogkit_toml())
     # write the file
-    rogkit_toml_path = user_rogkit_toml_path()
+    rogkit_toml_path = get_rogkit_toml_path()
     print(f"Writing {rogkit_toml_path} with lowercase keys.")
     try:
         with open(rogkit_toml_path, 'w') as f:
@@ -118,7 +134,7 @@ def main():
         toml_string = toml.dumps(get_default_toml())
         print(toml_string)
     elif args.show:
-        print(f'Current rogkit toml: {user_rogkit_toml_path()}')
+        print(f'Current rogkit toml: {get_rogkit_toml_path()}')
         config = load_rogkit_toml()
         print(toml.dumps(config))
 

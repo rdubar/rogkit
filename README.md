@@ -23,7 +23,9 @@ cat requirements.txt | while read package; do
     pip install "$package" || echo "Failed to install $package, continuing..."
 done
 pip install ffmpeg-python python-dotenv sqlalchemy requests-html
-cp rogkit.sample.toml ~/rogkit.tomlcd ..
+mkdir -p ~/.config/rogkit
+cp rogkit.sample.toml ~/.config/rogkit/config.toml
+cd ..
 # Make scripts executable
 chmod +x rogkit_package/bin/*
 
