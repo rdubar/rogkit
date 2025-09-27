@@ -132,18 +132,37 @@ def get_movies(search, config):
 def main():
     parser = argparse.ArgumentParser(description="Rog's Movie Downloader")
     parser.add_argument("search", nargs="*", help="Search term, URL, or filename")
-    parser.add_argument("-c", "--config", default="~/.rogkit.toml", help="Path to config file")
+    parser.add_argument(
+        "-c", "--config",
+        default="~/.config/rogkit/config.toml",
+        help="Path to config file (default: ~/.config/rogkit/config.toml)"
+    )
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
 
-    if len(sys.argv) == 1:
-        print(parser.description)
+    # Expand ~ to full path
+    args.config = os.path.expanduser(args.config)
 
-    if args.config == "~/.rogkit.toml":
-        # Get the user's home directory
-        home = os.path.expanduser("~")
-        # Get the path to the config file
-        args.config = os.path.join(home, ".rogkit.toml")
+    # Fallback to legacy config path if the preferred config file doesn't exist
+    if not os.path.exists(args.config):
+        legacy_path = os.path.expanduser("~/.rogkit.toml")
+        if os.path.exists(legacy_path):
+            print(f"⚠️  Config not found at {args.config}, falling back to legacy: {legacy_path}")
+            args.config = legacy_path
+        else:
+            print(f"❌ No configuration file found at {args.config} or legacy location.")
+            sys.exit(1)
+
+    # Load and print config (example usage)
+    try:
+        with open(args.config, 'r') as f:
+            config_data = toml.load(f)
+            if args.debug:
+                print("Loaded config:")
+                print(toml.dumps(config_data))
+    except Exception as e:
+        print(f"❌ Failed to load config from {args.config}: {e}")
+        sys.exit(1)
 
     config = Config(args.config)
 
