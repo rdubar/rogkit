@@ -125,6 +125,8 @@ def get_movies(search, config):
     if isinstance(search, str) and os.path.isfile(search):
         with open(search, "r", encoding="utf-8") as f:
             lines = f.readlines()
+    else:
+        print(Fore.CYAN + "No input file provided, processing single input.")
 
     process_lines(lines, config)
     print(Fore.CYAN + f"Completed tasks in {showtime(time.perf_counter() - clock)}.")

@@ -115,6 +115,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * cleanup: experimental disk cleanup utility
 * dice: throw dice
 * docker_bash / dbash: bash shell into a docker container
+* drying: should you put your drying outside? 
 * inter: run Open Interpreter
 * iso: extract the largest media file from an ISO file
 * large: show folders with multiple very large files
