@@ -87,18 +87,15 @@ def main():
     )
     parser.add_argument("--location", help="Location name (e.g. 'Glasgow' or 'London')")
     parser.add_argument("--coords", help="Coordinates in 'lat,lon' format")
-    parser.add_argument("--auto", action="store_true", help="Use IP-based location detection")
+    parser.add_argument("--default", action="store_true", help="Use default location (Glasgow)")
 
     args = parser.parse_args()
     
-    lat, lon, place = 55.8642, -4.2518, "Glasgow (default)"
+    lat, lon, place = None, None, None
+    default_location = 55.8642, -4.2518, "Glasgow (default)"
 
-    if args.auto:
-        try:
-            lat, lon, place = get_location()
-            print(f"📍 Using your current location (via IP): {place}")
-        except Exception as e:
-            print(f"Unable to detect location: {e}")
+    if args.default:
+        lat, lon, place = default_location
     elif args.location:
         try:
             lat, lon, place = geocode_location(args.location)
@@ -110,7 +107,17 @@ def main():
         lat, lon = float(lat_str), float(lon_str)
         place = f"coords: {lat}, {lon}"
         print(f"📍 Location set to coordinates: {place}")
-
+        
+    if not lat:  # Try to auto-detect location
+        try:
+            lat, lon, place = get_location()
+        except Exception as e:
+            print(f"Unable to detect location: {e}")
+            
+    if not lat:
+        lat, lon, place = default_location
+        print(f"📍 Falling back to default location: {place}")
+        
     try:
         weather = get_weather(lat, lon)
         verdict = decide_washing(weather)

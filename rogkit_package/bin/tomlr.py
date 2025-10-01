@@ -53,7 +53,7 @@ def setup_rogkit_toml():
         print(f"{rogkit_toml_path} already exists.")
 
 def load_rogkit_toml(*args):
-    """ Load and return the contents of ~/.rogkit.toml as a dict. """
+    """ Load and return the contents of rogkit toml as a dict. """
     rogkit_toml_path = get_rogkit_toml_path()
     if not os.path.exists(rogkit_toml_path):
         setup_rogkit_toml()

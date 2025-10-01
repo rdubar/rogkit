@@ -3,7 +3,7 @@ Script Name: Rog's Movie Downloader
 
 Description:
 This script allows users to download videos from URLs or search terms using `yt_dlp`. 
-It reads configuration settings from a TOML file (`~/.rogkit.toml`), 
+It reads configuration settings from a TOML file (`~/.config/rogkit/config.toml`), 
 which specifies the temporary download folder (`temp_folder`), 
 the final download folder (`download_folder`), and the default input file (`default_input_file`). 
 

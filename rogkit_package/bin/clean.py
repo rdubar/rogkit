@@ -9,13 +9,13 @@ from .tomlr import load_rogkit_toml
 try:
     script_path = load_rogkit_toml()['clean']['script_path']
 except KeyError:
-    print("Error: '[clean][script_path]' section not found in ~/.rogkit.toml. Exiting.")
+    print("Error: '[clean][script_path]' section not found in ~/.config/rogkit/config.toml. Exiting.")
     script_path = None
 
 """
-# Add to ~/.rogkit.toml: 
+# Add to ~/.config/rogkit/config.toml: 
 [clean]
-script_path = '/home/rdubar/projects/pythonProject/openerp-addons/src/scripts/translation_clean.sh'
+script_path = '/home/rdubar/projects/pythonProject/openerp-addons/src/scripts/local/scripts/translation_clean.sh'
 """
 
 def run_command(command):
