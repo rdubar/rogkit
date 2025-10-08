@@ -29,6 +29,15 @@ def find_files(directory, patterns):
         for pattern in patterns:
             for filename in fnmatch.filter(files, pattern):
                 yield os.path.join(root, filename)
+                
+def clean_files(file_list):
+    """Run the external cleaning script on each file in the list."""
+    for path in file_list:
+        print(f'Running translation_clean.sh on {path}')
+        command = f'{script_path} {path}'
+        output, error = run_command(command)
+        if error:
+            print(f"Error: {error}")
 
 def main():
     print("Translation Clean Script")
@@ -51,9 +60,24 @@ def main():
     if not script_path:
         print(f"Script path not found at {script_path}. Exiting.")
         return
-
+    
+    matched_file = None
+    if args.search:
+        if os.path.isfile(args.search):
+            matched_file = args.search
+        else:
+            test_path = os.path.join(root_directory, args.search)
+            if os.path.isfile(test_path):
+                matched_file = test_path
+            
+    if matched_file:
+        print(f"Directly cleaning specified file: {matched_file}")
+        clean_files([matched_file])
+        return
+  
+        
     print(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
-    all_files = list(find_files(root_directory, desired_filenames))
+    files_to_clean = list(find_files(root_directory, desired_filenames))
     total_files = len(all_files)
 
     if args.all:
@@ -85,12 +109,7 @@ def main():
         print(f"Script path {script_path} does not exist. Exiting.")
         return
 
-    for path in files_to_clean:
-        print(f'Running translation_clean.sh on {path}')
-        command = f'{script_path} {path}'
-        output, error = run_command(command)
-        if error:
-            print(f"Error: {error}")
+    clean_files(files_to_clean)
 
 if __name__ == "__main__":
     main()
