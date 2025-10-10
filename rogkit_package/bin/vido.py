@@ -32,10 +32,9 @@ import sys
 import argparse
 import time
 import datetime
-import toml
-from yt_dlp import YoutubeDL
-from requests_html import HTMLSession
-from colorama import init, Fore
+import toml  # type: ignore
+from yt_dlp import YoutubeDL  # type: ignore
+from colorama import init, Fore # type: ignore
 
 # Initialize colorama
 init(autoreset=True)
@@ -115,10 +114,20 @@ def process_url(url, config):
 def get_movies(search, config):
     clock = time.perf_counter()
 
+    # Handle multiple parameters
+    if isinstance(search, list) and len(search) > 1:
+        print(Fore.CYAN + f"Processing {len(search)} parameters sequentially...")
+        for i, item in enumerate(search, 1):
+            print(Fore.YELLOW + f"\n--- Processing item {i}/{len(search)}: {item} ---")
+            get_movies(item, config)  # Recursively process each item
+        print(Fore.CYAN + f"\nCompleted all {len(search)} tasks in {showtime(time.perf_counter() - clock)}.")
+        return
+
+    # Handle single parameter (original logic)
     if isinstance(search, list) and len(search) == 1 and isinstance(search[0], str):
         search = search[0]
 
-    if "-f" in search:
+    if isinstance(search, str) and "-f" in search:
         search = config.default_input_file
 
     lines = [search]
@@ -126,18 +135,19 @@ def get_movies(search, config):
         with open(search, "r", encoding="utf-8") as f:
             lines = f.readlines()
     else:
-        print(Fore.CYAN + "No input file provided, processing single input.")
+        print(Fore.CYAN + "Processing single input.")
 
     process_lines(lines, config)
-    print(Fore.CYAN + f"Completed tasks in {showtime(time.perf_counter() - clock)}.")
+    print(Fore.CYAN + f"Completed task in {showtime(time.perf_counter() - clock)}.")
 
 def main():
+    default_config = "~/.config/rogkit/config.toml"
     parser = argparse.ArgumentParser(description="Rog's Movie Downloader")
     parser.add_argument("search", nargs="*", help="Search term, URL, or filename")
     parser.add_argument(
         "-c", "--config",
-        default="~/.config/rogkit/config.toml",
-        help="Path to config file (default: ~/.config/rogkit/config.toml)"
+        default=default_config,
+        help=f"Path to config file (default: {default_config})"
     )
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
@@ -157,7 +167,7 @@ def main():
 
     # Load and print config (example usage)
     try:
-        with open(args.config, 'r') as f:
+        with open(args.config, 'r', encoding='utf-8') as f:
             config_data = toml.load(f)
             if args.debug:
                 print("Loaded config:")
