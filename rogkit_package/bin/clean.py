@@ -50,7 +50,7 @@ def main():
     parser.add_argument("--confirm", action="store_true", help="Confirm that files should be cleaned")
     parser.add_argument('-m', "--minutes", type=int, default=default_minutes, help="Minutes to look back for modified files")
     parser.add_argument('-a', "--all", action="store_true", help="Clean all matching files, ignoring modification time")
-    parser.add_argument('search', nargs='?', default=None, help="Optional: only clean files containing this string")
+    parser.add_argument('search', nargs='?', default=None, help="Optional: only clean translation paths containing this string")
     args = parser.parse_args()
 
     if not os.path.exists(root_directory):
@@ -74,15 +74,19 @@ def main():
         print(f"Directly cleaning specified file: {matched_file}")
         clean_files([matched_file])
         return
-  
+
+    if not args.search:
+        # just show help
+        parser.print_help()
+        return
         
     print(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
-    files_to_clean = list(find_files(root_directory, desired_filenames))
+    all_files = list(find_files(root_directory, desired_filenames))
     total_files = len(all_files)
 
     if args.all:
         files_to_clean = all_files
-        print(f"Cleaning ALL {total_files:,} matching files.")
+        print(f"Matching ALL {total_files:,} files.")
     else:
         time_limit = time.time() - (args.minutes * 60)
         files_to_clean = [file for file in all_files if os.path.getmtime(file) > time_limit]
