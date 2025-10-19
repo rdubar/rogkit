@@ -21,6 +21,24 @@ DEFAULT_ROGKIT_TOML = {
     "clean": {"script_path": ""},
 }
 
+def get_config_value(group: str, key: str, verbose: bool = False):
+    """
+    Retrieve a value from the rogkit config TOML using group and key.
+    Returns [] if either is missing or not found.
+    """
+    if not group or not key:
+        if verbose:
+            print("⚠️  Missing group or key for rogkit config.")
+        return []
+
+    config = load_rogkit_toml()
+    value = config.get(group, {}).get(key)
+
+    if value is None and verbose:
+        print(f"⚠️  No value found for '{key}' in group '{group}'.")
+
+    return value if value is not None else []
+
 def get_rogkit_toml_path() -> Path:
     """
     Get the preferred rogkit config path, falling back to legacy.

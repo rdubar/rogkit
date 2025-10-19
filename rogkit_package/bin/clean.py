@@ -4,13 +4,8 @@ import fnmatch
 import time
 import subprocess
 import argparse
-from .tomlr import load_rogkit_toml
+from .tomlr import get_config_value
 
-try:
-    script_path = load_rogkit_toml()['clean']['script_path']
-except KeyError:
-    print("Error: '[clean][script_path]' section not found in ~/.config/rogkit/config.toml. Exiting.")
-    script_path = None
 
 """
 # Add to ~/.config/rogkit/config.toml: 
@@ -41,6 +36,11 @@ def clean_files(file_list):
 
 def main():
     print("Translation Clean Script")
+    
+    script_path = get_config_value("clean", "script_path")
+    if not script_path or not os.path.isfile(script_path):
+        print(f"Script path not found at {script_path}. Exiting.")
+        return
 
     default_minutes = 10
     root_directory = '/Users/rdubar/apv/openerp-addons/src/'
@@ -55,10 +55,6 @@ def main():
 
     if not os.path.exists(root_directory):
         print(f"Root directory {root_directory} does not exist. Exiting.")
-        return
-
-    if not script_path:
-        print(f"Script path not found at {script_path}. Exiting.")
         return
     
     matched_file = None
