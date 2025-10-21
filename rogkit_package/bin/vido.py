@@ -29,6 +29,8 @@ Usage:
 
 import os
 import sys
+import subprocess
+import tempfile
 import argparse
 import time
 import datetime
@@ -66,14 +68,21 @@ def get_title_from_url(url):
         print(Fore.MAGENTA + f"Error fetching title with yt_dlp: {e}")
         return None
 
-def set_directory(directory):
+def set_directory(directory=None):
     try:
+        if directory is None:
+            # Create a unique temporary directory (auto-cleaned on reboot)
+            directory = tempfile.mkdtemp(prefix="rogkit_")
+        else:
+            directory = os.path.expanduser(directory)
+
+        os.makedirs(directory, exist_ok=True)
         os.chdir(directory)
         print(Fore.CYAN + "Working directory set to:", os.getcwd())
+        return directory
     except Exception as e:
         print(Fore.MAGENTA + f"Failed to change directory: {e}")
-        return False
-    return True
+        return None
 
 def showtime(s: float) -> str:
     return f"{s:.5f} seconds" if s < 10 else str(datetime.timedelta(seconds=s))
@@ -139,6 +148,28 @@ def get_movies(search, config):
 
     process_lines(lines, config)
     print(Fore.CYAN + f"Completed task in {showtime(time.perf_counter() - clock)}.")
+    
+def update_yt_dlp(path=None):
+    # get path for ~/opt/rogkit
+    path = os.path.expanduser(path or "~/opt/rogkit")
+    try:
+        os.chdir(path)
+    except FileNotFoundError:
+        sys.exit(f"Error: {path} not found")
+
+    pip_bin = os.path.join(path, "venv", "bin", "pip")
+    if not os.path.exists(pip_bin):
+        sys.exit("Error: virtualenv not found at venv/bin/activate")
+
+    req = os.path.join(path, "requirements.txt")
+    if os.path.exists(req):
+        subprocess.run(["grep", "yt", req], check=False)
+
+    try:
+        subprocess.run([pip_bin, "install", "--upgrade", "yt_dlp"], check=True)
+        print("yt_dlp upgraded successfully.")
+    except subprocess.CalledProcessError:
+        sys.exit("Error: pip upgrade failed")
 
 def main():
     default_config = "~/.config/rogkit/config.toml"
@@ -149,6 +180,7 @@ def main():
         default=default_config,
         help=f"Path to config file (default: {default_config})"
     )
+    parser.add_argument("--update", "-u", action="store_true", help="Update yt_dlp to the latest version")
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
 
@@ -182,6 +214,9 @@ def main():
         search = args.search
     else:
         search = input(Fore.CYAN + "Enter URL, filename or search term: ")
+        
+    if args.update:
+        update_yt_dlp()
 
     if args.debug:
         get_movies(search, config)
