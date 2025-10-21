@@ -25,8 +25,11 @@ def find_files(directory, patterns):
             for filename in fnmatch.filter(files, pattern):
                 yield os.path.join(root, filename)
                 
-def clean_files(file_list):
+def clean_files(file_list, script_path):
     """Run the external cleaning script on each file in the list."""
+    if not os.path.exists(script_path):
+        print(f"⚠️  Script path {script_path} does not exist. Exiting.")
+        return
     for path in file_list:
         print(f'Running translation_clean.sh on {path}')
         command = f'{script_path} {path}'
@@ -105,11 +108,7 @@ def main():
         print("Test run only. No files were modified. Use --confirm to proceed.")
         return
 
-    if not os.path.exists(script_path):
-        print(f"Script path {script_path} does not exist. Exiting.")
-        return
-
-    clean_files(files_to_clean)
+    clean_files(files_to_clean, script_path)
 
 if __name__ == "__main__":
     main()
