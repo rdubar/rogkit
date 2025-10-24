@@ -6,6 +6,7 @@ import psutil
 from datetime import timedelta
 import argparse
 import shutil
+import json
 
 
 def get_platform():
@@ -47,7 +48,10 @@ def get_uptime(platform_type):
 
 def get_load_averages(platform_type):
     """Get system load averages."""
-    return os.getloadavg()
+    try:
+        return os.getloadavg()
+    except (AttributeError, OSError):
+        return (0.0, 0.0, 0.0)
 
 def get_memory_info(platform_type):
     """Get memory usage information."""
@@ -62,38 +66,14 @@ def get_memory_info(platform_type):
             "used_swap": swap.used,
         }
     elif platform_type == "mac":
+        # Prefer psutil on macOS for simplicity and reliability
         try:
-            # Get `vm_stat` output
-            output = subprocess.check_output(['vm_stat'], text=True).strip().splitlines()
-            for line in output[:5]:  # Only show the first 5 lines for context
-                print(f"  {line}")
-
-            # Extract the page size
-            page_size_line = output[0]
-            match = re.search(r'page size of (\d+) bytes', page_size_line)
-            if not match:
-                raise ValueError(f"Unable to parse page size from vm_stat output: {page_size_line}")
-            page_size = int(match.group(1))
-
-            # Parse memory stats from the rest of the output
-            stats = {}
-            for line in output[1:]:
-                key, value = line.split(':')
-                stats[key.strip()] = int(value.strip().replace('.', ''))
-
-            # Calculate memory usage
-            total_mem = (stats["Pages free"] + stats["Pages active"] +
-                         stats["Pages inactive"] + stats["Pages speculative"]) * page_size
-            used_mem = (stats["Pages active"] + stats["Pages speculative"]) * page_size
-            free_mem = stats["Pages free"] * page_size
-
-            # Get swap memory from psutil
+            mem = psutil.virtual_memory()
             swap = psutil.swap_memory()
-
             return {
-                "total_mem": total_mem,
-                "used_mem": used_mem,
-                "free_mem": free_mem,
+                "total_mem": mem.total,
+                "used_mem": mem.used,
+                "free_mem": mem.available,
                 "total_swap": swap.total,
                 "used_swap": swap.used,
             }
@@ -110,35 +90,74 @@ def get_memory_info(platform_type):
     print("Unsupported platform for memory info: {platform_type}")
     return {}
 
-def calculate_reboot_need(uptime, load_avg, memory_info):
-    """Calculate the percentage need for a reboot."""
-    reboot_score = 0
+def uptime_score(uptime_seconds):
+    """Scaled uptime score: up to 25 points over 30 days."""
+    days = uptime_seconds / 86400.0
+    return min(days, 30.0) / 30.0 * 25.0
 
-    # Uptime contribution
-    if uptime > 60 * 60 * 24 * 7:  # More than 7 days
-        reboot_score += 20
-    if uptime > 60 * 60 * 24 * 30:  # More than 30 days
-        reboot_score += 30
+def calculate_reboot_need(uptime, load_avg, memory_info, mem_pressure_pct=None):
+    """Calculate the percentage need for a reboot (0-100)."""
+    score = 0.0
 
-    # Load average contribution
-    cores = os.cpu_count()
+    # Uptime (0–25)
+    score += uptime_score(uptime)
+
+    # Load (0–25)
+    cores = os.cpu_count() or 1
     load_1, load_5, load_15 = load_avg
-    if load_1 > cores * 0.75:
-        reboot_score += 20
+    if load_1 > cores:
+        score += 15
+    elif load_1 > 0.75 * cores:
+        score += 10
     if load_5 > cores:
-        reboot_score += 20
+        score += 10
 
-    # Memory contribution
-    free_mem = memory_info["free_mem"] / memory_info["total_mem"]
-    if free_mem < 0.2:  # Less than 20% free memory
-        reboot_score += 20
+    # Memory (0–30)
+    total_mem = max(memory_info.get("total_mem") or 0, 1)
+    free_ratio = float(memory_info.get("free_mem", 0)) / total_mem
+    if free_ratio < 0.10:
+        score += 20
+    elif free_ratio < 0.20:
+        score += 10
 
-    # Swap usage contribution
-    swap_used = memory_info["used_swap"] / memory_info["total_swap"] if memory_info["total_swap"] > 0 else 0
-    if swap_used > 0.5:  # More than 50% swap usage
-        reboot_score += 10
+    swap_total = memory_info.get("total_swap", 0)
+    swap_used = memory_info.get("used_swap", 0)
+    swap_ratio = (float(swap_used) / swap_total) if swap_total else 0.0
+    if swap_ratio > 0.25:
+        score += 10
 
-    return min(reboot_score, 100)
+    # macOS memory pressure bonus (0–20)
+    if mem_pressure_pct is not None:
+        if mem_pressure_pct < 10:
+            score += 20
+        elif mem_pressure_pct < 20:
+            score += 10
+
+    return min(int(round(score)), 100)
+
+def verdict_from_score(score):
+    if score < 30:
+        return "\u2705 Optimal"
+    if score < 70:
+        return "\u26a0\ufe0f Moderate"
+    return "\ud83d\udd34 Reboot advised"
+
+def mac_memory_pressure():
+    """Return system-wide free memory percentage from memory_pressure -Q on macOS, or None."""
+    try:
+        out = subprocess.check_output(["memory_pressure", "-Q"], text=True)
+        m = re.search(r"free percentage:\s*(\d+)%", out)
+        return int(m.group(1)) if m else None
+    except Exception:
+        return None
+
+def last_boot():
+    """Return last boot information string if available."""
+    try:
+        out = subprocess.check_output(["who", "-b"], text=True).strip()
+        return out
+    except Exception:
+        return None
 
 def format_memory(size_in_bytes):
     """Format memory size in bytes to a human-readable string."""
@@ -183,26 +202,47 @@ def free_system_resources(platform_type):
 def main():
     parser = argparse.ArgumentParser(description="System Reboot Advisor")
     parser.add_argument("-f", "--free", action="store_true", help="Free swap and caches if possible")
+    parser.add_argument("--confirm", action="store_true", help="Confirm execution of --free actions")
+    parser.add_argument("--json", action="store_true", help="Output JSON for automation")
     args = parser.parse_args()
-    
+
     print("Rog's System Reboot Advisor")
-    
+
     platform_type = get_platform()
     if platform_type == "unknown":
         print("Unsupported platform.")
         return
-    
+
     if args.free:
-        print("\nAttempting to free memory and swap...\n")
-        free_system_resources(platform_type)
+        if not args.confirm:
+            print("Dry run: --free requested. Re-run with --confirm to execute freeing actions.")
+        else:
+            print("\nAttempting to free memory and swap...\n")
+            free_system_resources(platform_type)
 
     # Get system info
     uptime_seconds = get_uptime(platform_type)
     load_avg = get_load_averages(platform_type)
     memory_info = get_memory_info(platform_type)
+    mem_pressure_pct = mac_memory_pressure() if platform_type == "mac" else None
 
     # Calculate reboot need
-    reboot_need = calculate_reboot_need(uptime_seconds, load_avg, memory_info)
+    reboot_need = calculate_reboot_need(uptime_seconds, load_avg, memory_info, mem_pressure_pct)
+
+    data = {
+        "platform": platform_type,
+        "uptime_seconds": int(uptime_seconds),
+        "load": {"1": load_avg[0], "5": load_avg[1], "15": load_avg[2]},
+        "memory": memory_info,
+        "memory_pressure_free_pct": mem_pressure_pct,
+        "score": reboot_need,
+        "verdict": verdict_from_score(reboot_need),
+        "last_boot": last_boot(),
+    }
+
+    if args.json:
+        print(json.dumps(data, indent=2))
+        return
 
     # Format and display system info
     print("\n--- System Reboot Advisor ---")
@@ -211,8 +251,14 @@ def main():
     print(f"Load Averages (1, 5, 15 min): {load_avg[0]:.2f}, {load_avg[1]:.2f}, {load_avg[2]:.2f}")
     print(f"Memory: {format_memory(memory_info['used_mem'])} used / {format_memory(memory_info['total_mem'])} total")
     print(f"Swap: {format_memory(memory_info['used_swap'])} used / {format_memory(memory_info['total_swap'])} total")
+    if mem_pressure_pct is not None:
+        print(f"Memory pressure free %: {mem_pressure_pct}%")
+    lb = data.get("last_boot")
+    if lb:
+        print(lb)
     print(f"Reboot Need: {reboot_need}%")
-    
+    print(f"Verdict: {data['verdict']}")
+
     # Fun message
     if reboot_need < 30:
         print("Your system is running smoothly. No need for a reboot!")
