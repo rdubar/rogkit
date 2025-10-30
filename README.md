@@ -156,3 +156,25 @@ root_directory = "/absolute/path/to/project/root"
 Use `streamlit run Home.py` to try out the Streamlit frontend.
 
 Roger D.
+
+### Using uv (recommended)
+
+Install `uv` and create the environment from the lock (or pyproject on first run):
+```
+curl -LsSf https://astral.sh/uv/install.sh | sh
+uv sync            # core deps
+uv sync --all-extras  # everything (media/ui/aws/db/data/cli/dev)
+```
+
+Daily workflow:
+```
+# add/upgrade a dependency
+uv add requests-html           # add
+uv add -U requests-html        # upgrade
+
+# run tools
+uv run python rogkit_package/bin/vido.py --help
+
+# export pinned requirements if needed
+uv export -o requirements.txt
+```

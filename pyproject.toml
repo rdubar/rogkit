@@ -1,0 +1,68 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rogkit"
+version = "0.1.0"
+description = "Rog's personal utility toolbox (media, files, system, and more)."
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [ { name = "Roger D", email ="rdubar@gmail.com" } ]
+dependencies = [
+  "colorama",
+  "requests",
+  "toml",
+  "tqdm",
+]
+
+[project.optional-dependencies]
+media = [
+  "yt-dlp",
+  "ffmpeg-python",
+  "Pillow",
+  "pyheif",
+  "plexapi",
+]
+ui = [
+  "streamlit",
+]
+aws = [
+  "boto3",
+  "botocore",
+]
+db = [
+  "sqlalchemy",
+  "pymongo",
+]
+data = [
+  "pandas",
+  "numpy",
+  "matplotlib",
+  "python-dateutil",
+  "pytz",
+  "reportlab",
+]
+cli = [
+  "pyclip",
+  "pyfiglet",
+  "send2trash",
+  "thefuzz",
+  "sh",
+  "spotipy",
+  "psutil",
+  "openai",
+  "requests-html",
+]
+dev = [
+  "ruff",
+  "black",
+  "mypy",
+  "pytest",
+]
+
+[tool.setuptools]
+packages = { find = { where = ["."], include = ["rogkit_package*", "pages*"], namespaces = false } }
+
+
