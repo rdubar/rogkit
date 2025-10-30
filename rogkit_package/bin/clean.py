@@ -46,7 +46,7 @@ def main():
         return
 
     default_minutes = 10
-    root_directory = '/Users/rdubar/apv/openerp-addons/src/'
+    root_directory = get_config_value("clean", "root_directory")
     desired_filenames = ['*.po', '*.pot']
 
     parser = argparse.ArgumentParser(description="Clean .po and .pot files modified within a certain time frame.")
@@ -56,8 +56,8 @@ def main():
     parser.add_argument('search', nargs='?', default=None, help="Optional: only clean translation paths containing this string")
     args = parser.parse_args()
 
-    if not os.path.exists(root_directory):
-        print(f"Root directory {root_directory} does not exist. Exiting.")
+    if not root_directory or not os.path.isdir(root_directory):
+        print(f"Root directory {root_directory} does not exist or is not set. Exiting.")
         return
     
     matched_file = None
@@ -71,7 +71,7 @@ def main():
             
     if matched_file:
         print(f"Directly cleaning specified file: {matched_file}")
-        clean_files([matched_file])
+        clean_files([matched_file], script_path)
         return
 
     if not args.search:

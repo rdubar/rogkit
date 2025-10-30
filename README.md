@@ -24,7 +24,7 @@ cat requirements.txt | while read package; do
 done
 pip install ffmpeg-python python-dotenv sqlalchemy requests-html
 mkdir -p ~/.config/rogkit
-cp rogkit.sample.toml ~/.config/rogkit/config.toml
+cp rogkit_sample.toml ~/.config/rogkit/config.toml
 cd ..
 # Make scripts executable
 chmod +x rogkit_package/bin/*
@@ -35,7 +35,7 @@ sudo apt update
 sudo apt install libheif-dev
 # for clipboard functionality
 sudo apt install wl-clipboard
-# for video downloading with yout
+# for video downloading with yt-dlp
 sudo apt install ffmpeg
 
 ```
@@ -44,7 +44,7 @@ Add this to your `~/bashrc` (or `~/.zshrc`):
 # RogKit
 INSTALL=~/opt
 ROGKIT="$INSTALL/rogkit"
-ROGKIT_BIN="$INSTALL/rogkit/bin"
+ROGKIT_BIN="$ROGKIT/rogkit_package/bin"
 if [ -d "$ROGKIT_BIN" ] && [[ ":$PATH:" != *":$ROGKIT_BIN:"* ]]; then
     export PATH="$PATH:$ROGKIT_BIN"
 fi
@@ -52,12 +52,27 @@ if [ -f "$ROGKIT/aliases" ]; then
     source "$ROGKIT/aliases"
 fi
 ```
-Then reload your `~/bashrc` (or `~/.zshrc`):
+Then reload your `~/.bashrc` (or `~/.zshrc`):
 ```
-source ~/bashrc  # or source ~/.zshrc
+source ~/.bashrc  # or source ~/.zshrc
 ```
 ### Credentials
-Edit `~/rogkit.toml` to add your own credentials and API keys.
+Preferred: edit `~/.config/rogkit/config.toml` to add your credentials and API keys.
+Legacy fallback (still supported by some tools): `~/.rogkit.toml`.
+
+Example config:
+```toml
+[vido]
+temp_folder = "/path/to/tmp"
+download_folder = "/path/to/downloads"
+default_input_file = "/path/to/urls.txt"
+
+[clean]
+# path to your translation_clean.sh script
+script_path = "/absolute/path/to/translation_clean.sh"
+# base directory to search for .po/.pot files
+root_directory = "/absolute/path/to/project/root"
+```
 ### Commands
 
 | Command  | Description        | Python Imports                         |
@@ -77,7 +92,7 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 | hidden   | Find hidden items  |                                        |
 | imager   | Resize images      |                                        |
 | loc      | Show locale info   | from location import get_weather_data  |
-| media    | Media Libary       |                                        |
+| media    | Media Library      |                                        |
 | plural   | Pluralise a word   | from plural import plural              |
 | purge    | Purge files        | from purge import delete_files         |
 | pw       | Generate password  | from pw import PasswordGenerator       |
@@ -131,9 +146,9 @@ Edit `~/rogkit.toml` to add your own credentials and API keys.
 * padding: delete Internet Archive padding files
 * pdfer: experimental images to pdf
 * speeder: run with python interpreters as a benchmark
-* tkm: am experimentl graphical front end for media searches
+* tkm: an experimental graphical front end for media searches
 * transparent: make image transparent
-* Plex: tool to conntect to Plex server (and attempt to mark as watched)
+* Plex: tool to connect to Plex server (and attempt to mark as watched)
 * shrink: experimental utility to shrink DVD rips
 * stars: print stars or other characters
 * xmlr: an xmlrpc tool

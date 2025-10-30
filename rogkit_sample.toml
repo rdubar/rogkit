@@ -1,4 +1,5 @@
-# save to ~/rogkit.toml
+# Preferred location: ~/.config/rogkit/config.toml
+# Legacy fallback (still supported by some tools): ~/.rogkit.toml
 
 [backup]
 backup_from = [ "~/",]
@@ -14,8 +15,14 @@ openweather_api_key = ""
 [ipinfo]
 ipinfo_api_key = ""
 
-[yout]
+[vido]
 temp_folder = ""
 download_folder = ""
 default_input_file = ""
+
+[clean]
+# example: path to your translation_clean.sh script
+script_path = ""
+# base directory to search for translation files
+root_directory = ""
 
