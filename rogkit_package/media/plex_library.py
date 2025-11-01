@@ -486,14 +486,18 @@ class PlexLibrary:
         print(f'Last update was {seconds_ago} ago.')
 
         self.connect_to_plex()
+        # Minimal early health check
+        if not self.plex_server or not self.plex_server.connection:
+            print("Plex connection failed. Please verify server URL/token and that the server is reachable.")
+            sys.exit(1)
         libraries = self.get_libraries()
+        if not libraries:
+            print("No libraries available or Plex connection not established. Aborting.")
+            return
         # show name and updated date of anything that has changed since database_date
         total = 0
         updated = []
         new = []
-        if not libraries:
-            print("No libraries found.")
-            return
         for library in libraries:
             print(f"Checking library: {library.title}: {len(library.all()):,} items")
             for item in library.all():
