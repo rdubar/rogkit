@@ -7,6 +7,13 @@ import argparse
 import time
 import math
 
+"""
+Device/Platform	    Python Version	Architecture	        Execution Mode	    Approx iters/sec
+MacBook Pro (M3)	3.12.11	        ARM64 (Apple Silicon)	Native	            6,863,741
+MacBook Pro (M3)	2.7.18	        x86_64 (Intel)	        Rosetta (Emulated)	2,749,383
+Raspberry Pi 5	    3.13.0	        aarch64 (Arm64)	        Native	            2,081,838
+"""
+
 def get_arch_cmd():
     try:
         process = subprocess.Popen(['arch'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
