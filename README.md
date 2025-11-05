@@ -145,6 +145,7 @@ root_directory = "/absolute/path/to/project/root"
 * nose: run nosetests in ERP
 * padding: delete Internet Archive padding files
 * pdfer: experimental images to pdf
+* pyinfo: show python system information
 * speeder: run with python interpreters as a benchmark
 * tkm: an experimental graphical front end for media searches
 * transparent: make image transparent
