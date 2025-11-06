@@ -9,6 +9,13 @@
 *.json
 *.pkl
 
+# Project data artifacts
+/data/*
+!/data/.gitkeep
+
+rogkit_package/data/*
+!rogkit_package/data/.gitkeep
+
 # lists of media files to check
 lists/
 
