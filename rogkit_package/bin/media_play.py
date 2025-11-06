@@ -7,9 +7,16 @@ import os
 import sys
 import json
 import subprocess
-import paramiko  # type: ignore
 import urllib.parse
 from ..settings import ensure_package_data_dir, package_data_dir
+
+try:
+    import paramiko  # type: ignore
+except ImportError as import_error:  # pragma: no cover - optional dependency
+    paramiko = None  # type: ignore[assignment]
+    _PARAMIKO_IMPORT_ERROR = import_error
+else:
+    _PARAMIKO_IMPORT_ERROR = None
 
 # Configuration
 REMOTE_USER = "rog"
@@ -36,7 +43,7 @@ def save_cache(cache):
 def play_local(filepath):
     """Play the video locally."""
     print(f"Playing locally: {filepath}")
-    subprocess.run([LOCAL_PLAY_CMD, filepath])
+    subprocess.run([LOCAL_PLAY_CMD, filepath], check=True)
 
 def play_from_remote(filepath):
     """Stream a file from the remote system and play it locally using VLC's sftp module."""
@@ -48,14 +55,17 @@ def play_from_remote(filepath):
     
     print(f"Streaming remote file via SFTP: {sftp_url}")
     
-    try:
-        # Launch VLC with the SFTP URL
-        subprocess.run(
-            [vlc_command, sftp_url],
-            check=True
-        )
-    except subprocess.CalledProcessError as e:
-        print(f"Failed to stream the file: {e}")
+    if _PARAMIKO_IMPORT_ERROR is not None:
+        raise RuntimeError(
+            "paramiko is required for remote playback. "
+            "Install the 'media' dependency group (uv sync --group media)."
+        ) from _PARAMIKO_IMPORT_ERROR
+
+    with paramiko.SSHClient() as ssh:  # type: ignore[call-arg]
+        ssh.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        ssh.connect(REMOTE_HOST, username=REMOTE_USER, port=SSH_PORT)
+
+    subprocess.run([vlc_command, sftp_url], check=True)
 
 def search_and_play(title):
     """Search for a video by title and play it."""

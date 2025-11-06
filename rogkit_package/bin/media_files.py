@@ -12,7 +12,13 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 from colorama import Fore, Style  # type: ignore
-import paramiko  # type: ignore
+try:
+    import paramiko  # type: ignore
+except ImportError as import_error:  # pragma: no cover - optional dependency
+    paramiko = None  # type: ignore[assignment]
+    _PARAMIKO_IMPORT_ERROR = import_error
+else:
+    _PARAMIKO_IMPORT_ERROR = None
 from .seconds import time_ago_in_words
 from .bytes import byte_size
 from .media_scan import get_media_info
@@ -183,6 +189,12 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
         return get_local_media_files(matched_paths)
 
     # If the path is not available locally, fetch files remotely
+    if _PARAMIKO_IMPORT_ERROR is not None:
+        raise RuntimeError(
+            "paramiko is required for remote media scanning. "
+            "Install the 'media' dependency group (uv sync --group media)."
+        ) from _PARAMIKO_IMPORT_ERROR
+
     try:
         # Create an SSH client
         ssh = paramiko.SSHClient()

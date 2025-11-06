@@ -11,11 +11,21 @@ amaz --action purge -c --all-versions --show-errors
 import argparse
 import glob
 from pathlib import Path
-from itertools import islice
 from dataclasses import dataclass, field
-import boto3  # type: ignore
-from botocore.exceptions import NoCredentialsError  # type: ignore
-from typing import List
+from typing import List, Optional
+
+try:
+    import boto3  # type: ignore
+    from botocore.exceptions import NoCredentialsError  # type: ignore
+except ImportError as import_error:  # pragma: no cover - optional dependency
+    boto3 = None  # type: ignore[assignment]
+
+    class NoCredentialsError(RuntimeError):  # type: ignore[no-redef]
+        """Raised when AWS credentials are missing."""
+
+    _BOTO_IMPORT_ERROR: Optional[ImportError] = import_error
+else:
+    _BOTO_IMPORT_ERROR = None
 from ..bin.tomlr import load_rogkit_toml
 
 
@@ -28,6 +38,11 @@ class AwsConfig:
     region_name: str = 'us-east-1'  # Keep default arguments after non-default arguments
 
     def __post_init__(self):
+        if _BOTO_IMPORT_ERROR is not None:
+            raise RuntimeError(
+                "boto3 is required for AWS S3 operations. "
+                "Install the 'aws' dependency group (uv sync --group aws)."
+            ) from _BOTO_IMPORT_ERROR
         self.s3_resource = boto3.resource(
             's3',
             aws_access_key_id=self.access_key_id,

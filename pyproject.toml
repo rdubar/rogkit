@@ -24,6 +24,8 @@ media = [
   "Pillow",
   "pyheif",
   "plexapi",
+  "paramiko",
+  "python-dotenv",
 ]
 ui = [
   "streamlit",
@@ -64,9 +66,10 @@ dev = [
 
 [dependency-groups]
 cli = ["pyclip", "pyfiglet", "send2trash", "thefuzz", "sh", "spotipy", "psutil", "openai", "requests-html"]
-media = ["yt-dlp", "ffmpeg-python", "Pillow", "pyheif", "plexapi", "python-dotenv"]
+media = ["yt-dlp", "ffmpeg-python", "Pillow", "pyheif", "plexapi", "paramiko", "python-dotenv"]
 db = ["sqlalchemy", "pymongo"]
 data = ["pandas", "numpy", "matplotlib", "python-dateutil", "pytz", "reportlab"]
+aws = ["boto3", "botocore"]
 
 [tool.setuptools]
 packages = { find = { where = ["."], include = ["rogkit_package*", "pages*"], namespaces = false } }

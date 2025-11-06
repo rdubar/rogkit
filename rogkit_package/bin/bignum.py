@@ -35,7 +35,7 @@ class PrettyNumberFormatter:
         (6, 'million'),
         (3, 'thousand'),
         (2, 'hundred'),
-    )
+    ) 
 
     intervals = (
         ('years', 31557600),
@@ -50,15 +50,15 @@ class PrettyNumberFormatter:
     @staticmethod
     def prettynumber(number):
         """Format a number with comma separators (e.g., 1234567 → 1,234,567)."""
-        if type(number) == str and number.isdigit():
+        if isinstance(number, str) and number.isdigit():
             number = int(number)
         try:
             return f'{number:,}'
-        except:
-            pass
+        except (TypeError, ValueError):
+            return number
         return number
 
-    def list_bignums(self, name=None):
+    def list_bignums(self):
         """Generate list of named large numbers (googol, trillion, etc.)."""
         result = []
         for i in reversed(self.BIGNUM_ZEROS):
@@ -74,21 +74,22 @@ class PrettyNumberFormatter:
         :param minimum: the smallest number to convert to text
         :return: a pretty text string
         '''
-        try:
+        if isinstance(number, str):
             if 'e+' in number:
-                quot, expo = number.split('e+')
-                if int(expo) > 310:
+                try:
+                    quot, expo = number.split('e+')
+                    if int(expo) > 310:
+                        return number
+                    number = float(quot) * (10 ** int(expo))
+                except (ValueError, TypeError):
                     return number
-                number = float(quot) * (10 ** int(expo))
-        except:
-            pass
         if not isinstance(number, (int, float)):
             try:
-                number=float(number.replace(',',''))
-            except:
-                pass
+                number = float(str(number).replace(',', ''))
+            except (ValueError, TypeError, AttributeError):
+                return number
         if not number:
-            "None"
+            return None
         if not isinstance(number, (int, float)) or number < minimum:
             return number
         description = ''
@@ -165,8 +166,8 @@ def bignum(number, round_to=2, show_e=2, minimum=1000):
     try:
         formatter = PrettyNumberFormatter()
         return formatter.zillions(number, round_to=round_to, show_e=show_e, minimum=minimum)
-    except Exception as e:
-        return f'{number:,} ({e})'
+    except (ValueError, TypeError) as exc:
+        return f'{number} ({exc})'
 
 def seconds_time(seconds, granularity=2):
     """Convert seconds to human-readable time format."""
