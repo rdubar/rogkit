@@ -8,20 +8,33 @@ from __future__ import print_function
 import timeit
 import argparse
 
-import pandas as pd  # type: ignore
-import matplotlib.pyplot as plt  # type: ignore
-
 import subprocess
 import platform
 import sys
 import os
 from datetime import datetime
+from pathlib import Path
+
+
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def make_graph():
     """Generate bar graph comparing execution times across platforms and Python versions."""
+    try:
+        import pandas as pd  # type: ignore
+        import matplotlib.pyplot as plt  # type: ignore
+    except ImportError as exc:  # pragma: no cover - runtime dep
+        missing = " and ".join(module for module in ["pandas", "matplotlib"] if module in str(exc))
+        print(
+            "❌ Unable to generate graph: optional dependency missing. "
+            f"Install {missing or 'pandas and matplotlib'} (e.g. `pip install pandas matplotlib`)."
+        )
+        return
+
     # Read the CSV file into a DataFrame
-    path = '/Users/rdubar/opt/rogkit/rogkit_package/bin/speeder.csv'
+    path = DATA_DIR / 'speeder.csv'
     df = pd.read_csv(path)
 
     # Set the figure size

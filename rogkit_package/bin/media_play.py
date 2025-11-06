@@ -9,14 +9,17 @@ import json
 import subprocess
 import paramiko  # type: ignore
 import urllib.parse
+from pathlib import Path
 
 # Configuration
 REMOTE_USER = "rog"
 REMOTE_HOST = "192.168.0.50"
 SSH_PORT = 22
 LOCAL_PLAY_CMD = "/Applications/VLC.app/Contents/MacOS/VLC"  # Command to play video locally (e.g., 'vlc', 'mpv')
-script_dir = os.path.dirname(os.path.abspath(__file__))
-CACHE_FILE = os.path.join(script_dir, "media_files_cache.json")
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+CACHE_FILE = str(DATA_DIR / "media_files_cache.json")
 
 def load_cache():
     """Load the media files cache."""

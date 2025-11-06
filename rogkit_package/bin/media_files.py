@@ -9,6 +9,7 @@ import sys
 from collections import defaultdict
 from datetime import datetime
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Dict, List, Optional
 from colorama import Fore, Style  # type: ignore
 import paramiko  # type: ignore
@@ -17,9 +18,11 @@ from .bytes import byte_size
 from .media_scan import get_media_info
 
 
-script_dir = os.path.dirname(os.path.abspath(__file__))
-CACHE_FILE = os.path.join(script_dir, "media_files_cache.json")
-ARCHIVE_FILE = os.path.join(script_dir, "media_files_cache_archive.json")
+DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+CACHE_FILE = str(DATA_DIR / "media_files_cache.json")
+ARCHIVE_FILE = str(DATA_DIR / "media_files_cache_archive.json")
 
 MIN_FILE_SIZE_MB = 150  # Minimum file size to consider as a valid replacement
 
