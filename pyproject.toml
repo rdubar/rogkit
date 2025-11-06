@@ -62,6 +62,12 @@ dev = [
   "pytest",
 ]
 
+[dependency-groups]
+cli = ["pyclip", "pyfiglet", "send2trash", "thefuzz", "sh", "spotipy", "psutil", "openai", "requests-html"]
+media = ["yt-dlp", "ffmpeg-python", "Pillow", "pyheif", "plexapi", "python-dotenv"]
+db = ["sqlalchemy", "pymongo"]
+data = ["pandas", "numpy", "matplotlib", "python-dateutil", "pytz", "reportlab"]
+
 [tool.setuptools]
 packages = { find = { where = ["."], include = ["rogkit_package*", "pages*"], namespaces = false } }
 

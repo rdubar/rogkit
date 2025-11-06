@@ -12,7 +12,7 @@
 # ------------------------------------------------------------------------------
 INSTALL=~/opt
 ROGKIT="$INSTALL/rogkit"
-ROGKIT_VENV="$ROGKIT/venv"
+ROGKIT_VENV="$ROGKIT/.venv"
 ROGKIT_PYTHON="$ROGKIT_VENV/bin/python"
 ROGKIT_PACKAGE="$ROGKIT/rogkit_package"
 
