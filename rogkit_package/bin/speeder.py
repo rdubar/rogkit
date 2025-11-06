@@ -13,11 +13,10 @@ import platform
 import sys
 import os
 from datetime import datetime
-from pathlib import Path
+from ..settings import ensure_package_data_dir, package_data_dir
 
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR = package_data_dir
 
 
 def make_graph():
@@ -34,7 +33,7 @@ def make_graph():
         return
 
     # Read the CSV file into a DataFrame
-    path = DATA_DIR / 'speeder.csv'
+    path = ensure_package_data_dir() / 'speeder.csv'
     df = pd.read_csv(path)
 
     # Set the figure size

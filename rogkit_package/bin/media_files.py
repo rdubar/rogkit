@@ -16,13 +16,13 @@ import paramiko  # type: ignore
 from .seconds import time_ago_in_words
 from .bytes import byte_size
 from .media_scan import get_media_info
+from ..settings import ensure_package_data_dir, package_data_dir
 
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-DATA_DIR.mkdir(parents=True, exist_ok=True)
+DATA_DIR = package_data_dir
 
-CACHE_FILE = str(DATA_DIR / "media_files_cache.json")
-ARCHIVE_FILE = str(DATA_DIR / "media_files_cache_archive.json")
+CACHE_FILE = DATA_DIR / "media_files_cache.json"
+ARCHIVE_FILE = DATA_DIR / "media_files_cache_archive.json"
 
 MIN_FILE_SIZE_MB = 150  # Minimum file size to consider as a valid replacement
 
@@ -224,7 +224,8 @@ def save_file_list_to_cache(file_list: List[MediaFile]):
 
     :param file_list: List of MediaFile objects to save
     """
-    with open(CACHE_FILE, 'w', encoding='utf-8') as cache_file:
+    ensure_package_data_dir()
+    with CACHE_FILE.open('w', encoding='utf-8') as cache_file:
         json.dump([file.__dict__ for file in file_list], cache_file)
 
 
@@ -234,8 +235,8 @@ def load_file_list_from_cache() -> Optional[List[MediaFile]]:
 
     :return: List of MediaFile objects, or None if cache does not exist
     """
-    if os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE, 'r', encoding='utf-8') as cache_file:
+    if CACHE_FILE.exists():
+        with CACHE_FILE.open('r', encoding='utf-8') as cache_file:
             file_data = json.load(cache_file)
             return [MediaFile(**data) for data in file_data]
     return None
@@ -247,8 +248,8 @@ def get_cache_last_modified() -> Optional[datetime]:
 
     :return: Datetime object or None if cache does not exist
     """
-    if os.path.exists(CACHE_FILE):
-        timestamp = os.path.getmtime(CACHE_FILE)
+    if CACHE_FILE.exists():
+        timestamp = CACHE_FILE.stat().st_mtime
         return datetime.fromtimestamp(timestamp)
     return None
 
@@ -573,18 +574,24 @@ def find_hidden_files(media_files: List[MediaFile], report=True) -> List[MediaFi
             print(file)
     return hidden_files
 
-def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCHIVE_FILE, show_all: bool = False):
+def check_against_archive(
+    media_files: List[MediaFile],
+    archive_file: Path | str = ARCHIVE_FILE,
+    show_all: bool = False,
+):
     """
     Compare the archive cache with the current media files and detect missing media.
     A movie is only considered missing if its main folder doesn't exist with at least 200MB of media on *any* disk.
     """
 
-    if not os.path.exists(archive_file):
-        print(f"❌ Archive file not found: {archive_file}")
+    archive_path = Path(archive_file)
+
+    if not archive_path.exists():
+        print(f"❌ Archive file not found: {archive_path}")
         return
 
     try:
-        with open(archive_file, 'r', encoding='utf-8') as f:
+        with archive_path.open('r', encoding='utf-8') as f:
             archive_data = json.load(f)
     except json.JSONDecodeError as e:
         print(f"❌ Error reading JSON from archive: {e}")
