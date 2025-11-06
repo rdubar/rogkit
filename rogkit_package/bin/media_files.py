@@ -1,5 +1,4 @@
 # Roger's Media File Tool
-import paramiko
 import json
 import os
 import argparse
@@ -7,17 +6,15 @@ import glob
 import re
 import shutil
 import sys
-from typing import List
-from time import perf_counter
 from collections import defaultdict
 from datetime import datetime
 from dataclasses import dataclass, field
-from typing import List, Optional
-from colorama import Fore, Style
-
-from .media_scan import get_media_info
+from typing import Dict, List, Optional
+from colorama import Fore, Style  # type: ignore
+import paramiko  # type: ignore
 from .seconds import time_ago_in_words
 from .bytes import byte_size
+from .media_scan import get_media_info
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -43,7 +40,7 @@ class MediaFile:
         """Return a formatted string with size and file path"""
         return f"{self.size_str():<18} {self.filepath}"
     
-    def match_title(self, title):
+    def match_title(self, _title):
         """Return the standardized title for matching."""
         return standardize_title(self.title)
     
@@ -76,10 +73,10 @@ class MediaFolder:
         size_str = byte_size(self.total_size(), unit="GB")
         return f"Folder: {self.foldername} ({size_str}, {len(self.files)} files)"
     
-    def match_title(self, title):
+    def match_title(self, _title):
         """Return the standardized title for matching."""
         return standardize_title(self.title)
-    
+
 
 def standardize_title(title: str) -> str:
     """
@@ -164,7 +161,7 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
         """Retrieve media files from the local file system."""
         media_files = []
         for local_path in local_paths:
-            for root, dirs, files in os.walk(local_path):
+            for root, _dirs, files in os.walk(local_path):
                 for file in files:
                     file_path = os.path.join(root, file)
                     try:
@@ -172,7 +169,7 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
                         media_file = parse_media_file_line(f"{size} {file_path}")
                         if media_file:
                             media_files.append(media_file)
-                    except Exception as e:
+                    except OSError as e:
                         print(f"Error processing local file: {file_path}, Error: {e}")
         return media_files
 
@@ -195,7 +192,7 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
         if ' ' in path:
             path = f'"{path}"'
         find_command = f'find {path} -type f -exec du -b {{}} +'
-        stdin, stdout, stderr = ssh.exec_command(find_command)
+        _stdin, stdout, stderr = ssh.exec_command(find_command)
         file_lines = stdout.read().decode('utf-8').splitlines()
 
         # Handle errors if any
@@ -208,10 +205,10 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
         media_files = [parse_media_file_line(line) for line in file_lines if line.strip()]
         return [file for file in media_files if file is not None]
 
-    except paramiko.SSHException as e:
-        print(f"SSH error: {e}")
+    except paramiko.SSHException as ssh_error:
+        print(f"SSH error: {ssh_error}")
         return []
-    except Exception as e:
+    except (OSError, ValueError) as e:
         print(f"Unexpected error: {e}")
         return []
     finally:
@@ -224,7 +221,7 @@ def save_file_list_to_cache(file_list: List[MediaFile]):
 
     :param file_list: List of MediaFile objects to save
     """
-    with open(CACHE_FILE, 'w') as cache_file:
+    with open(CACHE_FILE, 'w', encoding='utf-8') as cache_file:
         json.dump([file.__dict__ for file in file_list], cache_file)
 
 
@@ -235,7 +232,7 @@ def load_file_list_from_cache() -> Optional[List[MediaFile]]:
     :return: List of MediaFile objects, or None if cache does not exist
     """
     if os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE, 'r') as cache_file:
+        with open(CACHE_FILE, 'r', encoding='utf-8') as cache_file:
             file_data = json.load(cache_file)
             return [MediaFile(**data) for data in file_data]
     return None
@@ -277,7 +274,7 @@ def find_duplicates(media_files: List[MediaFile]) -> dict:
     :return: Dictionary where keys are duplicate titles, and values are dictionaries
              with disk names as keys and total sizes as values.
     """
-    title_disk_sizes = defaultdict(lambda: defaultdict(int))
+    title_disk_sizes: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))
 
     for file in media_files:
         standardized_title = standardize_title(file.title)
@@ -427,44 +424,43 @@ def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_00
         print(description)
         
 def show_extras(media_files: List[MediaFile]):
+    folders = set()
+    for file in media_files:
+        parts = file.filepath.split('/')
+        if len(parts) > 7:
+            folder = '/'.join(parts[:-1])
+            folders.add(folder)
+
+    print("Extra folders found:")
+
+    # Define the categories you're looking for
+    collate = ['Subs', 'Extras', 'Behind the Scenes', 'Deleted Scenes', 'Featurettes', 'Interviews', 'Trailers']
     
-        folders = set()
-        for file in media_files:
-            parts = file.filepath.split('/')
-            if len(parts) > 7:
-                folder = '/'.join(parts[:-1])
-                folders.add(folder)
-    
-        print("Extra folders found:")
+    # Dictionary to keep count of the collated folders
+    collate_counts: Dict[str, int] = {}
 
-        # Define the categories you're looking for
-        collate = ['Subs', 'Extras', 'Behind the Scenes', 'Deleted Scenes', 'Featurettes', 'Interviews', 'Trailers']
-        
-        # Dictionary to keep count of the collated folders
-        collate_counts = {}
+    # Loop through the EXTRAS_FOLDERS and categorize them
+    for folder in folders:
+        # Extract the last part of the folder path (the actual folder name)
+        last_dir = folder.split('/')[-1]
 
-        # Loop through the EXTRAS_FOLDERS and categorize them
-        for folder in folders:
-            # Extract the last part of the folder path (the actual folder name)
-            last_dir = folder.split('/')[-1]
+        # Check if this folder name is in our collate categories
+        if last_dir in collate:
+            collate_counts[last_dir] = collate_counts.get(last_dir, 0) + 1
 
-            # Check if this folder name is in our collate categories
-            if last_dir in collate:
-                collate_counts[last_dir] = collate_counts.get(last_dir, 0) + 1
+    # Display the results
+    print(f"Total extra folders: {len(folders)}")
 
-        # Display the results
-        print(f"Total extra folders: {len(folders)}")
+    # Print counts for collated folders
+    for folder, count in collate_counts.items():
+        print(f"{folder}: {count}")
+    print()
 
-        # Print counts for collated folders
-        for folder, count in collate_counts.items():
-            print(f"{folder}: {count}")
-        print()
-
-        # Print all folders that don't belong to the collate categories
-        for folder in folders:
-            last_dir = folder.split('/')[-1]
-            if last_dir not in collate:
-                print(folder)
+    # Print all folders that don't belong to the collate categories
+    for folder in folders:
+        last_dir = folder.split('/')[-1]
+        if last_dir not in collate:
+            print(folder)
                 
 def process_exact_matches(exact_matches: List[str], media_files: List[MediaFile]) -> List[str]:
     """
@@ -585,7 +581,7 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
         return
 
     try:
-        with open(archive_file, 'r') as f:
+        with open(archive_file, 'r', encoding='utf-8') as f:
             archive_data = json.load(f)
     except json.JSONDecodeError as e:
         print(f"❌ Error reading JSON from archive: {e}")
@@ -596,7 +592,7 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
     media_file_paths = {media_file.filepath for media_file in media_files}
 
     # Track folder-level total sizes in the current cache
-    media_folder_sizes = defaultdict(int)  # {folder_path: total_size}
+    media_folder_sizes: Dict[str, int] = defaultdict(int)  # {folder_path: total_size}
     for media_file in media_files:
         folder_path = os.path.dirname(media_file.filepath)
         media_folder_sizes[folder_path] += media_file.filesize
@@ -612,7 +608,7 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
     MIN_VALID_SIZE_BYTES = MIN_FILE_SIZE_MB * 1_000_000  # 200MB in bytes
 
     # Candidate folders that might be missing
-    candidate_missing_folders = defaultdict(lambda: defaultdict(int))  # {folder_path: {disk: total_size}}
+    candidate_missing_folders: Dict[str, Dict[str, int]] = defaultdict(lambda: defaultdict(int))  # {folder_path: {disk: total_size}}
     for filepath, (filesize, disk) in missing_files.items():
         ext = filepath.lower().split('.')[-1]
         if ext in media_extensions:
@@ -655,8 +651,8 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
         if not show_all and displayed_count >= show_count:
             break
         title = os.path.basename(folder)
-        disk_info = ", ".join(f"{disk}: {byte_size(size, unit='GB')}" for disk, size in disks.items())
-        print(f"{title} ({disk_info})")
+        disk_info_str = ", ".join(f"{disk}: {byte_size(size, unit='GB')}" for disk, size in disks.items())
+        print(f"{title} ({disk_info_str})")
         displayed_count += 1
 
     if displayed_count < len(filtered_missing):
@@ -668,7 +664,6 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
     """
     Restore media files from a backup disk based on the main media file list.
     """
-    from .media_scan import get_media_info  # Optional, for debugging or extra info
 
     backup_disk_path = "/media/rog/?"
     default_restore_disk = "media1"
@@ -697,7 +692,7 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
         backup_title = standardize_title(parts[5])  # Folder name as title
 
         folder = record.filepath.split('/')[4].lower()
-        if not folder in ['movies', 'new']: 
+        if folder not in ['movies', 'new']: 
             continue
 
         if backup_title in main_titles_dict:
@@ -750,9 +745,9 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
         try:
             os.makedirs(os.path.dirname(new_file_path), exist_ok=True)
             shutil.copy(record.filepath, new_file_path)
-        except Exception as e:
+        except (OSError, shutil.Error) as e:
             print(f"Error copying {record.filename} to {new_file_path}: {e}")
-            errors.append([record.filepath, e])
+            errors.append([record.filepath, str(e)])
             continue
         size_of_new = os.path.getsize(new_file_path)
         if size_of_new != size_of_backup:
@@ -764,10 +759,10 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
     
     if errors:
         print(f"Errors: {len(errors)}")
-        if verbose: 
+        if verbose:
             for error in errors:
-                path, e = error
-                print(f"{path}: {e}")
+                path, error_msg = error
+                print(f"{path}: {error_msg}")
 
 
 def main():

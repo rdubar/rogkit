@@ -10,7 +10,6 @@ import argparse
 import os
 import fnmatch
 from dataclasses import dataclass, field
-from colorama import Fore
 
 from ..bin.bytes import byte_size
 from ..bin.delete import safe_delete
@@ -141,4 +140,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-    

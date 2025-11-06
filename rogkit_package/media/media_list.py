@@ -5,7 +5,7 @@ Note: Not currently used in main application.
 """
 import json
 import csv
-from .media_settings import additional_media_csv, tmdb_data_file
+from rogkit_package.media.media_settings import additional_media_csv, tmdb_data_file
 
 
 def get_tmdb_data():
