@@ -29,17 +29,6 @@ MIN_FILE_SIZE_MB = 150  # Minimum file size to consider as a valid replacement
 MEDIA_TYPES = { 'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mpg', 'mpeg', 'm4v', '3gp', 'vob', 'ts', 'divx', 'xvid' }
 
 
-def size_as_string(size):
-    """
-    Convert a file size in bytes to a human-readable string.
-    """
-    for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
-        if size < 1000:
-            return f"{size:.2f} {unit}"
-        size /= 1000
-    return f"{size:.2f} PB"
-
-
 @dataclass
 class MediaFile:
     title: str
@@ -60,13 +49,14 @@ class MediaFile:
     
     def size_str(self):
         """Return GB, MB, KB, or bytes with color coding"""
-        if self.filesize >= 1_000_000_000:
-            return f"{Fore.RED}{self.filesize / 1_000_000_000:.2f} GB{Style.RESET_ALL}"
-        elif self.filesize >= 1_000_000:
-            return f"{Fore.YELLOW}{self.filesize / 1_000_000:.2f} MB{Style.RESET_ALL}"
-        elif self.filesize >= 1_000:
-            return f"{Fore.CYAN}{self.filesize / 1_000:.2f} KB{Style.RESET_ALL}"
-        return f"{Fore.GREEN}{self.filesize} bytes{Style.RESET_ALL}"
+        return byte_size(self.filesize, unit="GB")
+        # if self.filesize >= 1_000_000_000:
+        #     return f"{Fore.RED}{self.filesize / 1_000_000_000:.2f} GB{Style.RESET_ALL}"
+        # elif self.filesize >= 1_000_000:
+        #     return f"{Fore.YELLOW}{self.filesize / 1_000_000:.2f} MB{Style.RESET_ALL}"
+        # elif self.filesize >= 1_000:
+        #     return f"{Fore.CYAN}{self.filesize / 1_000:.2f} KB{Style.RESET_ALL}"
+        # return f"{Fore.GREEN}{self.filesize} bytes{Style.RESET_ALL}"
 
 @dataclass
 class MediaFolder:
@@ -83,7 +73,7 @@ class MediaFolder:
 
     def __str__(self):
         """Display folder details, including total size and file count."""
-        size_str = size_as_string(self.total_size())
+        size_str = byte_size(self.total_size(), unit="GB")
         return f"Folder: {self.foldername} ({size_str}, {len(self.files)} files)"
     
     def match_title(self, title):
@@ -314,7 +304,7 @@ def display_duplicates(duplicates: dict):
     for title, disk_sizes in duplicates.items():
         print(f"\n{Fore.CYAN}{title}{Style.RESET_ALL}:")
         for disk, size in disk_sizes.items():
-            size_str = size_as_string(size)  # Convert size to human-readable format
+            size_str = byte_size(size, unit="GB")  # Convert size to human-readable format
             print(f"  - {disk}: {Fore.YELLOW}{size_str}{Style.RESET_ALL}")
         
 
@@ -419,8 +409,8 @@ def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_00
             big_folders.append((folder, large_files))  # Pass folder and filtered large files together
 
     # Generate descriptive output
-    total_str = size_as_string(min_folder_size * 2)
-    size_str = size_as_string(min_folder_size)
+    total_str = byte_size(min_folder_size * 2, unit="GB")
+    size_str = byte_size(min_folder_size, unit="GB")
     description = f"{len(big_folders):,} of {len(media_folders):,} folders have a total size > {total_str} and more than one file > {size_str}."
     print(description)
     
@@ -530,7 +520,7 @@ def find_small_media_folders(media_folders: List[MediaFolder], min_folder_size: 
 
         small_folders.append(folder)
 
-    size_str = size_as_string(min_folder_size)
+    size_str = byte_size(min_folder_size, unit="GB")
     print(f"{len(small_folders):,} of {len(media_folders):,} folders have a total size < {size_str}.")
 
     for folder in small_folders:
@@ -557,7 +547,7 @@ def find_small_media_files(media_files: List[MediaFile], max_size: int = 300_000
 
     if report:
         # Generate descriptive output
-        size_str = size_as_string(max_size)
+        size_str = byte_size(max_size, unit="GB")
         description = f"{len(small_files):,} of {len(media_files):,} files are smaller than {size_str}."
         print(description)
 
@@ -656,7 +646,7 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
         return
 
     total_missing_size = sum(sum(sizes.values()) for sizes in filtered_missing.values())
-    print(f"⚠️ {len(filtered_missing):,} missing movies detected, totaling {size_as_string(total_missing_size)}.")
+    print(f"⚠️ {len(filtered_missing):,} missing movies detected, totaling {byte_size(total_missing_size, unit='GB')}.")
 
     # Display top N
     displayed_count = 0
@@ -665,7 +655,7 @@ def check_against_archive(media_files: List[MediaFile], archive_file: str = ARCH
         if not show_all and displayed_count >= show_count:
             break
         title = os.path.basename(folder)
-        disk_info = ", ".join(f"{disk}: {size_as_string(size)}" for disk, size in disks.items())
+        disk_info = ", ".join(f"{disk}: {byte_size(size, unit='GB')}" for disk, size in disks.items())
         print(f"{title} ({disk_info})")
         displayed_count += 1
 

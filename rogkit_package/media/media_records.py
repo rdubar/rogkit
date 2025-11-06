@@ -1,11 +1,16 @@
-import dataclasses
-from datetime import datetime
-from sqlalchemy import Column, Integer, Boolean, String, DateTime, Integer
-import sqlalchemy as sa
-from .database_utils import Base ,engine
-from ..bin.bytes import byte_size
-from ..bin.seconds import hms_string
+"""
+Media records schema and ORM models for Plex library management.
 
+Defines database schema, ORM models, and dataclasses for storing and
+displaying media metadata from Plex servers.
+"""
+import dataclasses
+from sqlalchemy import Column, Integer, Boolean, String, DateTime
+from rogkit_package.media.database_utils import Base, engine
+from rogkit_package.bin.bytes import byte_size
+from rogkit_package.bin.seconds import hms_string
+
+# Schema definition for media records (both ORM and dataclass)
 common_schema = {
     'id': (Integer, {'primary_key': True, 'default': None}),
     'plex_guid': (String, {'unique': True, 'default': None}),
@@ -39,17 +44,19 @@ common_schema = {
     'codec': (String, {'default': None}),
     'size': (Integer, {'default': None}),
     'video_path': (String, {'default': None}),
-    'last_modified': (DateTime, {'default': sa.func.now(), 'onupdate': sa.func.now()}),
+    'last_modified': (DateTime, {'default': None}),
 }
 
-def create_dataclass_fields(schema):
-    fields = []
-    for field, (dtype, options) in schema.items():
-        default_factory = options.get('dataclass_default', lambda: None)
-        fields.append((field, dtype, dataclasses.field(default_factory=default_factory)))
-    return fields
-
 def create_orm_columns(schema):
+    """
+    Convert schema definition to SQLAlchemy Column objects.
+    
+    Args:
+        schema: Dictionary mapping field names to (type, options) tuples
+        
+    Returns:
+        Dictionary of field names to SQLAlchemy Column objects
+    """
     orm_columns = {}
     for field, (dtype, options) in schema.items():
         # Filter out non-SQLAlchemy keys if any
@@ -58,24 +65,40 @@ def create_orm_columns(schema):
     return orm_columns
 
 class PlexRecordORM(Base):
+    """
+    SQLAlchemy ORM model for Plex media records.
+    
+    Stores metadata for movies and TV shows from Plex servers,
+    including titles, ratings, file sizes, and technical details.
+    """
     __tablename__ = 'plex_records'
     locals().update(create_orm_columns(common_schema))
 
     def __str__(self):
-        # Customize the string representation of PlexRecord
+        """
+        Format record as single-line display with platform, size, resolution, and title.
+        
+        Returns:
+            Formatted string: "plex      4.13 GB  1080     Movie Title (2024)"
+        """
         year_str = f" ({self.year})" if self.year is not None else ""
         resolution_str = f" {self.resolution}" if self.resolution is not None and self.resolution != "None" else ""
-        size_str = f" {byte_size(self.size)}" if self.size is not None else ""
+        size_str = f" {byte_size(self.size, unit='GB')}" if self.size is not None else ""
 
         # Default values for None fields
         platform_str = self.platform if self.platform is not None else "Unknown"
         title_str = self.title if self.title is not None else "No Title"
 
-        return f"{platform_str:7}{size_str:>10} {resolution_str:<6}    {title_str}{year_str}"
+        return f"{platform_str:7}{size_str:>10} {resolution_str:>6}    {title_str}{year_str}"
 
     
     def info(self):
-        # Customize the string representation of PlexRecord
+        """
+        Format record as detailed multi-line display with full metadata.
+        
+        Returns:
+            Formatted string with title, credits, summary, and technical details
+        """
         year_str = f" ({self.year})" if self.year else ""
         resolution_str = f"{self.resolution}" if self.resolution else ""
         size_str = f"{byte_size(self.size)}" if self.size else ""
@@ -95,13 +118,21 @@ class PlexRecordORM(Base):
         information += f'\n{self.summary}\n{self.platform} {resolution_str}  {rating}   {size_str}   {time_str}  [{id_str}]  {genres}\n'
         return information
 
-# Dataclass field defaults handling (if required)
 def create_dataclass_fields(schema):
+    """
+    Convert schema definition to dataclass field tuples.
+    
+    Args:
+        schema: Dictionary mapping field names to (type, options) tuples
+        
+    Returns:
+        List of (field_name, type) tuples for make_dataclass()
+    """
     fields = []
-    for field, (dtype, options) in schema.items():
-        # Assuming 'default' is used for dataclass default values
-        default = options.get('default', dataclasses.MISSING)
-        fields.append((field, dtype, dataclasses.field(default=default)))
+    for field_name, (_dtype, _options) in schema.items():
+        # For make_dataclass, we just need (name, type) tuples
+        # Defaults will be None for all fields
+        fields.append((field_name, type(None)))
     return fields
 
 PlexRecord = dataclasses.make_dataclass('PlexRecord', create_dataclass_fields(common_schema))
@@ -110,4 +141,10 @@ PlexRecord = dataclasses.make_dataclass('PlexRecord', create_dataclass_fields(co
 Base.metadata.create_all(engine) 
 
 def get_possible_attributes():
+    """
+    Get list of all field names from the PlexRecord dataclass.
+    
+    Returns:
+        List of field name strings
+    """
     return [f.name for f in dataclasses.fields(PlexRecord)]

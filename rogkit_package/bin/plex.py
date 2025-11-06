@@ -279,7 +279,7 @@ def media_info(item, args=None):
         h_m_string = ""
 
     # Format size
-    size_str = byte_size(size) if size is not None else ""
+    size_str = byte_size(size, unit="GB") if size is not None else ""
 
     # Crop and pad title
     if len(title) > title_length:
@@ -287,7 +287,7 @@ def media_info(item, args=None):
     else:
         title_display = title.ljust(title_length)
 
-    result = f"{title_display}  {size_str:>9}  {resolution:<5}  {h_m_string} {disk}"
+    result = f"{title_display}  {size_str:>9}  {resolution:>5}  {h_m_string} {disk}"
     
     if show_info:
         result = result + f"\n  {item.get('summary', '')}"

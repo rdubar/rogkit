@@ -65,4 +65,10 @@ dev = [
 [tool.setuptools]
 packages = { find = { where = ["."], include = ["rogkit_package*", "pages*"], namespaces = false } }
 
+[tool.ruff]
+# Ignore trailing whitespace warnings
+ignore = [
+    "W291",  # trailing-whitespace
+    "W293",  # blank-line-with-whitespace
+]
 
