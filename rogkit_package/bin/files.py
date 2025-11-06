@@ -9,9 +9,9 @@ import argparse
 import os
 import time
 from dataclasses import dataclass, field
-from typing import List, Tuple
+from typing import List
+import ffmpeg  # type: ignore
 from .bytes import byte_size
-import ffmpeg
 
 
 def media_info(filepath: str, verbose: bool = False) -> str:

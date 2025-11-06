@@ -14,7 +14,11 @@ init(autoreset=True)
 
 
 def generate_ascii_art(
-    text, color="white", font="standard", horizontal_layout="default", vertical_layout="default", width=80
+    text, color="white",
+    font="standard",
+    horizontal_layout="default",
+    vertical_layout="default",
+    width=80
 ):
     """
     Generate ASCII art from text with additional customization options.
