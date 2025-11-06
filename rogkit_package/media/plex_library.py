@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+Plex library management with SQLAlchemy ORM and fuzzy search.
+
+Manages Plex media library synchronization, database operations, search functionality,
+and integration with TMDB for additional media metadata.
+"""
 import dataclasses
 import os
 import time
@@ -6,9 +12,9 @@ import csv
 import sys
 from typing import List
 
-from tqdm import tqdm
+from tqdm import tqdm  # type: ignore
 from sqlalchemy import func, text, or_
-import pandas as pd
+import pandas as pd  # type: ignore
 
 from .plex_server import PlexServer
 from .media_records import PlexRecordORM, PlexRecord, common_schema, get_possible_attributes 
@@ -17,11 +23,17 @@ from .media_settings import additional_media_csv, db_df_path
 from .tmdb import DataList
 from ..bin.seconds import convert_seconds
 
-from thefuzz import fuzz, process
+from thefuzz import fuzz, process  # type: ignore
 
 
 @dataclasses.dataclass
 class PlexLibrary:
+    """
+    Plex media library manager with database persistence and search capabilities.
+    
+    Synchronizes Plex library data to SQLite, supports fuzzy search, duplicate removal,
+    and integration with additional media sources (CSV, TMDB).
+    """
     plex_server: PlexServer = None
     session: Session = Session()
     libraries: list = dataclasses.field(init=False, default_factory=list)
@@ -32,9 +44,11 @@ class PlexLibrary:
         self.load_data_from_db()
 
     def total_records(self):
+        """Get total record count from database."""
         return self.session.query(PlexRecordORM).count()
 
     def ensure_database_ready(self):
+        """Optimize database with PRAGMA settings and verify schema."""
         try:
             # Execute PRAGMA statements for optimization
             self.session.execute(text("PRAGMA journal_mode = WAL"))         # Set journal mode to Write-Ahead Logging for better concurrency
@@ -57,6 +71,7 @@ class PlexLibrary:
             update_database_schema(engine)
 
     def load_data_from_db(self):
+        """Load all Plex records from database into memory."""
         try:
             self.libraries = self.session.query(PlexRecordORM).all()
         except Exception as e:
@@ -65,6 +80,7 @@ class PlexLibrary:
             self.reset_database()
 
     def reset_database(self):
+        """Drop all tables, recreate schema, and repopulate from Plex."""
         try:
             # Log the status
             print("Closing session and disposing engine...")
@@ -114,6 +130,7 @@ class PlexLibrary:
             raise
 
     def database_initialized(self):
+        """Check if database has any records."""
         try:
             # Use text() for the raw SQL query
             return self.session.execute(text("SELECT 1 FROM plex_records LIMIT 1")).scalar() is not None
@@ -122,12 +139,14 @@ class PlexLibrary:
             return False
 
     def connect_to_plex(self):
+        """Establish connection to Plex server if not already connected."""
         if not self.plex_server:
             self.plex_server = PlexServer()
         if not self.plex_server.connection:
             self.plex_server.get_connection()
 
     def is_database_empty(self):
+        """Check if database contains zero records."""
         try:
             # Use text() for the raw SQL query
             count = self.session.execute(text("SELECT COUNT(*) FROM plex_records")).scalar()
@@ -137,6 +156,7 @@ class PlexLibrary:
             return True
 
     def database_exists(self):
+        """Check if database file exists and is accessible."""
         try:
             # Check if any table exists in the database
             return self.session.execute(text("SELECT 1")).scalar() is not None

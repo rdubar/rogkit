@@ -1,17 +1,10 @@
-import os
-import sys
-import argparse
-import tempfile
-from datetime import datetime
-from time import perf_counter
-from pathlib import Path
-
-import yaml
-
-from .bytes import byte_size
-from .seconds import convert_seconds
-
 """
+File and folder backup utility with compression.
+
+Creates timestamped, compressed tar.gz archives of specified directories,
+excluding configurable patterns. Supports multiple backup destinations
+and YAML configuration.
+
 Sample ~/.backup.yaml configuration file:
 
 # Folders to back up
@@ -44,6 +37,18 @@ archive_locations:
   - /mnt/network_drive/backups
   - /home/user/cloud_backups
 """
+import os
+import sys
+import argparse
+import tempfile
+from datetime import datetime
+from time import perf_counter
+from pathlib import Path
+
+import yaml
+
+from .bytes import byte_size
+from .seconds import convert_seconds
 
 # Default configurations (absolute or in user home)
 DEFAULT_SOURCE_FOLDERS = ['apv', 'bin', 'dev', 'opt']

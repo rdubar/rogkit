@@ -1,19 +1,28 @@
+"""
+MongoDB logger and utility for rogkit.
+
+Connects to MongoDB using config from TOML, logs generated text with timestamps,
+and retrieves records from collections.
+"""
 import argparse
 from dataclasses import dataclass
 from datetime import datetime
 import os
-from pymongo import MongoClient
-from pymongo.errors import ConnectionFailure, PyMongoError
+from pymongo import MongoClient  # type: ignore
+from pymongo.errors import ConnectionFailure, PyMongoError  # type: ignore
 from typing import List, Optional
 from ..bin.tomlr import load_rogkit_toml
 
+
 @dataclass
 class MongoDBConfig:
+    """MongoDB connection configuration."""
     uri: str
     db_name: str
     collection_name: str
 
 def load_config() -> MongoDBConfig:
+    """Load MongoDB configuration from rogkit TOML or environment variables."""
     TOML = load_rogkit_toml()
     return MongoDBConfig(
         uri=TOML.get('mongodb', {}).get('uri', '') or os.getenv('MONGO_URI', ''),
@@ -22,6 +31,8 @@ def load_config() -> MongoDBConfig:
     )
 
 class MongoDBLogger:
+    """MongoDB logger for writing and retrieving timestamped text records."""
+    
     def __init__(self, config: MongoDBConfig):
         self.config = config
         self.client = None
@@ -30,6 +41,7 @@ class MongoDBLogger:
         self._connect()
 
     def _connect(self):
+        """Establish connection to MongoDB."""
         try:
             self.client = MongoClient(self.config.uri)
             self.db = self.client[self.config.db_name]
@@ -40,6 +52,7 @@ class MongoDBLogger:
             raise
 
     def log_text(self, generated_text: str, model: Optional[str] = None):
+        """Log generated text with timestamp to MongoDB."""
         if not self.client:
             print("MongoDB connection not established.")
             return
@@ -56,6 +69,7 @@ class MongoDBLogger:
             print(f"Failed to write log to MongoDB: {e}")
 
     def get_records(self) -> List[dict]:
+        """Retrieve all records from the configured collection."""
         if not self.client:
             print("MongoDB connection not established.")
             return []
@@ -93,6 +107,7 @@ class MongoDBLogger:
             return {}
 
 def parse_arguments():
+    """Parse command-line arguments for MongoDB operations."""
     parser = argparse.ArgumentParser(description='Log generated text to MongoDB.')
     parser.add_argument('-l', '--log', type=str, help='Log the generated text to MongoDB.')
     parser.add_argument('-r', '--retrieve', action='store_true', help='Retrieve all records from MongoDB.')

@@ -1,3 +1,8 @@
+"""
+Rogkit package settings and path configuration.
+
+Defines script directory, root directory, TOML sample path, and data directory.
+"""
 import os
 
 script_dir = os.path.dirname(os.path.abspath(__file__))

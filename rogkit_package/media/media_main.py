@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
+"""
+Main CLI interface for Plex library management.
+
+Provides comprehensive tools for searching, filtering, and managing
+Plex media library records stored in the local database.
+"""
 import datetime
 from pprint import pp
 from time import perf_counter
-from .media_records import PlexRecordORM
-from .plex_library import PlexLibrary, update_database_schema, engine
-from .plex_server import PlexServer
-from .shrink import shrink_list
-
-from ..bin.seconds import convert_seconds
-from ..bin.bytes import byte_size
-from .media_args import process_arguments
-from .media_settings import afi_path
-from .media_utils import freeze_database, restore_database, last_updated, sort_results_by_attribute
+from rogkit_package.media.media_records import PlexRecordORM
+from rogkit_package.media.plex_library import PlexLibrary, update_database_schema, engine
+from rogkit_package.media.plex_server import PlexServer
+from rogkit_package.media.shrink import shrink_list
+from rogkit_package.bin.seconds import convert_seconds
+from rogkit_package.bin.bytes import byte_size
+from rogkit_package.media.media_args import process_arguments
+from rogkit_package.media.media_settings import afi_path
+from rogkit_package.media.media_utils import freeze_database, restore_database, last_updated, sort_results_by_attribute
 
 def main():
     start_time = perf_counter()
@@ -28,7 +33,7 @@ def main():
     if args.afi:
         print("Checking against AFI's 100 Years...100 Movies list")
         found = missing = 0
-        with open(afi_path, 'r') as file:
+        with open(afi_path, 'r', encoding='utf-8') as file:
             file_list = file.read().splitlines()
         for item in file_list:
             if item[0] == '#' or '(' not in item or ')' not in item:
@@ -53,7 +58,7 @@ def main():
     if args.list:
         # read a list of items from a file and search for them
         try:
-            with open(args.list, 'r') as file:
+            with open(args.list, 'r', encoding='utf-8') as file:
                 file_list = file.read().splitlines()
         except FileNotFoundError:
             print(f"File not found: {args.list}")
@@ -97,7 +102,7 @@ def main():
 
     if args.reset:
         confirm = input("Resetting the database will delete all records. Are you sure? (y/n)")
-        if not confirm.lower() in ['y', 'yes']:
+        if confirm.lower() not in ['y', 'yes']:
             print("Aborting reset.")
             return
         update_database_schema(engine)
@@ -111,7 +116,8 @@ def main():
     if args.duplicates: 
         removed = plex_library.remove_duplicates()
         print(f"Removed {len(removed):,} duplicates.") 
-        [print(result) for result in removed]
+        for result in removed:
+            print(result)
 
     total_records = plex_library.session.query(PlexRecordORM).count()
 
@@ -213,11 +219,7 @@ def main():
 if __name__ == "__main__":
     main()
 
-"""
-TODO: 
 
-Rename PlexRecord, PlexRecordORM to MediaRecord, MediaRecordORM 
-Rename PlexLibrary to MediaLibrary
-Rename plex_library.py to media_library.py
-Refactor plex_library.py
-"""
+# TODO: Rename PlexRecord/PlexRecordORM to MediaRecord/MediaRecordORM
+# TODO: Rename PlexLibrary to MediaLibrary, plex_library.py to media_library.py
+# TODO: Refactor plex_library.py

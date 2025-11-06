@@ -1,3 +1,9 @@
+"""
+Spotify liked songs manager.
+
+CLI tool for viewing, searching, and managing Spotify liked songs with local caching.
+Supports duplicate detection and playlist browsing. Configuration via rogkit config.toml.
+"""
 import os
 import json
 from dataclasses import dataclass
@@ -6,8 +12,8 @@ from time import perf_counter
 import argparse
 
 from dotenv import load_dotenv
-import spotipy
-from spotipy.oauth2 import SpotifyOAuth
+import spotipy  # type: ignore
+from spotipy.oauth2 import SpotifyOAuth  # type: ignore
 
 from ..bin.tomlr import load_rogkit_toml
 from .seconds import time_ago_in_words
@@ -15,8 +21,10 @@ from .seconds import time_ago_in_words
 # Load environment variables from .env file if needed
 load_dotenv()
 
+
 @dataclass
 class SpotifyClient:
+    """Spotify API client wrapper with authentication."""
     client_id: str
     client_secret: str
     redirect_uri: str
@@ -25,6 +33,7 @@ class SpotifyClient:
     sp: spotipy.Spotify = None
 
     def authenticate(self):
+        """Authenticate with Spotify using OAuth2."""
         auth_manager = SpotifyOAuth(
             client_id=self.client_id,
             client_secret=self.client_secret,
@@ -40,6 +49,7 @@ class SpotifyClient:
         print("Spotify client authenticated successfully.")
 
     def get_liked_songs(self):
+        """Retrieve all liked songs from Spotify."""
         if not self.sp:
             raise Exception("Spotify client is not authenticated.")
         tracks = []
@@ -51,7 +61,8 @@ class SpotifyClient:
             results = self.sp.next(results)
         return tracks
 
-    def get_user_playlists(self, limit=50, offset=0):  # TODO: fix this
+    def get_user_playlists(self, limit=50, offset=0):
+        """Retrieve user's playlists from Spotify."""
         if not self.sp:
             raise Exception("Spotify client is not authenticated.")
         playlists = []
@@ -74,6 +85,7 @@ class SpotifyClient:
 
 
 def process_arguments():
+    """Parse command-line arguments for Spotify utility."""
     parser = argparse.ArgumentParser(description='Process arguments')
     parse = parser.add_argument
 
@@ -86,6 +98,7 @@ def process_arguments():
 
 
 def load_cache(file_path):
+    """Load liked songs from local JSON cache."""
     if os.path.exists(file_path):
         with open(file_path, 'r') as file:
             data = json.load(file)
@@ -96,11 +109,13 @@ def load_cache(file_path):
 
 
 def save_cache(file_path, data):
-    with open(file_path, 'w') as file:
+    """Save liked songs to local JSON cache."""
+    with open(file_path, 'w', encoding='utf-8') as file:
         json.dump(data, file)
 
 
 def get_playlist(args, search_text):
+    """Get liked songs, refreshing cache if needed."""
     start_time = perf_counter()
     try:
         toml = load_rogkit_toml()
@@ -163,6 +178,7 @@ def get_playlist(args, search_text):
 
 
 def main():
+    """CLI entry point for Spotify liked songs manager."""
     start_time = perf_counter()
     print("Rog's Spotify Playlist Utility")
     args, search_text = process_arguments()

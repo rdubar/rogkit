@@ -1,3 +1,8 @@
+"""
+Media library configuration and paths.
+
+Defines database locations, media paths, CSV/pickle files, and default settings.
+"""
 import os
 
 # Define the path for your database

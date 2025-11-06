@@ -1,7 +1,15 @@
+"""
+Wikipedia search and article fetcher.
+
+Queries Wikipedia for articles and returns summaries or full content,
+with handling for disambiguation and missing pages.
+"""
 import argparse
-import wikipedia
+import wikipedia  # type: ignore
+
 
 def search_wikipedia(search_term, full_article=False):
+    """Search Wikipedia and return summary or full article."""
     try:
         # Search for the page
         page = wikipedia.summary(search_term) 
@@ -14,6 +22,7 @@ def search_wikipedia(search_term, full_article=False):
         return "Page not found."
 
 def main():
+    """CLI entry point for Wikipedia search."""
     parser = argparse.ArgumentParser(description="Fetch information from Wikipedia.")
     parser.add_argument("search_term", nargs='+', help="Search term for querying Wikipedia")
     parser.add_argument("-f", "--full", action="store_true", help="Fetch the full article instead of the summary")

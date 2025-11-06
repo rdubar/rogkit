@@ -1,7 +1,4 @@
 #!/usr/bin/env python3
-import argparse
-import re
-
 """
 Pluralizer CLI Tool
 
@@ -27,8 +24,12 @@ Pluralization rules include:
 
 Intended as a simple utility for command-line environments.
 """
+import argparse
+import re
+
 
 def looks_plural(word):
+    """Check if a word already appears to be plural."""
     return (
         word.lower() in {
             'men', 'women', 'children', 'teeth', 'feet', 'mice', 'people',
@@ -38,6 +39,16 @@ def looks_plural(word):
     )
 
 def plural(word, count=2):
+    """
+    Pluralize a word based on count.
+    
+    Args:
+        word: The word to pluralize
+        count: Number of items (default: 2). Returns singular if count is 1
+        
+    Returns:
+        Pluralized word or original if count is 1
+    """
     if not word or count == 1:
         return word
     
@@ -73,7 +84,11 @@ def plural(word, count=2):
         return word + 's'
 
 def parse_input(input_string):
-    """Parse input string to find count and word, regardless of order."""
+    """
+    Parse input string to find count and word, regardless of order.
+    
+    Supports formats: "2 cat", "cat 2", or just "cat" (assumes count of 2)
+    """
     match = re.search(r'(\d+)\s+(\w+)|(\w+)\s+(\d+)', input_string)
     if match:
         word = match.group(2) or match.group(3)
@@ -87,6 +102,7 @@ def parse_input(input_string):
     raise ValueError("Input does not match expected format.")
 
 def main():
+    """CLI entry point for pluralization utility."""
     parser = argparse.ArgumentParser(description='Pluralize a word based on the count provided.')
     parser.add_argument('input', nargs=argparse.REMAINDER, help='Count and word, e.g., "2 cat" or "cat 2"')
     args = parser.parse_args()

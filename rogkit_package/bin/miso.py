@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+DVD/ISO to movie file converter.
+
+Mounts ISO files, extracts and concatenates VOB files from VIDEO_TS directories,
+and converts them to MP4/MKV format with optional compression using ffmpeg.
+"""
 import os
 import sys
 import subprocess
@@ -14,6 +20,7 @@ def is_mounted(mount_dir):
 
 
 def mount_iso(iso_path, mount_dir="/mnt/iso", verbose=False):
+    """Mount an ISO file to the specified directory."""
     if not os.path.exists(mount_dir):
         os.makedirs(mount_dir)
     if is_mounted(mount_dir):
@@ -95,13 +102,18 @@ def unmount_iso(mount_dir="/mnt/iso", verbose=False):
 
 
 def infer_movie_name(input_path):
-    """Infer movie name based on the directory or file name."""
+    """
+    Infer movie name based on the directory or file name.
+    
+    Sanitizes the name for use as a filename.
+    """
     base_name = os.path.basename(input_path)
     movie_name = re.sub(r"[^\w\-]", "_", base_name).strip("_")  # Replace invalid filename characters
     return movie_name
 
 
 def main():
+    """CLI entry point for ISO/DVD to movie converter."""
     start_time = time.time()
     
     parser = argparse.ArgumentParser(

@@ -1,4 +1,9 @@
 #!/usr/bin/env python3
+"""
+Media library utility functions.
+
+Provides sorting, database backup/restore, and media result filtering utilities.
+"""
 import os
 import shutil
 import time

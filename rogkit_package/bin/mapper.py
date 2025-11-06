@@ -1,16 +1,21 @@
+"""
+Address geocoding and mapping utility.
+
+Reads addresses from CSV file, geocodes them using Nominatim (OpenStreetMap),
+and creates an interactive Folium map with markers. Experimental.
+"""
 import os
 import argparse
 
-import pandas as pd
-from geopy.geocoders import Nominatim
-from geopy.extra.rate_limiter import RateLimiter
-import folium
+import pandas as pd  # type: ignore
+from geopy.geocoders import Nominatim  # type: ignore
+from geopy.extra.rate_limiter import RateLimiter  # type: ignore
+import folium  # type: ignore
 
 from ..settings import data_dir
 
 DEFAULT_DATA_FILE = os.path.join(data_dir, 'homes_map_data.csv')
 
-# Experimental script to map addresses from a CSV file
 
 def map_from_file(path):
     """
@@ -69,7 +74,7 @@ def map_from_file(path):
     print("Map saved as 'mapped_addresses.html'")
     
 def main():
-
+    """CLI entry point for address geocoding and mapping."""
     parser = argparse.ArgumentParser(description="Map addresses from a CSV file.")
     parser.add_argument("file_path", nargs='?', default=None, help="Path to the CSV file with addresses.")
     args = parser.parse_args()

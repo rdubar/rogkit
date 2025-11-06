@@ -1,7 +1,14 @@
+"""
+DVD rip finder for identifying uncompressed MPEG-2 video files.
+
+Scans configured media paths for .mkv/.mp4 files with MPEG-2 codec,
+useful for finding candidates for recompression to save disk space.
+"""
 import os
 import argparse
 from .media_settings import media_paths
 from ..bin.files import media_info
+
 
 def shrink_list(paths, search=None):
     """

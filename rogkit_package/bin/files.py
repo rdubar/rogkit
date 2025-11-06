@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+File search utility with optional media information display.
+
+Recursively searches directories for files matching all specified text patterns,
+with support for displaying media file resolution and codec information.
+"""
 import argparse
 import os
 import time
@@ -6,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import List, Tuple
 from .bytes import byte_size
 import ffmpeg
+
 
 def media_info(filepath: str, verbose: bool = False) -> str:
     """
@@ -44,6 +51,7 @@ DEFAULT_FOLDER_LIST = [
 
 @dataclass
 class SearchReport:
+    """Encapsulates file search results and metadata."""
     search_terms: List[str]
     folders : List[str] = field(default_factory=list)
     results: List[str] = field(default_factory=list)
@@ -51,6 +59,7 @@ class SearchReport:
     search_time: float = 0.0
 
     def display_files(self, number=10, all=False, media=False):
+        """Display search results with file size and optional media info."""
         matches = "match" if len(self.results) == 1 else "matches"
         print(f"Found {len(self.results):,} {matches} in {self.total_files_searched:,} files in {self.search_time:.2f} seconds.")
         if all:
@@ -66,6 +75,7 @@ class SearchReport:
             print("...and more")
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments for file search."""
     parser = argparse.ArgumentParser(description='Search for files and folders containing all specified texts.')
     parser.add_argument('-a', '--all', action='store_true', help='Show all matching results.')
     parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
@@ -77,6 +87,7 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 def find_files(folders: List[str], texts: List[str]) -> SearchReport:
+    """Recursively search for files containing all specified text patterns."""
     start_time = time.perf_counter()
     report = SearchReport(search_terms=texts)
     texts = [text.lower() for text in texts]
@@ -92,6 +103,7 @@ def find_files(folders: List[str], texts: List[str]) -> SearchReport:
     return report
 
 def main():
+    """CLI entry point for file search utility."""
     args = parse_args()
 
     folders = [args.folder] if args.folder else [f for f in DEFAULT_FOLDER_LIST if os.path.exists(f)]

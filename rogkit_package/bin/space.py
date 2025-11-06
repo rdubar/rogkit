@@ -1,12 +1,21 @@
+"""
+Disk space usage utility.
+
+Displays disk space information for mounted filesystems,
+including total, used, and free space with usage percentages.
+"""
 import os
 import argparse
 from .bytes import byte_size
 
+
 def print_header():
+    """Print table header for disk space display."""
     print(f"{'Path':20} | {'Total Size':10} | {'Used':10} | {'Free':10} | {'Usage':5}")
     print("-" * 70)
 
 def display_space(path):
+    """Display disk space statistics for a given path."""
     stats = os.statvfs(path)
     total_space = stats.f_blocks * stats.f_frsize
     free_space = stats.f_bfree * stats.f_frsize
@@ -16,6 +25,15 @@ def display_space(path):
     print(f"{path:20} | {byte_size(total_space):10} | {byte_size(used_space):10} | {byte_size(free_space):10} | {percent_full:5.2f}%")
 
 def display_paths(path_list=None, size=False, quiet=False, show_all=False):
+    """
+    Display disk space for multiple paths.
+    
+    Args:
+        path_list: List of paths to check (defaults to /mnt/* and /)
+        size: Sort by size if True
+        quiet: Skip header if True  
+        show_all: Show all mount points including duplicates
+    """
     if path_list is None:
         path_list = []
         
@@ -58,6 +76,7 @@ def display_paths(path_list=None, size=False, quiet=False, show_all=False):
         display_space(path)
 
 def get_args():
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description='Display disk space usage')
     parser.add_argument('paths', nargs='*', default=[], help='List of paths to check (optional)')
     parser.add_argument('-s', '--size', action='store_true', help='Sort by size')

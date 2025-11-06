@@ -1,4 +1,10 @@
-import sh
+"""
+System information utility using sh library.
+
+Displays detailed system information including CPU, memory, disk, and network
+interfaces. Works on Linux and macOS with platform-specific commands.
+"""
+import sh  # type: ignore
 import platform
 import argparse
 
@@ -76,9 +82,8 @@ def network_info():
         print(f"Error retrieving network info: {e}")
 
 
-import argparse
-
 def main():
+    """CLI entry point for system information tool."""
     parser = argparse.ArgumentParser(description="System Information Tool")
     parser.add_argument("-b", "--basic", action="store_true", help="Show basic system information (default)")
     parser.add_argument("-c", "--cpu", action="store_true", help="Show CPU information")

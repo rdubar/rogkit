@@ -1,5 +1,10 @@
-import tkinter as tk
-from tkinter import scrolledtext
+"""
+Tkinter GUI for Plex media library search.
+
+Simple desktop application for searching and browsing Plex media library.
+"""
+import tkinter as tk  # type: ignore
+from tkinter import scrolledtext  # type: ignore
 
 # Assuming these are available from your project's structure
 from .plex_library import PlexLibrary
@@ -7,7 +12,9 @@ from .media_records import PlexRecordORM
 
 plex_library = PlexLibrary()
 
+
 def get_results(search_query):
+    """Search Plex library and return formatted results string with count."""
     results = plex_library.search(search_query)
     # Handling the case where search_query is empty to return all results
     results_list = [result.title for result in results]
@@ -16,6 +23,8 @@ def get_results(search_query):
     return results_str, len(results_sorted)  # Also return the number of results
 
 class SearchApp:
+    """Tkinter application for searching Plex media library."""
+    
     def __init__(self, root):
         self.root = root
         self.root.title("Rog's Media Library")
@@ -53,6 +62,7 @@ class SearchApp:
         self.perform_search()
 
     def perform_search(self, event=None):
+        """Execute search and display results in text area."""
         search_query = self.search_var.get()
         self.text_area.config(state=tk.NORMAL)  # Enable editing to update text
         self.text_area.delete(1.0, tk.END)  # Clear existing text
@@ -67,6 +77,7 @@ class SearchApp:
             self.status_label.config(text=f"{total:,} item(s) found.")
 
     def clear_search(self):
+        """Clear search box and show all results."""
         self.search_var.set('')  # Clear the search entry box
         self.perform_search()  # Perform an empty search to show all items
 

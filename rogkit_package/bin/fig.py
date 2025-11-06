@@ -1,7 +1,13 @@
+"""
+ASCII art text generator using pyfiglet.
+
+Creates colorized ASCII art banners from text input with
+customizable fonts, colors, and layouts.
+"""
 import argparse
 
-import pyfiglet
-from colorama import Fore, init
+import pyfiglet  # type: ignore
+from colorama import Fore, init  # type: ignore
 
 # Initialize colorama
 init(autoreset=True)
@@ -51,6 +57,7 @@ def generate_ascii_art(
 
 
 def main():
+    """CLI entry point for ASCII art generator."""
     parser = argparse.ArgumentParser(description="Generate ASCII art from text")
     parser.add_argument(
         "text",

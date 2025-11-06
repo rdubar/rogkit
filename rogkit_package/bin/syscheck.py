@@ -1,3 +1,9 @@
+"""
+System reboot advisor and resource management utility.
+
+Analyzes system metrics (uptime, load, memory, swap) to calculate a reboot score
+and provide recommendations. Can optionally free system resources on Linux/macOS.
+"""
 import os
 import re
 import platform
@@ -91,7 +97,11 @@ def get_memory_info(platform_type):
     return {}
 
 def uptime_score(uptime_seconds):
-    """Scaled uptime score: up to 25 points over 30 days."""
+    """
+    Calculate scaled uptime score.
+    
+    Returns up to 25 points based on uptime (maxes out at 30 days).
+    """
     days = uptime_seconds / 86400.0
     return min(days, 30.0) / 30.0 * 25.0
 
@@ -136,6 +146,7 @@ def calculate_reboot_need(uptime, load_avg, memory_info, mem_pressure_pct=None):
     return min(int(round(score)), 100)
 
 def verdict_from_score(score):
+    """Convert reboot score to verdict message."""
     if score < 30:
         return "\u2705 Optimal"
     if score < 70:
@@ -160,7 +171,11 @@ def last_boot():
         return None
 
 def format_memory(size_in_bytes):
-    """Format memory size in bytes to a human-readable string."""
+    """
+    Format memory size in bytes to human-readable string.
+    
+    Returns formatted string with appropriate unit (B, KB, MB, GB, TB).
+    """
     for unit in ['B', 'KB', 'MB', 'GB', 'TB']:
         if size_in_bytes < 1024:
             return f"{size_in_bytes:.2f} {unit}"
@@ -200,6 +215,7 @@ def free_system_resources(platform_type):
         print(f"Error while freeing resources: {e}")
 
 def main():
+    """CLI entry point for system reboot advisor."""
     parser = argparse.ArgumentParser(description="System Reboot Advisor")
     parser.add_argument("-f", "--free", action="store_true", help="Free swap and caches if possible")
     parser.add_argument("--confirm", action="store_true", help="Confirm execution of --free actions")

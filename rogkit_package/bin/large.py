@@ -1,3 +1,9 @@
+"""
+Large file finder over SSH.
+
+Scans remote directories via SSH to identify large files and folders
+containing multiple large files. Useful for media library management.
+"""
 import dataclasses
 import argparse
 import os
@@ -15,6 +21,7 @@ FOLDER = '/mnt/expansion/Media/Movies'
         
 @dataclasses.dataclass
 class FileObject:
+    """Represents a file with path, size, and parent folder."""
     path: str
     size: int = 0
     folder: str = ""
@@ -25,6 +32,7 @@ class FileObject:
         self.folder = '/'.join(parts[:-1])
 
 def parse_args():
+    """Parse command-line arguments for large file finder."""
     parser = argparse.ArgumentParser(description="List large files and folders with multiple large files over SSH.")
     parser.add_argument('search', nargs='*', help='Text to search for.')
     parser.add_argument('-a', '--all', action='store_true', help='Show all relevant paths') 
@@ -39,6 +47,7 @@ def parse_args():
     return parser.parse_args()
 
 def get_file_objects(folder, hostname, username, password, command):
+    """Execute remote command and parse output into FileObject instances."""
     file_objects = []
     output = execute_command(command, folder, hostname, username, password)
     
@@ -49,6 +58,7 @@ def get_file_objects(folder, hostname, username, password, command):
     return file_objects
 
 def analyze_files(file_objects, min_size, large_file_size):
+    """Analyze file objects to identify large files and folders with multiple large files."""
     large_files = [file for file in file_objects if file.size >= min_size]
     folder_counts = defaultdict(int)
     for file in large_files:
@@ -57,6 +67,7 @@ def analyze_files(file_objects, min_size, large_file_size):
     return large_files, {folder: count for folder, count in folder_counts.items() if count > 1}
 
 def main():
+    """CLI entry point for large file finder."""
     print("Rog's large file finder...")
     args = parse_args()
     command = f'find {args.folder} -type f -exec du -b ' + '{} +'

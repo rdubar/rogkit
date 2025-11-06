@@ -42,6 +42,8 @@ from colorama import init, Fore # type: ignore
 init(autoreset=True)
 
 class Config:
+    """Video downloader configuration from TOML file."""
+    
     def __init__(self, config_file):
         try:
             self.config = toml.load(config_file)
@@ -53,12 +55,14 @@ class Config:
             exit(1)
 
     def get_download_options(self):
+        """Get yt_dlp download options with format and output template."""
         return {
             "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
             "outtmpl": os.path.join(self.temp_folder, "%(title).80s-%(id)s.%(ext)s"),  # Include temp_folder in output template
         }
 
 def get_title_from_url(url):
+    """Extract video title from URL using yt_dlp."""
     ydl_opts = {'quiet': True, 'no_warnings': True, 'skip_download': True}
     try:
         with YoutubeDL(ydl_opts) as ydl:
@@ -69,6 +73,7 @@ def get_title_from_url(url):
         return None
 
 def set_directory(directory=None):
+    """Set working directory, creating temp directory if none specified."""
     try:
         if directory is None:
             # Create a unique temporary directory (auto-cleaned on reboot)
@@ -85,9 +90,12 @@ def set_directory(directory=None):
         return None
 
 def showtime(s: float) -> str:
+    """Format time duration as seconds or timedelta."""
     return f"{s:.5f} seconds" if s < 10 else str(datetime.timedelta(seconds=s))
 
+
 def process_lines(lines, config):
+    """Process multiple lines/URLs for downloading."""
     temp_folder = config.temp_folder
     set_directory(temp_folder)
 
@@ -100,6 +108,7 @@ def process_lines(lines, config):
             process_url(line.strip(), config)
 
 def process_url(url, config):
+    """Download video from URL and move to final destination."""
     title = get_title_from_url(url)
     if not title:
         print(Fore.MAGENTA + "Skipping URL due to title fetch failure.")
@@ -121,6 +130,7 @@ def process_url(url, config):
     print(Fore.GREEN + f"Downloaded to {final_output}")
 
 def get_movies(search, config):
+    """Main function to download videos from URLs, files, or search terms."""
     clock = time.perf_counter()
 
     # Handle multiple parameters
@@ -150,6 +160,7 @@ def get_movies(search, config):
     print(Fore.CYAN + f"Completed task in {showtime(time.perf_counter() - clock)}.")
     
 def update_yt_dlp(path=None):
+    """Update yt_dlp package in virtualenv."""
     # get path for ~/opt/rogkit
     path = os.path.expanduser(path or "~/opt/rogkit")
     try:
@@ -172,6 +183,7 @@ def update_yt_dlp(path=None):
         sys.exit("Error: pip upgrade failed")
 
 def main():
+    """CLI entry point for video downloader."""
     default_config = "~/.config/rogkit/config.toml"
     parser = argparse.ArgumentParser(description="Rog's Movie Downloader")
     parser.add_argument("search", nargs="*", help="Search term, URL, or filename")

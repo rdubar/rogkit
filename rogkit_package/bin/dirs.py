@@ -1,15 +1,21 @@
+"""
+Directory size calculator and analyzer.
+
+Recursively scans directories to calculate and display the largest directories
+by total file size. Supports filtering by search terms.
+"""
 import os
 import sys
 from time import perf_counter
 from .bytes import byte_size
 
-'''
-TODO: search functionality, show hidden folders
-'''
+# TODO: search functionality, show hidden folders
 
 DEFAULT_FOLDER_LIST = ['/home', '/mnt/expansion']
 
+
 def default_folder():
+    """Select first available default folder from DEFAULT_FOLDER_LIST."""
     for folder in DEFAULT_FOLDER_LIST:
         if os.path.isdir(folder):
             return folder
@@ -17,6 +23,7 @@ def default_folder():
     return '/'
 
 def main():
+    """Calculate and display top 10 largest directories."""
     start_time = perf_counter()
     dir_sizes = {}
     total_files = 0

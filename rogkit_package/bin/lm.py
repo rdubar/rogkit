@@ -1,4 +1,9 @@
-# Chat with an intelligent assistant in your terminal
+"""
+Local LLM chat client for LM Studio.
+
+Interactive chat interface for locally-hosted large language models via
+LM Studio server. Supports streaming responses and conversation history.
+"""
 import argparse
 from openai import OpenAI
 import json
@@ -7,6 +12,7 @@ MODEL = 'lmstudio-community/Meta-Llama-3-70B-Instruct-GGUF/Meta-Llama-3-70B-Inst
 
 
 def connect_to_lm(show_history=False, model=MODEL):
+    """Connect to local LM Studio server and start interactive chat loop."""
     # Point to the local server
     client = OpenAI(base_url="http://localhost:1234/v1", api_key="lm-studio")
 
@@ -43,6 +49,7 @@ def connect_to_lm(show_history=False, model=MODEL):
         history.append({"role": "user", "content": input("> ")})
         
 def main():
+    """CLI entry point for local LLM chat client."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--debug", action="store_true")
     parser.add_argument("--show-history", action="store_true")

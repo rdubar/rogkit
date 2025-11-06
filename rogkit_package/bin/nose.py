@@ -1,3 +1,9 @@
+"""
+Odoo/OpenERP nosetests wrapper.
+
+Simplifies running nosetests for specific addons in OpenERP projects
+by automatically finding addon paths and constructing test commands.
+"""
 import argparse
 import subprocess
 import os
@@ -8,6 +14,7 @@ NOSETEST_CMD = 'bin/nosetests_odoo -- -v --with-timer --logging-clear-handlers'
 ADDONS_FOLDERS = ['addons', 'ext_addons']
 
 def main():
+    """CLI entry point for Odoo nosetests wrapper."""
     parser = argparse.ArgumentParser(description='Run nosetests for the specified folder in the openerp-addons directory.')
     parser.add_argument('folder', help='The folder or addon name to run tests on.')
     args = parser.parse_args()

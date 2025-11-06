@@ -1,10 +1,18 @@
+"""
+PDF creator from images.
+
+Converts a folder of JPG/PNG images into a single PDF document with A4 page size,
+automatically rotating landscape images and centering content.
+"""
 import os
 import argparse
-from PIL import Image
-from reportlab.pdfgen import canvas
-from reportlab.lib.pagesizes import A4
+from PIL import Image  # type: ignore
+from reportlab.pdfgen import canvas  # type: ignore
+from reportlab.lib.pagesizes import A4  # type: ignore
+
 
 def create_pdf_from_images(folder_path, output_pdf):
+    """Create PDF from all JPG/PNG images in folder, sorted by name."""
     # Get all .jpg and .png files in the directory in name order
     images = sorted([f for f in os.listdir(folder_path) if f.endswith('.jpg') or f.endswith('.png')])
 
@@ -50,6 +58,7 @@ def create_pdf_from_images(folder_path, output_pdf):
     print(f'PDF saved to {output_pdf}')
 
 def main():
+    """CLI entry point for PDF creator."""
     parser = argparse.ArgumentParser(description="Convert images in a folder to a single PDF document.")
     parser.add_argument("folder", type=str, help="The folder containing images to be converted.")
     args = parser.parse_args()

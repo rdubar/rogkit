@@ -1,5 +1,11 @@
-import sys, argparse
-from interpreter import interpreter
+"""
+Open Interpreter integration for rogkit.
+
+Provides CLI wrapper for Open Interpreter with optional OpenERP/Odoo
+connection setup using stored credentials from rogkit config.
+"""
+import argparse
+from interpreter import interpreter  # type: ignore
 from ..bin.tomlr import load_rogkit_toml
 
 connection_script = """
@@ -28,7 +34,9 @@ password = '<your_password>'
 common, models, uid = connect_to_openerp(url, db, username, password)   
 """
 
+
 def setup():
+    """Configure Open Interpreter with API key from rogkit config."""
     api_key = load_rogkit_toml().get("open-interpreter").get("api_key")
     if api_key:    
         interpreter.llm.api_key = api_key
@@ -37,7 +45,8 @@ def setup():
     interpreter.auto_run = True
 
 def main():
-    # setup argparse, so turns args into prompt by default with -erp option to connect to the erp
+    """CLI entry point for Open Interpreter integration."""
+    # setup argparse, so turns args into prompt by default with -erp option to connect to the erp
     parser = argparse.ArgumentParser()
     parser.add_argument("prompt", nargs='*', help="Prompt to send to Open Interpreter")
     parser.add_argument("-e", "--erp", action="store_true", help="Connect to the ERP")

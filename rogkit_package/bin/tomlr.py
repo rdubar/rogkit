@@ -1,5 +1,11 @@
+"""
+TOML configuration file manager for rogkit.
+
+Manages rogkit configuration in TOML format, supporting XDG config paths,
+default settings creation, and config file manipulation.
+"""
 import os
-import toml
+import toml  # type: ignore
 import argparse
 import sys
 from pathlib import Path
@@ -94,8 +100,8 @@ def make_keys_lowercase(d):
     else:
         return d
 
-def make_cuttent_rogkit_toml_lowercase():
-    """ Load the current rogkit toml and make all keys lowercase. """
+def make_current_rogkit_toml_lowercase():
+    """Load the current rogkit toml and make all keys lowercase."""
     toml_lower = make_keys_lowercase(load_rogkit_toml())
     # write the file
     rogkit_toml_path = get_rogkit_toml_path()
@@ -108,9 +114,12 @@ def make_cuttent_rogkit_toml_lowercase():
         sys.exit(1)
 
 def get_default_toml():
+    """Return default rogkit TOML configuration dictionary."""
     return DEFAULT_ROGKIT_TOML
 
+
 def write_default_toml():
+    """Write default TOML configuration to sample file."""
     toml_string = toml.dumps(get_default_toml())
     toml_path = toml_sample_path
     if os.path.exists(toml_path):
@@ -128,8 +137,7 @@ def write_default_toml():
 
 
 def parse_args():
-
-    """ Setup command-line argument parsing. """
+    """Setup command-line argument parsing."""
     parser = argparse.ArgumentParser(description="Rogkit TOML tool")
     parser.add_argument("-c", "--create", action="store_true", help="Create ~/.rogkit.toml with default settings (if it doesn't exist)")
     parser.add_argument("-d", "--default", action="store_true", help="Print default rogkit toml")
@@ -139,6 +147,7 @@ def parse_args():
     return parser.parse_args()
 
 def main():
+    """CLI entry point for TOML configuration tool."""
     args = parse_args()
     print("Rogkit TOML Tool")
 
@@ -147,7 +156,7 @@ def main():
     if args.create:
         setup_rogkit_toml()
     if args.lowercase:
-        make_cuttent_rogkit_toml_lowercase()
+        make_current_rogkit_toml_lowercase()
     if args.default:
         toml_string = toml.dumps(get_default_toml())
         print(toml_string)

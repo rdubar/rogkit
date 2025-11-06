@@ -1,4 +1,15 @@
 #!/usr/bin/env python3
+"""
+Translation file cleaner utility.
+
+Finds and cleans .po and .pot translation files using an external script.
+Supports filtering by modification time and search terms. Configuration
+via rogkit config.toml.
+
+# Add to ~/.config/rogkit/config.toml: 
+[clean]
+script_path = '/home/rdubar/projects/pythonProject/openerp-addons/src/scripts/local/scripts/translation_clean.sh'
+"""
 import os
 import fnmatch
 import time
@@ -6,12 +17,6 @@ import subprocess
 import argparse
 from .tomlr import get_config_value
 
-
-"""
-# Add to ~/.config/rogkit/config.toml: 
-[clean]
-script_path = '/home/rdubar/projects/pythonProject/openerp-addons/src/scripts/local/scripts/translation_clean.sh'
-"""
 
 def run_command(command):
     """Execute a shell command and return its output and error."""
@@ -38,6 +43,7 @@ def clean_files(file_list, script_path):
             print(f"Error: {error}")
 
 def main():
+    """CLI entry point for translation file cleaner."""
     print("Translation Clean Script")
     
     script_path = get_config_value("clean", "script_path")

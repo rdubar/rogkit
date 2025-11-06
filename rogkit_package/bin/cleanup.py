@@ -1,10 +1,16 @@
+"""
+System cleanup utility for macOS and Raspberry Pi.
+
+Scans and removes temporary/cache files across common directories with
+three cleanup levels: safe (caches), moderate (+ trash), aggressive (+ npm, logs).
+"""
 import os
 import argparse
 import shutil
 import platform
 from pathlib import Path
 
-""" 
+"""
 Clean up script for macOS and Raspberry Pi
 This script scans for temporary and cache files in common directories
 and allows the user to delete them based on a specified cleanup level.
@@ -14,7 +20,9 @@ It supports three levels of cleanup:
 3. Level 3: Aggressive cleanup (e.g., npm cache, thumbnails, logs
 """
 
+
 def sizeof_fmt(num, suffix="B"):
+    """Format file size in human-readable format."""
     for unit in ["", "K", "M", "G", "T"]:
         if abs(num) < 1024:
             return f"{num:.1f}{unit}{suffix}"
@@ -22,6 +30,7 @@ def sizeof_fmt(num, suffix="B"):
     return f"{num:.1f}P{suffix}"
 
 def collect_paths(level):
+    """Collect cleanup paths based on specified level (1-3) and platform."""
     system = platform.system()
     home = Path.home()
 
@@ -54,6 +63,7 @@ def collect_paths(level):
         return []
 
 def scan_and_report(paths, verbose=False):
+    """Scan paths and calculate total size of files to delete."""
     total_size = 0
     to_delete = []
     per_path_summary = {}
@@ -87,6 +97,7 @@ def scan_and_report(paths, verbose=False):
     return to_delete, total_size, per_path_summary
 
 def delete_files(file_list):
+    """Delete files and directories from provided list."""
     for file_path, _ in file_list:
         try:
             file_path.unlink()
@@ -97,6 +108,7 @@ def delete_files(file_list):
             continue
 
 def main():
+    """CLI entry point for system cleanup utility."""
     parser = argparse.ArgumentParser(description="Cleanup Script for macOS and Pi")
     parser.add_argument('--level', type=int, choices=[1, 2, 3], default=1,
                         help="Level of cleanup: 1 (safe), 2 (moderate), 3 (aggressive)")

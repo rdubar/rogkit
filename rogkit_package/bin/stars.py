@@ -1,3 +1,10 @@
+"""
+Star pattern generator.
+
+Creates lines or trees of star characters for decorative output.
+"""
+
+
 def print_stars(count, char='*'):
     """Print a line of stars based on the count."""
     if count < 0:
@@ -5,6 +12,7 @@ def print_stars(count, char='*'):
     print(char * count)
     
 def main():
+    """CLI entry point for star pattern generator."""
     import argparse
 
     parser = argparse.ArgumentParser(description='Print a line of stars based on the count provided.')
@@ -23,8 +31,7 @@ def main():
     except ValueError as e:
         print(f"Error: {e}")
         
-        
+
+
 if __name__ == "__main__":
     main()
-#     main()
-#     main()

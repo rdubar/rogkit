@@ -1,15 +1,25 @@
+"""
+Python interpreter performance benchmarking tool.
+
+Runs numerical, string, and list operations across different Python versions
+and generates performance comparison graphs.
+"""
 from __future__ import print_function
 import timeit
 import argparse
 
-import pandas as pd
-import matplotlib.pyplot as plt
+import pandas as pd  # type: ignore
+import matplotlib.pyplot as plt  # type: ignore
 
-import subprocess, platform
-import sys, os
+import subprocess
+import platform
+import sys
+import os
 from datetime import datetime
 
+
 def make_graph():
+    """Generate bar graph comparing execution times across platforms and Python versions."""
     # Read the CSV file into a DataFrame
     path = '/Users/rdubar/opt/rogkit/rogkit_package/bin/speeder.csv'
     df = pd.read_csv(path)
@@ -67,14 +77,18 @@ def run_benchmark(n=500):
     total_time = end_time - start_time
     print("{} {}".format(arch, total_time))
 
-def find_python_interpreters(all=False):
+def find_python_interpreters(all_interpreters=False):
     """
     Find Python interpreters available in the system PATH.
+
+    Args:
+        all_interpreters: If True, search all Python executables in PATH.
+                         If False, return predefined list.
 
     Returns:
         list of str: Paths to the found Python interpreter executables.
     """
-    if not all:
+    if not all_interpreters:
         return [ 'python2.7', 'python3.11', 'python3.12'][::-1]
     # else find all python executables in the PATH
     python_executables = []
@@ -94,8 +108,17 @@ def find_python_interpreters(all=False):
 
     return python_executables
 
-# Function to run a speed test
 def run_speed_test(interpreter, test_script='run_benchmark'):
+    """
+    Run speed test on specified Python interpreter.
+    
+    Args:
+        interpreter: Path to Python interpreter
+        test_script: Name of test script to run
+        
+    Returns:
+        Tuple of (success: bool, result: bytes or None)
+    """
     # Example test script execution
     command = [interpreter, __file__, '--mode', 'test']
     start_time = datetime.now()
@@ -113,6 +136,7 @@ def run_speed_test(interpreter, test_script='run_benchmark'):
     
 
 def main():
+    """CLI entry point for Python interpreter benchmarking."""
     parser = argparse.ArgumentParser(description='Run speed tests on Python interpreters.')
     parser.add_argument('--test', '-t', action='store_true', help='Run the speed tests.')
     parser.add_argument('--output', '-o', type=str, default='results.txt', help='Output file for test results.')

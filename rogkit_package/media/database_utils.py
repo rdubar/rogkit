@@ -1,8 +1,12 @@
-# base.py
+"""
+SQLAlchemy database initialization and schema management.
+
+Creates SQLite database, manages schema updates, and provides session factory.
+"""
 import os
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
+from sqlalchemy.ext.declarative import declarative_base  # type: ignore
+from sqlalchemy import create_engine  # type: ignore
+from sqlalchemy.orm import sessionmaker  # type: ignore
 
 from .media_settings import db_url
 

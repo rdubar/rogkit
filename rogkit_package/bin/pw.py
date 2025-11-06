@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+Secure password generator with strength analysis.
+
+Generates cryptographically secure passwords with customizable character sets,
+checks password strength, estimates crack time, and copies to clipboard.
+"""
 import argparse
 import secrets
 import string
@@ -7,8 +13,23 @@ from dataclasses import dataclass
 from .bignum import bignum, seconds_time
 from .clipboard import copy_to_clipboard
 
+
 @dataclass
 class PasswordGenerator:
+    """
+    Password generator with strength analysis and crack time estimation.
+    
+    Attributes:
+        length: Password length (default: 16)
+        alpha: Include alphabetic characters
+        numeric: Include numeric characters
+        special: Include special/punctuation characters
+        dashes: Include dashes and underscores
+        password: Generated password
+        check: Enforce character type requirements
+        info: Display detailed password information
+        max_length: Maximum allowed password length
+    """
     length: int = 16
     alpha: bool = True
     numeric: bool = True
@@ -23,6 +44,7 @@ class PasswordGenerator:
         self.alphabet = self._create_alphabet()
 
     def _create_alphabet(self):
+        """Build character alphabet from selected character type options."""
         alphabet_set = set()
         if self.alpha:
             alphabet_set.update(string.ascii_letters)
@@ -36,6 +58,7 @@ class PasswordGenerator:
         return ''.join(alphabet_set)
         
     def generate_password(self):
+        """Generate a random password using cryptographically secure random choices."""
         try:
             self.password = ''.join(secrets.choice(self.alphabet) for _ in range(self.length))
         except Exception as e:
@@ -43,6 +66,12 @@ class PasswordGenerator:
             exit(1)
 
     def generate_and_store_password(self):
+        """
+        Generate password and regenerate if it fails validation checks.
+        
+        Returns:
+            The generated password string
+        """
         if self.length < 1:
             print("Password length must be greater than 0.")
             exit(1)
@@ -58,6 +87,15 @@ class PasswordGenerator:
         return self.password
     
     def check_password(self, minimum_length=6):
+        """
+        Validate password contains all required character types.
+        
+        Args:
+            minimum_length: Minimum length for validation (default: 6)
+            
+        Returns:
+            True if password contains lowercase, uppercase, digit, and punctuation
+        """
         if minimum_length and self.length < minimum_length:
             print(f"Password length must be at least {minimum_length} characters for unique character checks.")
             return True
@@ -73,9 +111,19 @@ class PasswordGenerator:
     
 
     def calculate_combinations(self):
+        """Calculate total possible password combinations."""
         return len(self.alphabet) ** self.length
 
     def estimate_crack_time(self, guesses_per_second):
+        """
+        Estimate maximum time to crack password via brute force.
+        
+        Args:
+            guesses_per_second: Assumed attack speed
+            
+        Returns:
+            Human-readable time estimate
+        """
         combinations = self.calculate_combinations()
         
         if guesses_per_second <= 0:
@@ -94,15 +142,24 @@ class PasswordGenerator:
         return self._format_time(seconds)
 
     def _format_time(self, seconds):
+        """Format seconds into human-readable time string."""
         return seconds_time(seconds)
 
     def copy_to_clipboard(self):
+        """Copy generated password to system clipboard."""
         if self.password is not None:
             copy_to_clipboard(self.password)
         else:
             print("No password generated to copy.")
 
     def display_password_info(self, guesses_per_second, size_limit=500):
+        """
+        Display password and optional strength analysis information.
+        
+        Args:
+            guesses_per_second: Attack speed for crack time estimation
+            size_limit: Skip calculations for passwords longer than this
+        """
         try:
             if self.password is not None:   
                 print(self.password)
@@ -122,7 +179,7 @@ class PasswordGenerator:
             print(f"Error displaying password info: {e}")
 
 def main():
-    
+    """CLI entry point for password generator."""
     default_length = 20
     
     parser = argparse.ArgumentParser(description='Generate a password.')

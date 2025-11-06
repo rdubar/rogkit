@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+Time conversion utilities for seconds to human-readable formats.
+
+Provides functions to convert seconds into readable durations like
+"2 hours, 30 minutes" or "02:30:00" format.
+"""
 import argparse
 from datetime import datetime
 from .bignum import bignum

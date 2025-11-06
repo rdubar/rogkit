@@ -1,6 +1,13 @@
+"""
+Hidden file and folder finder/remover.
+
+Recursively scans directories for hidden files and folders (starting with dot)
+and optionally deletes them with confirmation.
+"""
 import os
 import argparse
 import shutil
+
 
 def find_hidden_items(path='.'):
     """
@@ -42,6 +49,7 @@ def delete_hidden_items(hidden_items):
             print(f"Error deleting {item}: {e}")
 
 def main():
+    """CLI entry point for hidden file finder."""
     parser = argparse.ArgumentParser(description="Recursively find and optionally delete hidden files and folders.")
     
     # Adding optional argument for path, default is current directory

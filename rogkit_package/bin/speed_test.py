@@ -1,6 +1,13 @@
+"""
+Python speed test benchmarking script.
+
+Measures execution time of numerical, string, and list operations.
+Simpler standalone version compared to speeder.py.
+"""
 from __future__ import print_function
 import timeit
 import sys
+
 
 def numerical_operations():
     """Perform numerical operations."""

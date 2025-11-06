@@ -1,4 +1,11 @@
 #!/usr/bin/env python3
+"""
+File purge utility for removing junk files.
+
+Recursively searches for and deletes files matching patterns from a purge list
+(e.g., torrent metadata, sample files, zone identifiers). Includes safety checks
+to avoid deleting actual media files.
+"""
 import argparse
 import os
 import fnmatch
@@ -49,6 +56,7 @@ YTSYifyUP... (TOR).txt
 """)
 @dataclass
 class PurgeResults:
+    """Encapsulates purge results including files to delete and total files scanned."""
     files_to_delete: list = field(default_factory=list)
     total_files: int = 0
 
@@ -64,6 +72,7 @@ def matches_pattern(file, patterns):
     return False
 
 def search_and_collect_files(folders, patterns):
+    """Recursively search folders for files matching purge patterns."""
     results = PurgeResults()
     if not isinstance(folders, list):
         folders = [folders]
@@ -77,10 +86,12 @@ def search_and_collect_files(folders, patterns):
     return results
         
 def _is_sample_media_file(path):
+    """Check if file is a sample media file (not an actual media file)."""
     file = os.path.basename(path)
     return file.lower().startswith('sample.') or file.lower().endswith('.sample')
 
 def delete_files(file_list):
+    """Delete files from list, skipping actual media files for safety."""
     for file in file_list:
         # check for media files
         if file.endswith(('.mkv', '.mp4', '.avi', '.srt')) and not _is_sample_media_file(file):
@@ -89,6 +100,7 @@ def delete_files(file_list):
         safe_delete(file)
 
 def main():
+    """CLI entry point for file purge utility."""
     parser = argparse.ArgumentParser(description='Search and delete files based on a pattern.')
     parser.add_argument('pattern', nargs='?', default=PURGE_LIST, help='Pattern to search for [or use defaults].')
     parser.add_argument('-d', '--dsstore', action='store_true', help='Include .DS_Store files.')

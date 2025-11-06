@@ -1,6 +1,13 @@
+"""
+Image transparency utility.
+
+Makes specified colors transparent in images based on hex color and tolerance.
+Uses PIL and NumPy for efficient pixel manipulation.
+"""
 import argparse
-from PIL import Image
-import numpy as np
+from PIL import Image  # type: ignore
+import numpy as np  # type: ignore
+
 
 def hex_to_rgb(hex_color):
     """Convert hex color to an RGB tuple."""

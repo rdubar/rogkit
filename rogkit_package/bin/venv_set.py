@@ -1,10 +1,19 @@
+"""
+Virtual environment finder and activator.
+
+Scans current directory for virtual environment folders
+and automatically activates the first one found.
+"""
 import os
 import subprocess
 
+
 def find_virtual_envs(directory):
+    """Find all virtual environment folders in directory."""
     return [folder for folder in os.listdir(directory) if os.path.exists(os.path.join(directory, folder, 'bin', 'activate'))]
 
 def activate_virtual_env(directory):
+    """Activate virtual environment at specified directory."""
     activate_script = os.path.join(directory, 'bin', 'activate')
     if os.path.exists(activate_script):
         command = f"source {activate_script}"
@@ -13,6 +22,7 @@ def activate_virtual_env(directory):
     return None
 
 def main():
+    """CLI entry point for virtual environment finder."""
     current_directory = os.getcwd()
     env_folders = find_virtual_envs(current_directory)
     

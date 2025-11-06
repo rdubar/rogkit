@@ -1,20 +1,27 @@
+"""
+AWS S3 file operations CLI tool.
+
+Provides commands for listing, uploading, downloading, and deleting files
+from AWS S3 buckets. Supports versioned buckets and bulk purge operations.
+Configuration via rogkit config.toml.
+
+# WARNING: Purge action removes ALL versions and delete markers
+amaz --action purge -c --all-versions --show-errors
+"""
 import argparse
 import glob
 from pathlib import Path
 from itertools import islice
 from dataclasses import dataclass, field
-import boto3
-from botocore.exceptions import NoCredentialsError
+import boto3  # type: ignore
+from botocore.exceptions import NoCredentialsError  # type: ignore
 from typing import List
 from ..bin.tomlr import load_rogkit_toml
 
-"""
-# WARNING: Removes ALL versions and delete markers
-amaz --action purge -c --all-versions --show-errors
-"""
 
 @dataclass
 class AwsConfig:
+    """AWS S3 connection configuration."""
     access_key_id: str
     secret_access_key: str
     bucket_name: str
@@ -30,6 +37,7 @@ class AwsConfig:
 
 @dataclass
 class S3CliTool:
+    """S3 CLI operations wrapper."""
     config: AwsConfig
     s3_client: any = field(init=False)
 
@@ -123,6 +131,7 @@ class S3CliTool:
 
 
 def main():
+    """CLI entry point for AWS S3 file operations."""
     parser = argparse.ArgumentParser(description="AWS S3 File Operations CLI Tool")
     parser.add_argument('--bucket', required=False, help="S3 bucket name")
     parser.add_argument('--action', required=True, choices=['list', 'upload', 'download', 'delete', 'purge'], help="Action to perform")

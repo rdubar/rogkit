@@ -1,3 +1,9 @@
+"""
+Simple Python system report utility.
+
+Displays Python version, executable path, operating system,
+and architecture information in a human-friendly format.
+"""
 import sys
 import platform
 import subprocess

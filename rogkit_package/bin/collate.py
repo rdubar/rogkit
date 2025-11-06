@@ -1,9 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+"""
+File collation utility.
+
+Recursively collates text and code files from a directory into a single file,
+with support for filtering by content match, file exclusion patterns, and sorting.
+"""
 import os
 import sys
 import argparse
 import fnmatch
+
 
 def clean_name(name):
     """Create a file-friendly name from a given string."""

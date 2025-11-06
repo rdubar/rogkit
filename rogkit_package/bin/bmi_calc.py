@@ -1,3 +1,9 @@
+"""
+BMI (Body Mass Index) calculator and progression tracker.
+
+Calculates BMI from height and weight, shows weight classifications,
+and projects BMI changes over time with weight gain/loss.
+"""
 import argparse
 import re
 
@@ -10,27 +16,38 @@ weight_classification = {
     (40, float('inf')): 'Obesity Class 3'
 }
 
+
 def get_bmi_classification(bmi):
+    """Get weight classification category based on BMI value."""
     for key in weight_classification:
         if key[0] <= bmi < key[1]:
             return weight_classification[key]
     return 'Unknown'
 
 def kg_to_pounds(kg):
+    """Convert kilograms to pounds."""
     return kg * 2.20462262185
 
+
 def pounds_to_kg(pounds):
+    """Convert pounds to kilograms."""
     return pounds / 2.20462262185
 
+
 def stones_to_kg(stones, pounds=0):
+    """Convert stones (and optional pounds) to kilograms."""
     return stones * 6.35029318 + pounds * 0.45359237
 
+
 def pounds_to_stones(pounds):
+    """Convert pounds to stones and remaining pounds."""
     stones = pounds // 14
     pounds = pounds % 14
     return stones, pounds
 
+
 def cm_to_feet(cm):
+    """Convert centimeters to feet and inches."""
     if not cm:
         return 0, 0
     total_inches = cm / 2.54
@@ -39,12 +56,27 @@ def cm_to_feet(cm):
     return int(feet), round(inches, 2)
 
 def feet_to_cm(feet, inches=0):
+    """Convert feet and inches to centimeters."""
     return feet * 30.48 + inches * 2.54
 
+
 def get_bmi(cm, kg):
+    """Calculate BMI from height in cm and weight in kg."""
     return kg / (cm / 100) ** 2
 
+
 def show_bmi_table(period="month", height=181, weight=84, gain=2.5, limit=12, bmi=None):
+    """
+    Display BMI progression table over time.
+    
+    Args:
+        period: Time period for weight change (default: "month")
+        height: Height in cm (or feet'inches" format string)
+        weight: Starting weight in kg (or "lbs"/"st" format string)
+        gain: Weight change per period in kg
+        limit: Number of periods to project
+        bmi: Optional BMI to calculate weight from
+    """
 
     if height and isinstance(height, str):
         match = re.match(r'(\d+)\'(\d+)"', height)
@@ -100,6 +132,7 @@ def show_bmi_table(period="month", height=181, weight=84, gain=2.5, limit=12, bm
 
 
 def main():
+    """CLI entry point for BMI calculator."""
     parser = argparse.ArgumentParser(description='Calculate BMI progression')
     parser.add_argument('args', nargs='*', help='Arguments in the form of height and weight or BMI')
     parser.add_argument('-g', '--gain', type=float, help='Weight gain per period', default=1)

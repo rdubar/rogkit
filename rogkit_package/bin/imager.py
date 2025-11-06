@@ -1,10 +1,17 @@
+"""
+Image batch processor and converter.
+
+Converts HEIC/WEBP/JPG images to compressed JPEGs with configurable max dimensions
+and file size. Supports batch processing with backup of originals.
+"""
 import os
 import argparse
 import io
-import pyheif
-from PIL import Image
+import pyheif  # type: ignore
+from PIL import Image  # type: ignore
 from .bytes import byte_size
 import subprocess
+
 
 def list_image_files(directory):
     """List all HEIC, webp, jpg and jpeg files in the given directory."""
@@ -138,9 +145,9 @@ def process_images(directory, confirm=False, max_size=110, max_length=800, verbo
     print(f"Moved {moved} image files to {images_backup_folder}")
 
 def main():
+    """CLI entry point for image batch processor."""
     default_max_dimension = 1_200  # longest side of the image in pixels
     default_max_size = 200  # maximum size of the image in KiloBytes
-    """Main function to handle argument parsing."""
     parser = argparse.ArgumentParser(description="Resize and convert images in the current directory.")
     parser.add_argument("directory", nargs='?', default=".", help="Directory to process (default: current directory)")
     parser.add_argument("-c", "--confirm", action="store_true", help="Confirm processing of files")

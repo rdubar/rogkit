@@ -1,3 +1,10 @@
+"""
+AI-powered shell assistant.
+
+Interactive shell that uses OpenAI GPT to suggest and execute commands
+based on natural language descriptions. Supports OS-specific command generation
+and adjustable expertise levels.
+"""
 import argparse
 import subprocess
 import platform
@@ -37,8 +44,10 @@ def get_system_prompt(os_name, expertise_level):
     """
     return prompt
 
-def query_chatgpt(prompt, os_name, expertise_level, engine=DEFAULT_ENGINE, history=[]):
-    """Queries the AI with a custom system prompt."""
+def query_chatgpt(prompt, os_name, expertise_level, engine=DEFAULT_ENGINE, history=None):
+    """Query AI with custom system prompt tailored to OS and expertise level."""
+    if history is None:
+        history = []
     system_message = {
         "role": "system",
         "content": get_system_prompt(os_name, expertise_level),
@@ -64,6 +73,7 @@ def command_exists(command):
     return shutil.which(command.split()[0]) is not None
 
 def chat_loop(os_name, expertise_level, engine=DEFAULT_ENGINE):
+    """Run interactive chat loop for AI shell assistant."""
     history = []
     print(f"Welcome to the AI Shell for {os_name}. Type your task or command. Type 'exit' to quit.")
 
@@ -99,6 +109,7 @@ def chat_loop(os_name, expertise_level, engine=DEFAULT_ENGINE):
             print(f"Error during AI query: {e}")
 
 def main():
+    """CLI entry point for AI shell assistant."""
     parser = argparse.ArgumentParser(description="AI Shell for executing tasks.")
     parser.add_argument("-o", "--os", help="Specify the operating system (e.g., Linux, macOS, Windows).")
     parser.add_argument("-l", "--level", choices=['beginner', 'intermediate', 'expert'],

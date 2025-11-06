@@ -1,14 +1,20 @@
+"""
+Plex Media Server CLI client.
+
+Provides command-line interface for interacting with Plex server:
+search, play, cache, and display media library information with
+support for filtering and caching.
+"""
 import os
 import sys
 import time
 import argparse
 import pickle
 from dataclasses import dataclass
-from typing import List
 from pathlib import Path
 
-from plexapi.server import PlexServer
-from plexapi.exceptions import NotFound
+from plexapi.server import PlexServer  # type: ignore
+from plexapi.exceptions import NotFound  # type: ignore
 
 from ..settings import root_dir
 from ..bin.tomlr import load_rogkit_toml
@@ -391,7 +397,7 @@ def main():
             title = getattr(item, 'title', 'Unknown Title')
             year = getattr(item, 'year', 'N/A')
             print(f"  - {title} ({year})")
-    if number := len(results) > args.number:
+    if len(results) > args.number:
         print(f"  ...and {len(results) - args.number:,} more results.")
 
     if args.watched:

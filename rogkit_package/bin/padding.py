@@ -1,6 +1,13 @@
+"""
+Internet Archive padding file remover.
+
+Recursively finds and optionally deletes .____padding_file directories
+created by Internet Archive downloads.
+"""
 import os
 import argparse
 import shutil
+
 
 def find_padding_files(path='.'):
     """
@@ -29,6 +36,7 @@ def delete_padding_files(padding_dirs):
             print(f"Error deleting {dir_path}: {e}")
 
 def main():
+    """CLI entry point for padding file remover."""
     parser = argparse.ArgumentParser(description="Recursively find and optionally delete Internet Archive padding files.")
     
     # Adding optional argument for path, default is current directory

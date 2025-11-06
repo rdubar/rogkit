@@ -1,8 +1,13 @@
+"""
+Experimental media player for local and remote files.
+
+Searches media cache and plays videos locally via VLC or streams via SFTP.
+"""
 import os
 import sys
 import json
 import subprocess
-import paramiko
+import paramiko  # type: ignore
 import urllib.parse
 
 # Configuration
@@ -16,13 +21,13 @@ CACHE_FILE = os.path.join(script_dir, "media_files_cache.json")
 def load_cache():
     """Load the media files cache."""
     if os.path.exists(CACHE_FILE):
-        with open(CACHE_FILE, "r") as f:
+        with open(CACHE_FILE, "r", encoding='utf-8') as f:
             return json.load(f)
     return {}
 
 def save_cache(cache):
     """Save the media files cache."""
-    with open(CACHE_FILE, "w") as f:
+    with open(CACHE_FILE, "w", encoding='utf-8') as f:
         json.dump(cache, f)
 
 def play_local(filepath):
@@ -99,6 +104,7 @@ def search_and_play(title):
 
 
 def main():
+    """CLI entry point for media player."""
     print("Roger's Experimental Media Player (not yet working)")
     title = " ".join(sys.argv[1:])
     if not title:

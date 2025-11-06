@@ -1,7 +1,14 @@
 #!/usr/bin/env python3
+"""
+Bulk file renaming utility.
+
+Recursively renames files by replacing substring patterns in filenames,
+with dry-run mode for safe preview before applying changes.
+"""
 import os
 import argparse
 import sys
+
 
 def rename_files(directory, old_pattern, new_pattern, confirm=False):
     """Recursively rename files matching old_pattern -> new_pattern."""
@@ -37,6 +44,7 @@ def rename_files(directory, old_pattern, new_pattern, confirm=False):
 
 
 def main():
+    """CLI entry point for file renaming utility."""
     parser = argparse.ArgumentParser(
         description="Recursively rename files by replacing substrings in filenames."
     )

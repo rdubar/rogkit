@@ -1,9 +1,16 @@
 #!/usr/bin/env python3
+"""
+Large number formatter and converter.
+
+Converts very large numbers into human-readable text (e.g., "1 trillion", 
+"5 vigintillion") and provides utilities for pretty-printing numbers.
+"""
 import dataclasses
 import argparse
 
 @dataclasses.dataclass
 class PrettyNumberFormatter:
+    """Formatter for converting large numbers to readable text representations."""
     BIGNUM_ZEROS = (
         (100, 'googol'),
         (63, 'vigintillion'),
@@ -42,6 +49,7 @@ class PrettyNumberFormatter:
 
     @staticmethod
     def prettynumber(number):
+        """Format a number with comma separators (e.g., 1234567 → 1,234,567)."""
         if type(number) == str and number.isdigit():
             number = int(number)
         try:
@@ -51,6 +59,7 @@ class PrettyNumberFormatter:
         return number
 
     def list_bignums(self, name=None):
+        """Generate list of named large numbers (googol, trillion, etc.)."""
         result = []
         for i in reversed(self.BIGNUM_ZEROS):
             result.append(f'1 with {i[0]} zeros is a {i[1]} (1e+{i[0]}).')
@@ -103,6 +112,7 @@ class PrettyNumberFormatter:
         return f'{rounded} {description}{e}'.strip()
 
     def seconds_time(self, seconds, granularity=2):
+        """Convert seconds to human-readable time (e.g., "5 years, 3 months")."""
         result = []
 
         if seconds > 31557600 * 10:
@@ -123,6 +133,7 @@ class PrettyNumberFormatter:
         return result
     
 def demo_uses():
+    """Demonstrate various formatter capabilities."""
     formatter = PrettyNumberFormatter()
     formatted_number = formatter.prettynumber(1234567890)
     print(formatted_number)  # Output: '1,234,567,890'
@@ -139,6 +150,18 @@ def demo_uses():
     print(time_description)  # Output: '31 years and 8 months', depending on the granularity
 
 def bignum(number, round_to=2, show_e=2, minimum=1000):
+    """
+    Convert a large number to readable text format.
+    
+    Args:
+        number: Number to convert (int, float, or string)
+        round_to: Decimal places to round to
+        show_e: Show scientific notation for numbers above 10**e
+        minimum: Smallest number to convert to text
+        
+    Returns:
+        Human-readable string representation
+    """
     try:
         formatter = PrettyNumberFormatter()
         return formatter.zillions(number, round_to=round_to, show_e=show_e, minimum=minimum)
@@ -146,10 +169,12 @@ def bignum(number, round_to=2, show_e=2, minimum=1000):
         return f'{number:,} ({e})'
 
 def seconds_time(seconds, granularity=2):
+    """Convert seconds to human-readable time format."""
     formatter = PrettyNumberFormatter()
     return formatter.seconds_time(seconds, granularity=granularity)
 
 def parse_arguments():
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description='Convert a number to a human-readable format.')
     parser.add_argument('number', type=str, nargs='?', help='Number to convert')
     parser.add_argument('-b', '--bignums', action='store_true', help='List big numbers')
@@ -162,6 +187,7 @@ def parse_arguments():
     return parser.parse_args()
 
 def main():
+    """CLI entry point for number formatting utility."""
     args = parse_arguments()
 
     # If no arguments are provided, show help

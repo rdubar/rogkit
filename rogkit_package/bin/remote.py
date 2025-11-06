@@ -1,7 +1,13 @@
+"""
+Remote SSH command execution utility.
+
+Executes commands either locally or remotely via SSH, with automatic
+detection of whether folder exists locally or requires remote execution.
+"""
 import argparse
 import os
 import subprocess
-import paramiko
+import paramiko  # type: ignore
 
 # SSH connection parameters
 HOSTNAME = '192.168.0.240'
@@ -10,6 +16,7 @@ PASSWORD = 'your_password_here'  # It's better to use SSH keys if possible
 FOLDER = '/mnt/expansion/Media/Movies'
 
 def ssh_command_execute(hostname, username, password, cmd):
+    """Execute a command on remote host via SSH."""
     try:
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -24,6 +31,7 @@ def ssh_command_execute(hostname, username, password, cmd):
         client.close()
         
 def execute_command(command: str, folder: str, hostname: str = HOSTNAME, username: str = USERNAME, password: str = PASSWORD) -> str:
+    """Execute command locally if folder exists, otherwise execute remotely via SSH."""
     if os.path.exists(folder):
         # Execute the command locally using subprocess
         print(f"Executing command: '{command}'")
@@ -41,6 +49,7 @@ def execute_command(command: str, folder: str, hostname: str = HOSTNAME, usernam
     return output
 
 def parse_args():
+    """Parse command-line arguments for remote command execution."""
     parser = argparse.ArgumentParser(description="List large files and folders with multiple large files over SSH.")
     parser.add_argument('command', type=str, help='Command to execute')
     parser.add_argument('-a', '--all', action='store_true', help='Show all relevant paths') 
@@ -51,6 +60,7 @@ def parse_args():
     return parser.parse_args()
 
 def main():
+    """CLI entry point for remote command execution."""
     args = parse_args()
     try:
         output = execute_command(args.command, args.folder, args.hostname, args.username, args.password)

@@ -1,25 +1,36 @@
 #!/usr/bin/env python3
+"""
+Text find and replace utility.
+
+Recursively searches text files for specified text patterns and optionally
+replaces them with new text, with confirmation option for each replacement.
+"""
 import os
 import argparse
 import dataclasses
 
+
 @dataclasses.dataclass
 class SearchResults:
+    """Encapsulates search results including matches, skipped files, and errors."""
     matches: list = dataclasses.field(default_factory=list)
     skipped: list = dataclasses.field(default_factory=list)
     errors: list = dataclasses.field(default_factory=list)
     total: int = 0
 
 def skip_path(path):
+    """Check if path should be skipped based on common directories to exclude."""
     return any(skip_path in path for skip_path in ['node_modules', '.git', '.venv', '.tox', '__pycache__', '/eggs/' , '/parts/', '/env/', '/etc/'])
 
+
 def is_text_file(filename):
+    """Check if filename has a text file extension."""
     # check if file is a text file
     text_file_extensions = ['.py', '.txt', '.html', '.xml', '.js', '.css', '.csv', '.rst', '.po', '.pot', '.mako']
     return any(filename.endswith(extension) for extension in text_file_extensions)
 
 def find_text_files(path, find_text, debug=False):
-    # read all files in the path tree, search text files for find_text, and return list of matching files
+    """Recursively search text files for specified text and return matching files."""
     results = SearchResults()
     if not find_text:
         return results
@@ -42,6 +53,7 @@ def find_text_files(path, find_text, debug=False):
     return results
 
 def replace_text_in_file(file_path, find_text, replace_text):
+    """Replace text in a single file and return True if replacement was made."""
     with open(file_path, 'r') as file:
         content = file.read()
     if replace_text in content:
@@ -52,6 +64,7 @@ def replace_text_in_file(file_path, find_text, replace_text):
     return True
 
 def get_args():
+    """Parse command-line arguments for search and replace utility."""
     parser = argparse.ArgumentParser(description='Search and optionally replace text in files.')
     parser.add_argument("-p", '--path',  required=False, help='Path to search files in')
     parser.add_argument('-f', '--find_text', required=False, help='Text to find')
@@ -61,7 +74,8 @@ def get_args():
     args = parser.parse_args()
     return args
 
-def do_search_and_replace(args):   
+def do_search_and_replace(args):
+    """Execute search and optional replace operation based on arguments."""
     if args.find_text:
         print(f"Searching for {args.find_text} in {args.path}")
     else:
@@ -77,6 +91,7 @@ def do_search_and_replace(args):
                 print(f"Text already replaced in {file_path}")
 
 def main():
+    """CLI entry point for text replacement utility."""
     args = get_args()
 
     over_ride = False

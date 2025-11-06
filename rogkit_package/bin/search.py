@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+File content search utility.
+
+Recursively searches text and code files for specified terms or phrases,
+with support for excluding common directories and file types.
+"""
 import argparse
 import os
 from dataclasses import dataclass, field
@@ -7,20 +13,27 @@ from typing import List
 DEFAULT_FOLDER_LIST = ["/Users/rdubar/apv/openerp-addons"]
 EXCLUDE_PATTERNS = ["/.idea/",'__pycache__', '.git', 'venv/', '/eggs/']
 
+
 @dataclass
 class SearchResults:
+    """Encapsulates search results including matched files, skipped files, and errors."""
     matched_files: List[str] = field(default_factory=list)
     skipped_files: List[str] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     total_files: int = 0
 
 def is_valid_file(file: str) -> bool:
+    """Check if file has a searchable extension."""
     return os.path.splitext(file)[1] in ['.py', '.xml', '.js', '.css', '.txt', '.md', '.log', '.po', '.pot']
 
+
 def is_excluded_path(filepath: str) -> bool:
+    """Check if filepath matches any exclude pattern."""
     return any(excluded in filepath for excluded in EXCLUDE_PATTERNS)
 
+
 def file_contains_text(filepath: str, search_terms: List[str], whole_phrase: bool) -> bool:
+    """Check if file contains search terms (whole phrase or all terms)."""
     try:
         with open(filepath, 'r') as f:
             content = f.read().lower()
@@ -32,6 +45,7 @@ def file_contains_text(filepath: str, search_terms: List[str], whole_phrase: boo
         raise IOError(f"Error reading file {filepath}: {e}")
 
 def search_folder(folder: str, search_terms: List[str], whole_phrase: bool, skip_po=False) -> SearchResults:
+    """Recursively search folder for files containing specified terms."""
     results = SearchResults()
     for root, dirs, files in os.walk(folder):
         for file in files:
@@ -49,6 +63,7 @@ def search_folder(folder: str, search_terms: List[str], whole_phrase: bool, skip
     return results
 
 def main():
+    """CLI entry point for file content search utility."""
     parser = argparse.ArgumentParser(description='Search a folder for text.')
     parser.add_argument('text', nargs='+', help='Text to search for.')
     parser.add_argument('-m', '--show-matches', action='store_true', help='Show matches.')

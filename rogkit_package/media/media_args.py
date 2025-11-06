@@ -1,5 +1,11 @@
+"""
+Command-line argument parser for media library CLI.
+
+Handles search, display, sorting, database management, and Plex operations.
+"""
 import argparse
 from .media_settings import FUZZY_DEFAULT
+
 
 def process_arguments():
     """

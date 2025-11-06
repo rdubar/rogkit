@@ -1,3 +1,9 @@
+"""
+OpenERP/Odoo XML-RPC connection manager.
+
+Provides XML-RPC client for connecting to OpenERP/Odoo servers
+with configuration management via rogkit TOML or .env files.
+"""
 from dataclasses import dataclass
 import argparse
 import xmlrpc.client
@@ -6,8 +12,10 @@ import configparser
 import os
 from .tomlr import load_rogkit_toml
 
+
 @dataclass
 class Config:
+    """OpenERP/Odoo connection configuration."""
     url: str
     db: str
     username: str
@@ -17,6 +25,7 @@ class Config:
 
     @staticmethod
     def load_config(environment: str) -> 'Config':
+        """Load configuration from rogkit TOML or fallback to .env file."""
         try:
             config = load_rogkit_toml(f'erp-{environment}')
             if not config:
@@ -44,12 +53,14 @@ class Config:
 
 @dataclass
 class OpenERPConnector:
+    """XML-RPC connector for OpenERP/Odoo server operations."""
     config: Config
     uid: Optional[int] = None
     common: Optional[xmlrpc.client.ServerProxy] = None
     models: Optional[xmlrpc.client.ServerProxy] = None
 
     def connect(self):
+        """Establish XML-RPC connection and authenticate with server."""
         # Establish XML-RPC Common connection for authentication
         try:
             self.common = xmlrpc.client.ServerProxy(f'{self.config.url}/xmlrpc/common')
@@ -64,7 +75,21 @@ class OpenERPConnector:
         else:
             print("Failed to authenticate.")
 
-    def execute_kw(self, model, method, args, kwargs={}):
+    def execute_kw(self, model, method, args, kwargs=None):
+        """
+        Execute OpenERP/Odoo model method via XML-RPC.
+        
+        Args:
+            model: Model name (e.g., 'res.users')
+            method: Method name (e.g., 'read', 'search')
+            args: Positional arguments for the method
+            kwargs: Keyword arguments for the method
+            
+        Returns:
+            Result from the XML-RPC call
+        """
+        if kwargs is None:
+            kwargs = {}
         if not self.models:
             print("Not connected to XML-RPC Object service.")
             return None
@@ -74,6 +99,7 @@ class OpenERPConnector:
     # Add more methods as needed for different XML-RPC activities
     
 def main():
+    """CLI entry point for OpenERP XML-RPC connector."""
     parser = argparse.ArgumentParser(description='Connect to OpenERP XML-RPC services.')
     parser.add_argument('--env', type=str, choices=['live', 'test'], default='test',
                         help='The environment to connect to: live or test. Defaults to test if not provided.')

@@ -1,8 +1,16 @@
 #!/usr/bin/env python3
+"""
+Docker container bash accessor.
+
+Quickly access bash shells in running Docker containers with fuzzy name matching.
+Supports auto-selection when only one container is running.
+"""
 import subprocess
 import sys
 
+
 def get_running_containers():
+    """Get list of running Docker containers with ID, image, and name."""
     result = subprocess.run(
         ["docker", "ps", "--format", "{{.ID}} {{.Image}} {{.Names}}"],
         capture_output=True, text=True
@@ -15,10 +23,12 @@ def get_running_containers():
     return containers
 
 def bash_into_container(container_id):
+    """Execute interactive bash session in specified Docker container."""
     print(f"Bashing into container {container_id}…")
     subprocess.run(["docker", "exec", "-it", container_id, "bash"])
 
 def main():
+    """CLI entry point for Docker bash accessor."""
     print("Docker BASH Tool...")
     containers = get_running_containers()
 

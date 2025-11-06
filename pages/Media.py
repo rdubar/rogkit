@@ -1,6 +1,11 @@
-import streamlit as st
+"""
+Streamlit page for media library visualization.
+
+Displays Plex media library as DataFrame with charts showing movies by year, decade, and genre.
+"""
+import streamlit as st  # type: ignore
 from rogkit_package.media.plex_library import PlexLibrary
-import pandas as pd
+import pandas as pd  # type: ignore
 
 st.set_page_config(page_title="RogKit", page_icon=":tools:")
 

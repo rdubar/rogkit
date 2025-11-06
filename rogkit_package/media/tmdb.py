@@ -1,7 +1,13 @@
+"""
+TMDb (The Movie Database) API integration for movie metadata.
+
+Fetches movie details (cast, crew, synopsis, ratings, poster/backdrop images)
+and caches results to pickle file for offline access.
+"""
 import argparse
 import os
 import pickle
-import requests
+import requests  # type: ignore
 import json
 from datetime import datetime
 from pprint import pprint
@@ -10,17 +16,22 @@ from ..bin.tomlr import load_rogkit_toml
 from .media_settings import tmdb_data_file
 from .media_records import common_schema
 
+
 def get_api_key():
+    """Load TMDb API key from rogkit TOML configuration."""
     toml = load_rogkit_toml().get('tmdb', {})
     return toml.get('tmdb_api_key')
 
 class DataList:
+    """TMDb data cache manager for movie records with pickle persistence."""
+    
     def __init__(self):
         self.records = {}
         self.data_file = tmdb_data_file
         self.api_key = get_api_key()
 
     def load_from_file(self):
+        """Load cached movie records from pickle file."""
         if os.path.exists(self.data_file):
             with open(self.data_file, 'rb') as f:
                 self.records = pickle.load(f)
@@ -29,11 +40,13 @@ class DataList:
             print(f"Data file {self.data_file} not found")
 
     def save_to_file(self):
+        """Save movie records to pickle file."""
         with open(self.data_file, 'wb') as f:
             pickle.dump(self.records, f)
             print(f"Saved {len(self.records)} titles to {self.data_file}")
 
     def get_record(self, title, year=None, verbose=False):
+        """Fetch movie record from TMDb API if not already cached."""
         key = (str(title), str(year))
         print(key)
         if key in self.records.keys():
@@ -57,8 +70,9 @@ class DataList:
             return False
 
     def get_movie_details(self, title, year=None):
+        """Search TMDb API for movie and return detailed metadata including credits."""
         url = f"https://api.themoviedb.org/3/search/movie?api_key={self.api_key}&query={title}"
-        response = requests.get(url)
+        response = requests.get(url, timeout=10)
         
         if response.status_code != 200:
             print(f"Failed TMDB search for {title} ({year}): Status {response.status_code}")
@@ -88,7 +102,7 @@ class DataList:
         # Pick first match safely
         movie_id = filtered_results[0]['id']
         detailed_url = f"https://api.themoviedb.org/3/movie/{movie_id}?api_key={self.api_key}&append_to_response=credits"
-        detailed_response = requests.get(detailed_url)
+        detailed_response = requests.get(detailed_url, timeout=10)
         
         if detailed_response.status_code == 200:
             return detailed_response.json()
@@ -97,6 +111,7 @@ class DataList:
         return None
     
     def delete_record(self, title, year=None):
+        """Remove movie record from cache."""
         key = (str(title), str(year))
         if key in self.records.keys():
             del self.records[key]
@@ -106,13 +121,16 @@ class DataList:
             print(f"No record found for {title} ({year})")
 
     def dump_records(self):
+        """Pretty-print all cached movie records."""
         pprint(self.records)
     
     def list_records(self):
+        """List all cached movie titles and years."""
         for key in sorted(self.records.keys()):
             print(f"{key[0]} ({key[1]})")  
     
     def get_media_record(self, title, year=None):
+        """Get movie record in common schema format for database insertion."""
         tmdb_info = self.get_movie_details(title, year)
         if not tmdb_info:
             return None
@@ -133,6 +151,7 @@ class DataList:
         return record
 
 def main():
+    """CLI entry point for TMDb data management."""
     parser = argparse.ArgumentParser(description='Get movie details from TMDb')
     parser.add_argument('search_terms', nargs='*', help='Search terms for movies')
     parser.add_argument('-l', '--list', action='store_true', help='List titles')

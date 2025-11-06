@@ -1,4 +1,15 @@
-# System Info.py
+"""
+Python system information and CPU benchmark utility.
+
+Displays detailed Python and system information including version, architecture,
+and platform details. Optionally runs a CPU benchmark to measure performance
+across different Python implementations and architectures.
+
+Device/Platform	    Python Version	Architecture	        Execution Mode	    Approx iters/sec
+MacBook Pro (M3)	3.12.11	        ARM64 (Apple Silicon)	Native	            6,863,741
+MacBook Pro (M3)	2.7.18	        x86_64 (Intel)	        Rosetta (Emulated)	2,749,383
+Raspberry Pi 5	    3.13.0	        aarch64 (Arm64)	        Native	            2,081,838
+"""
 from __future__ import print_function
 import sys
 import platform
@@ -7,14 +18,9 @@ import argparse
 import time
 import math
 
-"""
-Device/Platform	    Python Version	Architecture	        Execution Mode	    Approx iters/sec
-MacBook Pro (M3)	3.12.11	        ARM64 (Apple Silicon)	Native	            6,863,741
-MacBook Pro (M3)	2.7.18	        x86_64 (Intel)	        Rosetta (Emulated)	2,749,383
-Raspberry Pi 5	    3.13.0	        aarch64 (Arm64)	        Native	            2,081,838
-"""
 
 def get_arch_cmd():
+    """Get system architecture from 'arch' command."""
     try:
         process = subprocess.Popen(['arch'], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         stdout, _ = process.communicate()
@@ -25,6 +31,7 @@ def get_arch_cmd():
         return "Unknown"
 
 def main():
+    """CLI entry point for Python system information tool."""
     args = parse_args()
     print("="*40)
     print("  Python System Information Report")
@@ -58,6 +65,7 @@ def main():
 
 
 def parse_args():
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Python system info and simple CPU benchmark"
     )
@@ -76,8 +84,12 @@ def parse_args():
 
 
 def run_benchmark(duration_seconds):
-    # Time-based CPU-bound loop using math operations.
-    # Keeps work in Python space to compare interpreters fairly.
+    """
+    Run CPU benchmark for specified duration.
+    
+    Time-based CPU-bound loop using math operations.
+    Keeps work in Python space to compare interpreters fairly.
+    """
     start_time = time.time()
     iterations = 0
     accumulator = 0.0

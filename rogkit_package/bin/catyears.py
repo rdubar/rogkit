@@ -1,7 +1,24 @@
+"""
+Cat age to human years converter.
+
+Converts cat ages to equivalent human years using standard veterinary
+age conversion formulas (15 for first year, 9 for second, 4 per year after).
+"""
 import sys
 from .rounder import round_decimals
 
+
 def cat_age_to_human(cat_age_years, cat_age_months=0):
+    """
+    Convert cat age to equivalent human years.
+    
+    Args:
+        cat_age_years: Cat's age in years
+        cat_age_months: Additional months (default: 0)
+        
+    Returns:
+        Equivalent age in human years
+    """
     total_cat_age_months = cat_age_years * 12 + cat_age_months
 
     if total_cat_age_months <= 12:
@@ -17,6 +34,7 @@ def cat_age_to_human(cat_age_years, cat_age_months=0):
     return human_years
 
 def main():
+    """CLI entry point for cat age converter."""
     # Check for at least one argument (beyond the script name)
     if len(sys.argv) < 2:
         print("Usage: cat_age <cat_age_years> [cat_age_months]")

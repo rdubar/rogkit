@@ -1,11 +1,16 @@
-import streamlit as st
+"""
+Streamlit page for random case text generator.
+
+Converts text to random mixed case (e.g., "hello" -> "HeLLo").
+"""
+import streamlit as st  # type: ignore
 import random
 
 st.set_page_config(page_title="RogKit", page_icon=":tools:")
 
-# Assuming your randomcase function is defined correctly
-# If not, here's a simple implementation:
+
 def randomcase(string):
+    """Convert string to random mixed case."""
     return ''.join(random.choice([c.upper(), c.lower()]) for c in string)
 
 st.title('Random Case Generator')

@@ -1,3 +1,9 @@
+"""
+ChatGPT CLI client.
+
+Interactive command-line interface for OpenAI's GPT models with
+conversation history support. Configuration via rogkit config.toml.
+"""
 import argparse
 from openai import OpenAI
 from ..bin.tomlr import load_rogkit_toml
@@ -10,7 +16,10 @@ DEFAULT_ENGINE = "gpt-4o"
 # Instantiate OpenAI client using MCP
 client = OpenAI(api_key=DEFAULT_API_KEY)
 
-def query_chatgpt(prompt, engine=DEFAULT_ENGINE, history=[]):
+def query_chatgpt(prompt, engine=DEFAULT_ENGINE, history=None):
+    """Query ChatGPT with a prompt and optional conversation history."""
+    if history is None:
+        history = []
     messages = history + [{"role": "user", "content": prompt}]
     
     response = client.chat.completions.create(
@@ -19,7 +28,10 @@ def query_chatgpt(prompt, engine=DEFAULT_ENGINE, history=[]):
     )
     return response
 
-def chat_loop(prompt=None, engine=DEFAULT_ENGINE, history=[]):
+def chat_loop(prompt=None, engine=DEFAULT_ENGINE, history=None):
+    """Run interactive chat loop with ChatGPT."""
+    if history is None:
+        history = []
     full_prompt = prompt or input("Enter your prompt: ")
     history = []
 
@@ -40,6 +52,7 @@ def chat_loop(prompt=None, engine=DEFAULT_ENGINE, history=[]):
             break
 
 def main():
+    """CLI entry point for ChatGPT client."""
     parser = argparse.ArgumentParser(description="CLI for querying ChatGPT.")
     parser.add_argument("prompt", nargs='*', help="Prompt to send to ChatGPT")
     parser.add_argument("-e", "--engine", required=False, default=DEFAULT_ENGINE, help="OpenAI engine to use")

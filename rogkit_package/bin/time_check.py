@@ -1,4 +1,10 @@
 #!/usr/bin/env python3
+"""
+System time checker and synchronizer.
+
+Compares system time with online time source (WorldTimeAPI) and
+synchronizes via NTP if discrepancy detected. Logs all synchronization attempts.
+"""
 import os
 import datetime
 import requests
@@ -18,6 +24,11 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 logger=logging.getLogger(__name__) 
 
 def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=1):
+    """
+    Check system time against online time source.
+    
+    Returns True if difference is within threshold (seconds), False otherwise.
+    """
     # Get the online time
     print(f"Getting the online time from {url}")
     try:
@@ -44,6 +55,7 @@ def check_time(url='http://worldtimeapi.org/api/timezone/Etc/UTC', threshold=1):
     return True
 
 def set_time(ntp_url='pool.ntp.org'):
+    """Set system time using NTP server and log the result."""
     command = ["sudo", "ntpdate", ntp_url]
     print(f"Setting the system time: {' '.join(command)}")
     start_time = datetime.datetime.now()
@@ -61,7 +73,8 @@ def set_time(ntp_url='pool.ntp.org'):
     print(result_text)
 
 def show_log_file():
-    with open(log_file_path, 'r') as f:
+    """Display contents of time sync log file."""
+    with open(log_file_path, 'r', encoding='utf-8') as f:
         print(f.read())
 
 if __name__ == "__main__":

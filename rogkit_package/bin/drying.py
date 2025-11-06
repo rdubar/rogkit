@@ -1,11 +1,14 @@
 #!/usr/bin/env python3
+"""
+Clothes drying weather advisor.
+
+Fun utility to decide if it's a good time to dry clothes outside based on
+weather conditions (temperature, humidity, precipitation). Uses Open-Meteo
+API for weather data and supports location detection/geocoding.
+"""
 import argparse
 import requests
 from datetime import datetime
-
-"""
-A fun utility to decide if it's a good time to dry clothes outside based on weather.
-"""
 
 # -------------------------
 # Location helpers
@@ -35,7 +38,8 @@ def geocode_location(query):
 # Weather helpers
 # -------------------------
 
-def get_weather(lat=55.8642, lon=-4.2518):  # Glasgow default
+def get_weather(lat=55.8642, lon=-4.2518):
+    """Fetch weather forecast from Open-Meteo API (defaults to Glasgow)."""
     url = "https://api.open-meteo.com/v1/forecast"
     params = {
         "latitude": lat,
@@ -59,6 +63,7 @@ def find_nearest_hour_index(weather):
 # -------------------------
 
 def decide_washing(weather):
+    """Analyze weather data and provide drying verdict with emoji."""
     current = weather["current_weather"]
     now_index = find_nearest_hour_index(weather)
 
@@ -82,6 +87,7 @@ def decide_washing(weather):
 # -------------------------
 
 def main():
+    """CLI entry point for clothes drying advisor."""
     parser = argparse.ArgumentParser(
         description="Decide if it's a good time to dry clothes outside 🧺"
     )

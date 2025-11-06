@@ -1,13 +1,21 @@
+"""
+Genealogy calculator showing ancestral DNA percentages.
+
+Calculates the number of ancestors and percentage of DNA shared
+with each generation going back in time.
+"""
 import argparse
 from .bignum import bignum
 
-# Function to calculate the percentage of DNA shared with each generation
+
 def calculate_dna_shared(generations):
+    """Calculate the percentage of DNA shared with each generation back."""
     # Each generation back halves the DNA shared
     percentages = [(1 / (2 ** i)) * 100 for i in range(1, generations + 1)]
     return percentages
 
 def parent_name(number):
+    """Generate relationship name for a given generation number."""
     if number == 1:
         return "Parent"
     elif number == 2:
@@ -16,6 +24,7 @@ def parent_name(number):
         return f"Great-{number - 2} Grandparent"
 
 def main():
+    """CLI entry point for genealogy calculator."""
     parser = argparse.ArgumentParser(description='Show the number of ancestors and percentage of DNA shared with each generation.')
     parser.add_argument('-g', '--generations', type=int, default=10, help='Number of generations to calculate (default: 10)')
     parser.add_argument('-y', '--years', type=int, default=25, help='Number of years per generation (default: 25)')

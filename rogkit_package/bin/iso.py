@@ -1,10 +1,29 @@
 #!/usr/bin/env python3
+"""
+DVD/ISO main feature extractor using HandBrake.
+
+Scans ISO/DVD files, identifies the longest title (main feature),
+and extracts it to MKV format using HandBrakeCLI.
+"""
 import subprocess
 import sys
 import re
 import os
 
+
 def find_longest_title(scan_output):
+    """
+    Parse HandBrake scan output to find the longest title.
+    
+    Args:
+        scan_output: HandBrake scan output text
+        
+    Returns:
+        Title number of the longest title
+        
+    Raises:
+        RuntimeError: If no titles with durations found
+    """
     durations = {}
     current_title = None
 
@@ -24,7 +43,15 @@ def find_longest_title(scan_output):
 
     return max(durations.items(), key=lambda x: x[1])[0]
 
+
 def extract_main_feature(iso_path, output_path=None):
+    """
+    Extract the main feature from an ISO/DVD file.
+    
+    Args:
+        iso_path: Path to ISO or DVD file
+        output_path: Optional output MKV path (default: <iso_name>_main.mkv)
+    """
     if not os.path.exists(iso_path):
         print("❌ ISO file not found:", iso_path)
         sys.exit(1)

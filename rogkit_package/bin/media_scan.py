@@ -1,7 +1,13 @@
+"""
+Media file scanner using ffmpeg-python.
+
+Scans video files and displays technical information (resolution, codec, bitrate, size).
+"""
 import os
 import sys
-import ffmpeg
+import ffmpeg  # type: ignore
 from .bytes import byte_size
+
 
 def bitrate2k(text: str) -> str:
     """Convert bitrate from bytes to kilobytes."""
@@ -64,6 +70,7 @@ def process_file(file_path):
     return get_media_info(file_path)
 
 def main(path):
+    """CLI entry point - scan single file or directory recursively."""
     if os.path.isfile(path):
         # Single file provided
         report = process_file(path)

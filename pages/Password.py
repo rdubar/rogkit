@@ -1,10 +1,16 @@
-import streamlit as st
+"""
+Streamlit page for password generation.
+
+Interactive password generator with configurable length and character types.
+"""
+import streamlit as st  # type: ignore
 from rogkit_package.bin.pw import PasswordGenerator
 
 st.set_page_config(page_title="RogKit", page_icon=":tools:")
 
-# Function to generate password
+
 def generate_password(length, alpha, numeric, special, dashes):
+    """Generate password using PasswordGenerator with specified options."""
     pw_generator = PasswordGenerator(length=length, alpha=alpha, numeric=numeric, special=special, dashes=dashes)
     return pw_generator.generate_and_store_password()
 

@@ -1,6 +1,23 @@
+"""
+Decimal rounding utility that minimizes trailing zeros.
+
+Rounds numbers to a maximum number of decimal places while
+removing unnecessary trailing zeros.
+"""
 import sys
 
+
 def round_decimals(value, max_decimals):
+    """
+    Round a number to max decimals, removing trailing zeros.
+    
+    Args:
+        value: Number to round
+        max_decimals: Maximum decimal places
+        
+    Returns:
+        String representation with minimal decimals
+    """
     if value == int(value):
         return str(int(value))
     else:
@@ -19,4 +36,4 @@ if __name__ == "__main__":
     value = float(sys.argv[1])
     max_decimals = int(sys.argv[2]) if len(sys.argv) > 2 else 2
 
-    print(minimize_decimals(value, max_decimals))
+    print(round_decimals(value, max_decimals))
