@@ -298,6 +298,7 @@ root_directory = "/absolute/path/to/project/root"
 | `nose` | Nosetests for Odoo/OpenERP | - |
 | `venv` | Virtual environment setup | - |
 | `inter` | Run Open Interpreter | - |
+| `fuzzy` | Fuzzy search utility | - |
 | `rogstream` | Launch Streamlit dashboard using rogkit venv | - |
 
 ### 🔐 Security & Utilities
