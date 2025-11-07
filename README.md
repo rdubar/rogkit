@@ -25,7 +25,7 @@ A collection of 85+ Python utilities for developers and system administrators, f
 
 ### Prerequisites
 
-- Python 3.11+ (3.13 recommended)
+- Python 3.11+ (3.12 recommended)
 - Git and GitHub CLI (optional for clone)
 - Linux: Additional packages for full functionality (see below)
 
@@ -45,10 +45,11 @@ cd rogkit
 
 # Option 1: Using uv (recommended - faster, better dependency management)
 curl -LsSf https://astral.sh/uv/install.sh | sh
-uv sync --all-extras  # Install all dependencies
+uv python pin 3.12
+uv sync --all-extras  # Install all dependencies (use --group ui for Streamlit)
 
 # Option 2: Using traditional venv
-python3.13 -m venv --without-pip venv
+python3.12 -m venv --without-pip venv
 source venv/bin/activate
 curl https://bootstrap.pypa.io/get-pip.py -o get-pip.py
 python get-pip.py
@@ -297,6 +298,7 @@ root_directory = "/absolute/path/to/project/root"
 | `nose` | Nosetests for Odoo/OpenERP | - |
 | `venv` | Virtual environment setup | - |
 | `inter` | Run Open Interpreter | - |
+| `rogstream` | Launch Streamlit dashboard using rogkit venv | - |
 
 ### 🔐 Security & Utilities
 
@@ -576,7 +578,7 @@ A comprehensive toolkit built over time for personal productivity and system adm
 ## 🙏 Acknowledgments
 
 Built with:
-- **Python 3.13** - Core language
+- **Python 3.12** - Core language
 - **SQLAlchemy** - Database ORM
 - **Streamlit** - Web interface
 - **PlexAPI** - Plex integration

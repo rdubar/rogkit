@@ -11,11 +11,42 @@ requires-python = ">=3.10"
 license = { text = "MIT" }
 authors = [ { name = "Roger D", email ="rdubar@gmail.com" } ]
 dependencies = [
+  "boto3",
+  "botocore",
   "colorama",
+  "faker",
+  "ffmpeg-python",
+  "folium",
+  "geopy",
+  "matplotlib",
+  "numpy",
+  "open-interpreter",
+  "openai",
+  "pandas",
+  "paramiko",
+  "Pillow",
+  "plexapi",
+  "psutil",
+  "pyclip",
+  "pyfiglet",
+  "pyheif",
+  "pymongo",
+  "python-dateutil",
+  "python-dotenv",
+  "pytz",
+  "PyYAML",
+  "reportlab",
   "requests",
+  "requests-html",
+  "send2trash",
+  "sh",
+  "spotipy",
+  "sqlalchemy",
+  "thefuzz",
   "toml",
   "tqdm",
-  "psutil",
+  "wikipedia",
+  "yt-dlp",
 ]
 
 [project.optional-dependencies]
@@ -46,6 +77,8 @@ data = [
   "python-dateutil",
   "pytz",
   "reportlab",
+  "folium",
+  "geopy",
 ]
 cli = [
   "pyclip",
@@ -57,6 +90,9 @@ cli = [
   "psutil",
   "openai",
   "requests-html",
+  "faker",
+  "open-interpreter",
+  "wikipedia",
 ]
 dev = [
   "ruff",
@@ -66,11 +102,12 @@ dev = [
 ]
 
 [dependency-groups]
-cli = ["pyclip", "pyfiglet", "send2trash", "thefuzz", "sh", "spotipy", "psutil", "openai", "requests-html"]
+cli = ["pyclip", "pyfiglet", "send2trash", "thefuzz", "sh", "spotipy", "psutil", "openai", "requests-html", "faker", "wikipedia"]
 media = ["yt-dlp", "ffmpeg-python", "Pillow", "pyheif", "plexapi", "paramiko", "python-dotenv"]
 db = ["sqlalchemy", "pymongo"]
-data = ["pandas", "numpy", "matplotlib", "python-dateutil", "pytz", "reportlab"]
+data = ["pandas", "numpy", "matplotlib", "python-dateutil", "pytz", "reportlab", "folium", "geopy"]
 aws = ["boto3", "botocore"]
+ui = ["streamlit"]
 
 [tool.setuptools]
 packages = { find = { where = ["."], include = ["rogkit_package*", "pages*"], namespaces = false } }

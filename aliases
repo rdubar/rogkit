@@ -180,6 +180,9 @@ alias nose='$ROGKIT_PYTHON -m rogkit_package.bin.nose "$@"'
 alias venv='$ROGKIT_PYTHON -m rogkit_package.bin.venv_set "$@"'
 alias inter='$ROGKIT_PYTHON -m rogkit_package.bin.inter "$@"'
 
+# Streamlit dashboard (uses project virtualenv)
+alias rogstream='(cd "$ROGKIT" && "$ROGKIT_VENV/bin/python" -m streamlit run Home.py "$@")'
+
 # ------------------------------------------------------------------------------
 # Security & Utilities
 # ------------------------------------------------------------------------------
