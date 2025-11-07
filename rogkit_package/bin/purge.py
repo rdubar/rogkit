@@ -37,8 +37,9 @@ RARBG_DO_NOT_MIRROR.exe
 RARBG.txt
 RARBG.com.txt
 WWW.YIFY-TORRENTS.COM.jpg
-[TGx]Downloaded from tor
-rentgalaxy.to .txt
+[TGx]Downloaded from torrentgalaxy.to .txt
+*torrentgalaxy.to*.txt
+*downloaded from torrentgalaxy*.txt
 NEW upcoming releases by Xclusive.txt
 Downloaded From PublicHD.SE.txt
 00.nfo
