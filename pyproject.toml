@@ -15,6 +15,7 @@ dependencies = [
   "requests",
   "toml",
   "tqdm",
+  "psutil",
 ]
 
 [project.optional-dependencies]
