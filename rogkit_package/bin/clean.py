@@ -133,17 +133,17 @@ def main():
 
     if args.all:
         files_to_clean = all_files
-        print(f"Matching ALL {total_files:,} files.")
+        print(f"Searching ALL {total_files:,} files.")
     else:
         time_limit = time.time() - (args.minutes * 60)
         files_to_clean = [file for file in all_files if file.stat().st_mtime > time_limit]
         print(f"Found {len(files_to_clean)} of {total_files:,} files modified within the last {args.minutes} minutes. (Use --all to match all files).")
 
-    # New: warn if no files selected
+    # Warn if no files selected
     if not files_to_clean:
         print(f"⚠️  No files found to clean. Tip: use --all to clean/search across all files.")
 
-    # New: Filter by search string if provided
+    # Filter by search string if provided
     if args.search:
         files_to_clean = _filter_with_fuzzy(files_to_clean, root_directory, args.search)
 

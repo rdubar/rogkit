@@ -117,6 +117,7 @@ def main():
     if not lat:  # Try to auto-detect location
         try:
             lat, lon, place = get_location()
+            print(f"📍 Location auto-set to: {place}")
         except Exception as e:
             print(f"Unable to detect location: {e}")
             
