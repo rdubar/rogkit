@@ -2,7 +2,7 @@
 
 **Utility toolkit for system administration, media management, and productivity.**
 
-A collection of 85+ Python utilities for developers and system administrators, featuring powerful Plex media library management, file operations, text processing, and system utilities.
+A collection of 85+ Python (and some Go) utilities for developers and system administrators, featuring powerful Plex media library management, file operations, text processing, and system utilities.
 
 ---
 
@@ -17,6 +17,7 @@ A collection of 85+ Python utilities for developers and system administrators, f
 - **🔐 Security Tools** - Password generation with strength analysis
 - **🎯 Text Utilities** - Clipboard, formatting, case conversion, and ASCII art
 - **ℹ️ System Information** - Hardware, network, location, and weather data
+- **⚡ Go CLI Utilities** - High-performance binaries for heavy file operations and time utilities
 - **🎮 Entertainment** - Games, video downloads, Wikipedia queries
 
 ---
@@ -26,6 +27,7 @@ A collection of 85+ Python utilities for developers and system administrators, f
 ### Prerequisites
 
 - Python 3.11+ (3.12 recommended)
+- Go 1.22+ (optional, required for Go CLI tools)
 - Git and GitHub CLI (optional for clone)
 - Linux: Additional packages for full functionality (see below)
 
@@ -98,10 +100,15 @@ Add to your `~/.bashrc` or `~/.zshrc`:
 INSTALL=~/opt
 ROGKIT="$INSTALL/rogkit"
 ROGKIT_BIN="$ROGKIT/rogkit_package/bin"
+ROGKIT_GO="$ROGKIT/go"
+ROGKIT_GO_BIN="$ROGKIT_GO/bin"
 
 # Add to PATH (optional, if not using aliases)
 if [ -d "$ROGKIT_BIN" ] && [[ ":$PATH:" != *":$ROGKIT_BIN:"* ]]; then
     export PATH="$PATH:$ROGKIT_BIN"
+fi
+if [ -d "$ROGKIT_GO_BIN" ] && [[ ":$PATH:" != *":$ROGKIT_GO_BIN:"* ]]; then
+    export PATH="$PATH:$ROGKIT_GO_BIN"
 fi
 
 # Load aliases (recommended)
@@ -115,6 +122,33 @@ Reload your shell configuration:
 ```bash
 source ~/.bashrc  # or source ~/.zshrc
 ```
+
+---
+
+## 🐹 Go Utilities
+
+RogKit ships several performance-sensitive tools as Go binaries (`replacer`, `files`, `ishtime`, etc.). Build them once and they’ll be available on `PATH` via the aliases file.
+
+### Build All Go Commands
+
+```bash
+cd ~/opt/rogkit
+./scripts/build_go.sh
+```
+
+The script runs `go install ./cmd/...` with `GOBIN` pointing to `go/bin`, so every command under `go/cmd` is rebuilt together.
+
+### Usage
+
+After building, use the Go versions directly:
+
+```bash
+replacer --find TODO --path /some/project
+files --folder /some/project TODO
+ishtime --time 1115
+```
+
+Re-run the build script whenever Go sources change or after pulling updates.
 
 ---
 
@@ -465,37 +499,6 @@ uv export -o requirements.txt
 ---
 
 ## 🎯 Common Workflows
-
----
-
-## 🐹 Go Utilities
-
-Some RogKit command-line tools are implemented in Go for faster execution and easy standalone binaries.
-
-### Prerequisites
-
-- Go 1.22 or newer installed locally (`go version` should report ≥ 1.22).
-
-### Building All Go Tools
-
-```bash
-cd ~/opt/rogkit
-./scripts/build_go.sh
-```
-
-This wrapper runs `go install ./cmd/...` with `GOBIN` set to `go/bin`, rebuilding every Go command (`replacer`, `files`, `ishtime`, etc.) in one step.
-
-### Running
-
-After building, the binaries live in `~/opt/rogkit/go/bin`. That folder is added to `PATH` by the RogKit aliases, so you can run:
-
-```bash
-replacer --find TODO --path /some/project
-files --folder /some/project TODO
-ishtime --time 1115
-```
-
-Re-run the build script whenever you pull updates or make changes to Go sources.
 
 ### Media Library Management
 
