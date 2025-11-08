@@ -472,6 +472,10 @@ uv export -o requirements.txt
 
 Some RogKit command-line tools are implemented in Go for faster execution and easy standalone binaries.
 
+### Prerequisites
+
+- Go 1.22 or newer installed locally (`go version` should report ≥ 1.22).
+
 ### Building All Go Tools
 
 ```bash
