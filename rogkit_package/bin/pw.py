@@ -169,7 +169,7 @@ class PasswordGenerator:
                         print(f'Password length of {self.length} is too large to calculate combinations.')
                     else:
                         print(f'Combinations: {bignum(self.calculate_combinations())}')
-                        print(f"Estimated max time to crack: {self.estimate_crack_time(guesses_per_second)}")
+                        print(f"Estimated max time to crack: {self.estimate_crack_time(guesses_per_second) or 'instant'}")
                         print(f'Assumes {bignum(guesses_per_second)} guesses per second.')
                     if self.check:
                         print("Password contains special, numeric, lower and upper case characters.")
