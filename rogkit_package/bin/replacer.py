@@ -10,6 +10,7 @@ import os
 import argparse
 from pathlib import Path
 from typing import Iterable, Optional, Sequence
+import time
 
 from ..bin.fuzzy import MatchResult, find_candidates
 
@@ -152,6 +153,7 @@ def get_args():
 
 def do_search_and_replace(args):
     """Execute search and optional replace operation based on arguments."""
+    clock = time.perf_counter()
     search_path = _resolve_search_path(args)
 
     if args.find_text:
@@ -168,6 +170,9 @@ def do_search_and_replace(args):
                 print(f"Replaced text in {file_path}")
             else:
                 print(f"Text already replaced in {file_path}")
+
+    duration = time.perf_counter() - clock
+    print(f"Total time: {duration:.2f} seconds.")
 
 def main():
     """CLI entry point for text replacement utility."""

@@ -466,6 +466,33 @@ uv export -o requirements.txt
 
 ## 🎯 Common Workflows
 
+---
+
+## 🐹 Go Utilities
+
+Some RogKit command-line tools are implemented in Go for faster execution and easy standalone binaries.
+
+### Building All Go Tools
+
+```bash
+cd ~/opt/rogkit
+./scripts/build_go.sh
+```
+
+This wrapper runs `go install ./cmd/...` with `GOBIN` set to `go/bin`, rebuilding every Go command (`replacer`, `files`, `ishtime`, etc.) in one step.
+
+### Running
+
+After building, the binaries live in `~/opt/rogkit/go/bin`. That folder is added to `PATH` by the RogKit aliases, so you can run:
+
+```bash
+replacer --find TODO --path /some/project
+files --folder /some/project TODO
+ishtime --time 1115
+```
+
+Re-run the build script whenever you pull updates or make changes to Go sources.
+
 ### Media Library Management
 
 ```bash

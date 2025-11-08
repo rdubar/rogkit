@@ -15,9 +15,16 @@ ROGKIT="$INSTALL/rogkit"
 ROGKIT_VENV="$ROGKIT/.venv"
 ROGKIT_PYTHON="$ROGKIT_VENV/bin/python"
 ROGKIT_PACKAGE="$ROGKIT/rogkit_package"
+ROGKIT_GO="$ROGKIT/go"
+ROGKIT_GO_BIN="$ROGKIT_GO/bin"
 
 # Add rogkit package to Python path
 export PYTHONPATH="$ROGKIT:$PYTHONPATH"
+
+# Ensure Go binaries are available on PATH
+if [ -d "$ROGKIT_GO_BIN" ] && [[ ":$PATH:" != *":$ROGKIT_GO_BIN:"* ]]; then
+    export PATH="$PATH:$ROGKIT_GO_BIN"
+fi
 
 # ------------------------------------------------------------------------------
 # Core RogKit
@@ -72,9 +79,9 @@ alias bac='$ROGKIT_PYTHON -m rogkit_package.bin.backup "$@"'
 alias collate='$ROGKIT_PYTHON -m rogkit_package.bin.collate "$@"'
 alias delete='$ROGKIT_PYTHON -m rogkit_package.bin.delete "$@"'
 alias del='$ROGKIT_PYTHON -m rogkit_package.bin.delete "$@"'
-alias files='$ROGKIT_PYTHON -m rogkit_package.bin.files "$@"'
+alias pfiles='$ROGKIT_PYTHON -m rogkit_package.bin.files "$@"'  #replaced by Go utility
 alias renamer='$ROGKIT_PYTHON -m rogkit_package.bin.renamer "$@"'
-alias replacer='$ROGKIT_PYTHON -m rogkit_package.bin.replacer "$@"'
+alias preplacer='$ROGKIT_PYTHON -m rogkit_package.bin.replacer "$@"'  # replaced by Go Utility
 
 # File discovery and analysis
 alias dirs='$ROGKIT_PYTHON -m rogkit_package.bin.dirs "$@"'
@@ -207,6 +214,12 @@ alias yout='$ROGKIT_PYTHON -m rogkit_package.bin.vido "$@"'
 # ------------------------------------------------------------------------------
 alias wikipedia='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
 alias w='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
+
+# ------------------------------------------------------------------------------
+# Time & Clocks
+# ------------------------------------------------------------------------------
+alias ishtime='$ROGKIT_GO_BIN/ishtime "$@"'
+alias ish='$ROGKIT_GO_BIN/ishtime "$@"'
 
 # ------------------------------------------------------------------------------
 # Miscellaneous

@@ -7,6 +7,7 @@ with support for displaying media file resolution and codec information.
 """
 import argparse
 import os
+import sys
 import time
 from dataclasses import dataclass, field
 from typing import List
@@ -83,8 +84,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument('-n', '--number', type=int, default=10, help='Number of results shown')
     parser.add_argument('-u', '--user', action='store_true', help='Search the user\'s home folder.')
 
-    parser.add_argument('texts', nargs='+', help='Texts to search for (all must match).')
-    return parser.parse_args()
+    parser.add_argument('texts', nargs='*', help='Texts to search for (all must match).')
+    args = parser.parse_args()
+    if not args.texts:
+        parser.print_help(sys.stderr)
+        parser.exit(1)
+    return args
 
 def find_files(folders: List[str], texts: List[str]) -> SearchReport:
     """Recursively search for files containing all specified text patterns."""
