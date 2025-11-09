@@ -37,7 +37,7 @@ BASE_TEXT_MATCHES: List[str] = _process_text_list(
 ._
 00.nfo
 ahashare.com
-downloaded from
+downloaded
 new upcoming releases
 rarbg
 sample.
