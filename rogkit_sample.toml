@@ -21,8 +21,6 @@ download_folder = ""
 default_input_file = ""
 
 [clean]
-# example: path to your translation_clean.sh script
+# path to your translation_clean.sh script
 script_path = ""
-# base directory to search for translation files
-root_directory = ""
 

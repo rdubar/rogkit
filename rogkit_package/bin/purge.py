@@ -2,14 +2,15 @@
 """
 File purge utility for removing junk files.
 
-Recursively searches for and deletes files matching patterns from a purge list
-(e.g., torrent metadata, sample files, zone identifiers). Includes safety checks
-to avoid deleting actual media files.
+Recursively searches for and deletes files that satisfy all of:
+  • extension whitelist (e.g., .txt, .nfo, .jpg)
+  • case-insensitive substring match (no wildcards)
+  • maximum size threshold
 """
 import argparse
 import os
-import fnmatch
 from dataclasses import dataclass, field
+from typing import Iterable, List, Optional, Sequence, Set, Tuple
 
 from ..bin.bytes import byte_size
 from ..bin.delete import safe_delete
@@ -23,91 +24,130 @@ DEFAULT_FOLDER_LIST = [
 ]
 
 
-def sanitize_pattern(pattern: str) -> str:
-    """
-    Normalise purge patterns for case-insensitive fnmatch usage and make square
-    brackets literal so entries like "[TGx]Downloaded..." behave as expected.
-    """
-    pattern = pattern.strip()
-    if not pattern:
-        return pattern
-    pattern = pattern.replace("[", "[[]").replace("]", "[]]")
-    return pattern.lower()
+def _process_text_list(raw_list: str) -> List[str]:
+    return [
+        line.strip().lower()
+        for line in raw_list.strip().split("\n")
+        if line.strip()
+    ]
 
 
-def prepare_patterns(pattern_source):
-    """Return a list of normalised patterns regardless of the input shape."""
-    if isinstance(pattern_source, (list, tuple, set)):
-        iterator = pattern_source
-    else:
-        iterator = [pattern_source]
-    return [sanitize_pattern(p) for p in iterator if p]
-
-
-def process_purge_list(raw_list):
+BASE_TEXT_MATCHES: List[str] = _process_text_list(
     """
-    Process a multi-line string into a list of non-empty lines.
-    :param raw_list: A multi-line string.
-    :return: A list of non-empty, stripped strings.
-    """
-    return [line.strip() for line in raw_list.strip().split("\n") if line.strip()]
-
-# Updated PURGE_LIST with patterns to include broader matches
-PURGE_LIST = process_purge_list(
-    """
-Zone.Identifier
-RARBG_DO_NOT_MIRROR.exe
-RARBG.txt
-RARBG.com.txt
-WWW.YIFY-TORRENTS.COM.jpg
-[TGx]Downloaded from torrentgalaxy.to .txt
-*torrentgalaxy.to*.txt
-*downloaded from torrentgalaxy*.txt
-NEW upcoming releases by Xclusive.txt
-Downloaded From PublicHD.SE.txt
+zone.identifier
+rarbg_do_not_mirror
+rarbg
+rarbg.com
+yify-torrents.com
+downloaded from torrentgalaxy.to
+torrent downloaded from
+new upcoming releases by xclusive
+downloaded from publichd
 00.nfo
-TSYifyUP... (TOR).txt
-Torrent*ownloaded*rom *.txt
-YIFYStatus.com.txt
-WWW.YTS.*.jpg
-sample.m*
-YTSProxies.*
-VISIT ME ON FACEBOOK.txt
-AhaShare.com.txt
-YTSYifyUP... (TOR).txt
-._*
+tsyifyup... (tor).txt
+yifystatus.com
+www.yts
+sample.m
+ytsproxies
+visit me on facebook
+ahashare.com
+ytsyifyup
+._ 
 """
 )
+
+BASE_EXTENSIONS: Set[str] = {
+    ".txt",
+    ".nfo",
+    ".exe",
+    ".jpg",
+    ".jpeg",
+    ".png",
+    ".gif",
+    ".rtf",
+    ".pdf",
+}
+
+
+def _normalise_extensions(extensions: Iterable[str]) -> Set[str]:
+    result: Set[str] = set()
+    for ext in extensions:
+        ext = ext.strip()
+        if not ext:
+            continue
+        if not ext.startswith("."):
+            ext = f".{ext}"
+        result.add(ext.lower())
+    return result
+
+
+def _prepare_text_matches(
+    base_matches: Sequence[str],
+    extra_matches: Optional[Iterable[str]] = None,
+    positional: Optional[str] = None,
+) -> List[str]:
+    matches: List[str] = list(base_matches)
+    if extra_matches:
+        matches.extend(extra_matches)
+    if positional:
+        matches.append(positional)
+
+    seen = set()
+    deduped: List[str] = []
+    for match in matches:
+        normalised = match.strip().lower()
+        if not normalised:
+            continue
+        if normalised not in seen:
+            seen.add(normalised)
+            deduped.append(normalised)
+    return deduped
 
 @dataclass
 class PurgeResults:
     """Encapsulates purge results including files to delete and total files scanned."""
-    files_to_delete: list = field(default_factory=list)
+    files_to_delete: List[str] = field(default_factory=list)
     total_files: int = 0
+    skipped_extension: int = 0
+    skipped_text: int = 0
+    skipped_size: int = 0
 
-def matches_pattern(path, patterns, relative=None):
-    """
-    Check if a file matches any pattern from the list.
-    Supports wildcards using fnmatch and is case-insensitive.
-    """
-    filename_lower = os.path.basename(path).lower()
-    path_lower = path.lower().replace(os.sep, "/")
-    rel_lower = (
-        relative.lower().replace(os.sep, "/")
-        if relative is not None
-        else filename_lower
-    )
-    for pattern in patterns:
-        if fnmatch.fnmatch(filename_lower, pattern):
-            return True
-        if fnmatch.fnmatch(path_lower, pattern):
-            return True
-        if rel_lower and fnmatch.fnmatch(rel_lower, pattern):
-            return True
-    return False
+def matches_criteria(
+    path: str,
+    text_matches: Sequence[str],
+    extensions: Set[str],
+    max_size: Optional[int],
+) -> Tuple[bool, Optional[str]]:
+    filename = os.path.basename(path)
+    extension = os.path.splitext(filename)[1].lower()
+    if extensions and extension not in extensions:
+        return False, "extension"
 
-def search_and_collect_files(folders, patterns):
-    """Recursively search folders for files matching purge patterns."""
+    lower_name = filename.lower()
+    lower_path = path.lower()
+    if text_matches and not any(
+        match in lower_name or match in lower_path for match in text_matches
+    ):
+        return False, "text"
+
+    if max_size is not None:
+        try:
+            size = os.path.getsize(path)
+        except OSError:
+            return False, "size-unreadable"
+        if size > max_size:
+            return False, "size"
+
+    return True, None
+
+
+def search_and_collect_files(
+    folders: Sequence[str],
+    text_matches: Sequence[str],
+    extensions: Set[str],
+    max_size: Optional[int],
+) -> PurgeResults:
+    """Recursively search folders for files matching purge criteria."""
     results = PurgeResults()
     if not isinstance(folders, list):
         folders = [folders]
@@ -115,10 +155,19 @@ def search_and_collect_files(folders, patterns):
         for root, dirs, files in os.walk(folder):
             for file in files:
                 filepath = os.path.join(root, file)
-                relpath = os.path.relpath(filepath, folder).replace(os.sep, "/")
-                if matches_pattern(filepath, patterns, relpath):
-                    results.files_to_delete.append(filepath)
                 results.total_files += 1
+                matched, reason = matches_criteria(
+                    filepath, text_matches, extensions, max_size
+                )
+                if matched:
+                    results.files_to_delete.append(filepath)
+                else:
+                    if reason == "extension":
+                        results.skipped_extension += 1
+                    elif reason == "text":
+                        results.skipped_text += 1
+                    elif reason in {"size", "size-unreadable"}:
+                        results.skipped_size += 1
     return results
         
 def _is_sample_media_file(path):
@@ -138,13 +187,23 @@ def delete_files(file_list):
 def main():
     """CLI entry point for file purge utility."""
     parser = argparse.ArgumentParser(
-        description="Search and delete files based on a pattern."
+        description=(
+            "Search and delete junk files. Matches only if extension, substring, "
+            "and size filters all pass."
+        )
     )
     parser.add_argument(
         "pattern",
         nargs="?",
-        default=PURGE_LIST,
-        help="Pattern to search for [or use defaults].",
+        default=None,
+        help="Optional additional case-insensitive substring to require.",
+    )
+    parser.add_argument(
+        "-t",
+        "--text",
+        action="append",
+        dest="extra_text",
+        help="Additional substring to require (can be repeated).",
     )
     parser.add_argument(
         "-d", "--dsstore", action="store_true", help="Include .DS_Store files."
@@ -154,13 +213,26 @@ def main():
     )
     parser.add_argument("-f", "--folder", type=str, help="Folder to search.")
     parser.add_argument(
-        "-p", "--purge_list", action="store_true", help="Show the purge list."
+        "-p", "--purge-list", action="store_true", help="Show the base substrings."
+    )
+    parser.add_argument(
+        "-e",
+        "--ext",
+        action="append",
+        dest="extra_extensions",
+        help="Additional extension to include (can be repeated).",
+    )
+    parser.add_argument(
+        "--max-size",
+        type=float,
+        default=5.0,
+        help="Maximum file size in MiB (<=0 to disable). Default 5.",
     )
     args = parser.parse_args()
 
     if args.purge_list:
-        print("Showing the purge list of files to purge:")
-        for item in PURGE_LIST:
+        print("Base substrings used for purge matching:")
+        for item in BASE_TEXT_MATCHES:
             print(item)
         return
 
@@ -171,17 +243,42 @@ def main():
         print("No valid folder found. Exiting.")
         return
 
-    patterns = prepare_patterns(args.pattern)
-    if args.dsstore:
-        patterns.append(sanitize_pattern(".DS_Store"))
+    text_matches = _prepare_text_matches(
+        BASE_TEXT_MATCHES,
+        args.extra_text,
+        args.pattern,
+    )
+    extensions = _normalise_extensions(BASE_EXTENSIONS)
+    if args.extra_extensions:
+        extensions.update(_normalise_extensions(args.extra_extensions))
 
     if args.dsstore:
         print("Including .DS_Store files.")
+        extensions.add(".ds_store")
+        text_matches.append(".ds_store")
 
-    print(f"Searching {folders} for files to purge...")
+    if args.max_size and args.max_size > 0:
+        max_size_bytes: Optional[int] = int(args.max_size * 1024 * 1024)
+    else:
+        max_size_bytes = None
 
-    results = search_and_collect_files(folders, patterns)
-    print(f"Found {len(results.files_to_delete):,} files to delete from {results.total_files:,} files scanned.")
+    print(
+        f"Searching {folders} for files to purge "
+        f"(extensions={sorted(extensions)}, substrings={len(text_matches)}, "
+        f"max_size={'disabled' if max_size_bytes is None else byte_size(max_size_bytes)})..."
+    )
+
+    results = search_and_collect_files(folders, text_matches, extensions, max_size_bytes)
+    print(
+        f"Found {len(results.files_to_delete):,} files to delete "
+        f"from {results.total_files:,} files scanned."
+    )
+    if results.skipped_extension:
+        print(f"  Skipped {results.skipped_extension:,} files due to extension filter.")
+    if results.skipped_text:
+        print(f"  Skipped {results.skipped_text:,} files due to substring filter.")
+    if results.skipped_size:
+        print(f"  Skipped {results.skipped_size:,} files due to size filter.")
 
     if args.confirm:
         delete_files(results.files_to_delete)
@@ -190,6 +287,7 @@ def main():
         for file in results.files_to_delete:
             size = os.path.getsize(file)
             print(f"{byte_size(size):>10}   {file}")
+
 
 if __name__ == "__main__":
     main()
