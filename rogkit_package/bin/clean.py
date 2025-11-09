@@ -92,8 +92,7 @@ def main():
         return
 
     default_minutes = 10
-    root_directory_value = get_config_value("clean", "root_directory")
-    root_directory = Path(root_directory_value).expanduser() if root_directory_value else None
+    root_directory = Path.cwd()
     desired_filenames = ['*.po', '*.pot']
 
     parser = argparse.ArgumentParser(description="Clean .po and .pot files modified within a certain time frame.")
@@ -103,8 +102,8 @@ def main():
     parser.add_argument('search', nargs='?', default=None, help="Optional: only clean translation paths containing this string")
     args = parser.parse_args()
 
-    if not root_directory or not root_directory.is_dir():
-        print(f"Root directory {root_directory_value} does not exist or is not set. Exiting.")
+    if not root_directory.is_dir():
+        print(f"Root directory {root_directory} does not exist. Exiting.")
         return
     
     matched_file: Optional[Path] = None
@@ -113,8 +112,8 @@ def main():
         if search_path.is_file():
             matched_file = search_path
         else:
-            test_path = (root_directory / args.search) if root_directory else None
-            if test_path and test_path.is_file():
+            test_path = root_directory / args.search
+            if test_path.is_file():
                 matched_file = test_path
             
     if matched_file:
