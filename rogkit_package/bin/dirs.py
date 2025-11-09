@@ -11,6 +11,7 @@ from .bytes import byte_size
 
 # TODO: search functionality, show hidden folders
 
+# TODO: externalise default folder list instead of embedding /mnt paths.
 DEFAULT_FOLDER_LIST = ['/home', '/mnt/expansion']
 
 

@@ -21,6 +21,7 @@ Options:
 	flag.PrintDefaults()
 }
 
+// TODO: replace hard-coded default folders with configurable sources.
 var defaultFolders = []string{
 	"/home/rdubar/projects/pythonProject/openerp-addons",
 	"/mnt/expansion/Media/Movies/",

@@ -27,10 +27,12 @@ DEFAULT_ROGKIT_TOML = {
     "clean": {"script_path": ""},
     "purge": {
         "folders": [
-            "/Users/rdubar/apv/openerp-addons",
-            "/mnt/media1/Media/",
-            "/mnt/media2/Media/",
-            "/mnt/media3/Media/",
+            "~/Media",
+        ],
+    },
+    "media": {
+        "paths": [
+            "~/Media",
         ],
     },
 }
@@ -76,7 +78,7 @@ def setup_rogkit_toml():
     if not rogkit_toml_path.exists():
         try:
             rogkit_toml_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(rogkit_toml_path, 'w') as f:
+            with open(rogkit_toml_path, 'w', encoding='utf-8') as f:
                 toml.dump(DEFAULT_ROGKIT_TOML, f)
             print(f"Created {rogkit_toml_path} with default settings.")
         except IOError as e:
@@ -90,7 +92,7 @@ def load_rogkit_toml(*args):
     if not os.path.exists(rogkit_toml_path):
         setup_rogkit_toml()
 
-    with open(rogkit_toml_path, 'r') as f:
+    with open(rogkit_toml_path, 'r', encoding='utf-8') as f:
         try:
             data = toml.load(f)
         except toml.TomlDecodeError as e:
@@ -115,7 +117,7 @@ def make_current_rogkit_toml_lowercase():
     rogkit_toml_path = get_rogkit_toml_path()
     print(f"Writing {rogkit_toml_path} with lowercase keys.")
     try:
-        with open(rogkit_toml_path, 'w') as f:
+        with open(rogkit_toml_path, 'w', encoding='utf-8') as f:
             toml.dump(toml_lower, f)
     except IOError as e:
         print(f"Error writing {rogkit_toml_path}: {e}", file=sys.stderr)
@@ -130,13 +132,14 @@ def write_default_toml():
     """Write default TOML configuration to sample file."""
     toml_string = toml.dumps(get_default_toml())
     toml_path = toml_sample_path
+    prompt = ""
     if os.path.exists(toml_path):
         prompt = input(f"{toml_path} already exists. Press y overwrite, n to cancel: ")
-    if prompt.lower() not in ['y', 'yes']:
-        print("Aborting.")
-        return
+        if prompt.lower() not in ['y', 'yes']:
+            print("Aborting.")
+            return
     try:
-        with open(toml_path, 'w') as f:
+        with open(toml_path, 'w', encoding='utf-8') as f:
             f.write(toml_string)
         print(f"Wrote {toml_path} with default settings.")
     except IOError as e:

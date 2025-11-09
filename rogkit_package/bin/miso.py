@@ -20,6 +20,7 @@ def is_mounted(mount_dir):
 
 
 def mount_iso(iso_path, mount_dir="/mnt/iso", verbose=False):
+    # TODO: allow mount_dir default to come from configuration/environment.
     """Mount an ISO file to the specified directory."""
     if not os.path.exists(mount_dir):
         os.makedirs(mount_dir)
@@ -93,6 +94,7 @@ def convert_to_movie_format(vob_path, output_path, format="mp4", compress=None, 
 
 
 def unmount_iso(mount_dir="/mnt/iso", verbose=False):
+    # TODO: allow mount_dir default to come from configuration/environment.
     """Unmount the ISO if mounted."""
     if is_mounted(mount_dir):
         print(f"Unmounting {mount_dir}")
@@ -153,6 +155,7 @@ def main():
     default_output = f"{movie_name}.{output_format}"
     output_path = args.output or default_output
 
+    # TODO: prefer configured mount directory over hard-coded /mnt/iso.
     mount_dir = "/mnt/iso"
     video_ts_path = input_path
 

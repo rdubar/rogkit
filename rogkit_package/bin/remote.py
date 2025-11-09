@@ -13,6 +13,7 @@ import paramiko  # type: ignore
 HOSTNAME = '192.168.0.240'
 USERNAME = 'pi'
 PASSWORD = 'your_password_here'  # It's better to use SSH keys if possible
+# TODO: source remote media folder path from config/environment instead of hard-coding.
 FOLDER = '/mnt/expansion/Media/Movies'
 
 def ssh_command_execute(hostname, username, password, cmd):

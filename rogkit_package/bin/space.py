@@ -37,6 +37,7 @@ def display_paths(path_list=None, size=False, quiet=False, show_all=False):
     if path_list is None:
         path_list = []
         
+    # TODO: make /mnt probing optional/configurable instead of hard-coded.
     if os.path.exists('/mnt'):
         mnt_paths = os.listdir('/mnt')
         mnt_paths_full = [os.path.join('/mnt', x) for x in mnt_paths]

@@ -16,6 +16,7 @@ from time import perf_counter
 from .seconds import convert_seconds
 from .bytes import byte_size
 
+# TODO: retire hard-coded archive locations in DEFAULT_CONFIG.
 DEFAULT_CONFIG = {
     "base_dirs": [os.path.expanduser("~")],
     "include_patterns": [".bash_aliases", ".bashrc", "/rogkit.toml", ".ssh"],

@@ -1,5 +1,7 @@
 #!/usr/bin/env python3
 """
+DEPRECATED: Use the Go utility instead.
+
 Text find and replace utility.
 
 Recursively searches text files for specified text patterns and optionally

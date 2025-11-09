@@ -15,6 +15,12 @@ openweather_api_key = ""
 [ipinfo]
 ipinfo_api_key = ""
 
+[media]
+# default roots for media tools (cli); pass --path to override #
+paths = [
+  "~/Media",
+]
+
 [plex]
 plex_server_url = ""
 plex_server_token = ""
@@ -22,8 +28,7 @@ plex_server_token = ""
 [purge]
 # folders to scan when running `purge.py`; override with --folder if omitted
 folders = [
-  "",
-  "",
+  "~/Media",
 ]
 
 [vido]

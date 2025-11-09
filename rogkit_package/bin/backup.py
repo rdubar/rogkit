@@ -62,6 +62,7 @@ DEFAULT_FOLDER_EXCLUDES = [
     '.git', '.idea', '/eggs', '/venv', 'data/', 'data_dir', 'env/', 'internal_packages', 'logs', 'mvs', 'open-webui', 'parts/', 'v27'
 ]
 
+# TODO: externalise archive locations instead of hard-coding /mnt paths.
 DEFAULT_ARCHIVE_LOCATIONS = [
     '/mnt/media1/Archive/Backups',
     '/mnt/media2/Archive/Backups',

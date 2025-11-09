@@ -17,6 +17,7 @@ from .remote import execute_command
 HOSTNAME = '192.168.0.240'
 USERNAME = 'pi'
 PASSWORD = 'your_password_here'  # It's better to use SSH keys if possiblepi
+# TODO: make monitored folder configurable instead of hard-coded /mnt path.
 FOLDER = '/mnt/expansion/Media/Movies'
         
 @dataclasses.dataclass

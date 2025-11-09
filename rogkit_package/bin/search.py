@@ -2,110 +2,220 @@
 """
 File content search utility.
 
-Recursively searches text and code files for specified terms or phrases,
-with support for excluding common directories and file types.
+Recursively searches text/code files within the current working directory by
+default. Use --path to override the root. Wrap queries in double-quotes to search
+for an exact phrase. Results are case-insensitive, with common directories/files
+ignored by default (e.g. .git, __pycache__, virtualenvs).
 """
+
 import argparse
 import os
 from dataclasses import dataclass, field
-from typing import List
+from pathlib import Path
+from typing import List, Sequence
 
-DEFAULT_FOLDER_LIST = ["/Users/rdubar/apv/openerp-addons"]
-EXCLUDE_PATTERNS = ["/.idea/",'__pycache__', '.git', 'venv/', '/eggs/']
+SEARCHABLE_EXTENSIONS = {
+    ".py",
+    ".xml",
+    ".js",
+    ".css",
+    ".txt",
+    ".md",
+    ".log",
+    ".po",
+    ".pot",
+}
+
+EXCLUDE_PATTERNS = ["/.idea/", "__pycache__", ".git/", "venv/", "/eggs/"]
 
 
 @dataclass
 class SearchResults:
     """Encapsulates search results including matched files, skipped files, and errors."""
-    matched_files: List[str] = field(default_factory=list)
-    skipped_files: List[str] = field(default_factory=list)
+
+    matched_files: List[Path] = field(default_factory=list)
+    skipped_files: List[Path] = field(default_factory=list)
     errors: List[str] = field(default_factory=list)
     total_files: int = 0
 
-def is_valid_file(file: str) -> bool:
-    """Check if file has a searchable extension."""
-    return os.path.splitext(file)[1] in ['.py', '.xml', '.js', '.css', '.txt', '.md', '.log', '.po', '.pot']
+
+def is_excluded(path: Path) -> bool:
+    """Return True when the file path contains an excluded fragment."""
+    path_str = str(path)
+    return any(pattern in path_str for pattern in EXCLUDE_PATTERNS)
 
 
-def is_excluded_path(filepath: str) -> bool:
-    """Check if filepath matches any exclude pattern."""
-    return any(excluded in filepath for excluded in EXCLUDE_PATTERNS)
+def is_valid_file(path: Path, skip_po: bool) -> bool:
+    """Return True if the file extension is searchable (and not skipped)."""
+    ext = path.suffix.lower()
+    if skip_po and ext in {".po", ".pot"}:
+        return False
+    return ext in SEARCHABLE_EXTENSIONS
 
 
-def file_contains_text(filepath: str, search_terms: List[str], whole_phrase: bool) -> bool:
-    """Check if file contains search terms (whole phrase or all terms)."""
+def file_contains(
+    path: Path,
+    tokens: Sequence[str],
+    phrase: str,
+    use_phrase: bool,
+) -> bool:
+    """Return True if the file's contents contain the requested tokens/phrase."""
     try:
-        with open(filepath, 'r') as f:
-            content = f.read().lower()
-            if whole_phrase:
-                return ' '.join(search_terms) in content
-            else:
-                return all(term in content for term in search_terms)
-    except Exception as e:
-        raise IOError(f"Error reading file {filepath}: {e}")
+        with path.open("r", encoding="utf-8", errors="ignore") as handle:
+            content = handle.read().lower()
+    except OSError as exc:
+        raise IOError(f"Error reading file {path}: {exc}") from exc
 
-def search_folder(folder: str, search_terms: List[str], whole_phrase: bool, skip_po=False) -> SearchResults:
-    """Recursively search folder for files containing specified terms."""
+    if use_phrase:
+        return phrase in content
+    return all(token in content for token in tokens)
+
+
+def search_folder(
+    root: Path,
+    tokens: Sequence[str],
+    phrase: str,
+    use_phrase: bool,
+    skip_po: bool,
+) -> SearchResults:
+    """Recursively search a folder for files containing the specified query."""
     results = SearchResults()
-    for root, dirs, files in os.walk(folder):
-        for file in files:
+
+    for dirpath, dirnames, filenames in os.walk(root):
+        current_dir = Path(dirpath)
+
+        # Prune excluded directories in-place to avoid descending into them.
+        dirnames[:] = [
+            d for d in dirnames if not is_excluded(current_dir / d)
+        ]
+
+        for name in filenames:
             results.total_files += 1
-            filepath = os.path.join(root, file)
-            if is_excluded_path(filepath) or not is_valid_file(file) or (skip_po and file.endswith('.po') or file.endswith('.pot')):
-                results.skipped_files.append(filepath)
+            file_path = current_dir / name
+
+            if is_excluded(file_path) or not is_valid_file(file_path, skip_po):
+                results.skipped_files.append(file_path)
                 continue
+
             try:
-                if file_contains_text(filepath, search_terms, whole_phrase):
-                    results.matched_files.append(filepath)
-            except IOError as e:
-                results.errors.append(f"{filepath}: {e}")
+                if file_contains(file_path, tokens, phrase, use_phrase):
+                    results.matched_files.append(file_path)
+            except IOError as err:
+                results.errors.append(str(err))
 
     return results
 
-def main():
-    """CLI entry point for file content search utility."""
-    parser = argparse.ArgumentParser(description='Search a folder for text.')
-    parser.add_argument('text', nargs='+', help='Text to search for.')
-    parser.add_argument('-m', '--show-matches', action='store_true', help='Show matches.')
-    parser.add_argument('-p', '--skip-po', action='store_true', help='Skip po/pit files.')
-    parser.add_argument('-f', '--folder', type=str, default='', help='Folder to search.')
-    parser.add_argument('-errors', '--show-errors', action='store_true', help='Show errors.')
-    parser.add_argument('-skipped', '--show-skipped', action='store_true', help='Show skipped files.')
+
+def parse_query(args: Sequence[str]) -> tuple[Sequence[str], str, bool, str]:
+    """Normalise the CLI search query."""
+    raw = " ".join(args)
+    use_phrase = (
+        len(args) == 1
+        and args[0].startswith('"')
+        and args[0].endswith('"')
+    )
+
+    if use_phrase:
+        phrase = args[0].strip('"').lower()
+        tokens: Sequence[str] = [phrase]
+        display = phrase
+    else:
+        phrase = raw.lower()
+        tokens = phrase.split()
+        display = raw
+
+    if not tokens or not phrase.strip():
+        raise ValueError("Search text cannot be empty.")
+
+    return tokens, phrase, use_phrase, display
+
+
+def main() -> None:
+    """CLI entry point for the file content search utility."""
+    
+    max_matches = 20 
+    
+    parser = argparse.ArgumentParser(
+        description=(
+            "Recursively search text/code files for the given terms. "
+            "Wrap the query in double-quotes for an exact phrase."
+        )
+    )
+    parser.add_argument(
+        "text",
+        nargs="+",
+        help="Text to search for (wrap in quotes for a whole phrase).",
+    )
+    parser.add_argument(
+        "--path",
+        type=str,
+        default=".",
+        help="Root path to search (default: current working directory).",
+    )
+    parser.add_argument(
+        "--show-matches",
+        "-s",
+        action="store_true",
+        help=f"Always list matching files (otherwise limited to <{max_matches}).",
+    )
+    parser.add_argument(
+        "--skip-po",
+        action="store_true",
+        help="Skip .po/.pot files.",
+    )
+    parser.add_argument(
+        "--show-errors",
+        action="store_true",
+        help="Display files that could not be read.",
+    )
+    parser.add_argument(
+        "--show-skipped",
+        action="store_true",
+        help="Display files that were skipped.",
+    )
+
     args = parser.parse_args()
 
-    folder = args.folder or next((f for f in DEFAULT_FOLDER_LIST if os.path.exists(f)), '')
-    if not folder:
-        print("No valid folder found.")
+    try:
+        tokens, phrase, use_phrase, display_query = parse_query(args.text)
+    except ValueError as err:
+        parser.error(str(err))
         return
 
-    whole_phrase = len(args.text) == 1 and args.text[0].startswith('"') and args.text[0].endswith('"')
-    search_terms = ' '.join(args.text).strip('"').lower().split() if not whole_phrase else args.text[0].strip('"').lower()
+    root = Path(args.path).expanduser().resolve()
+    if not root.exists():
+        parser.error(f"Path not found: {root}")
+    if not root.is_dir():
+        parser.error(f"Not a directory: {root}")
 
-    print(f"Searching for '{args.text}' in '{folder}'")
-
+    print(f"Searching for: {display_query!r}")
+    print(f"Root: {root}")
     if args.skip_po:
-        print("Skipping po/pot files.")
+        print("Skipping .po/.pot files.")
 
-    results = search_folder(folder, search_terms, whole_phrase, skip_po = args.skip_po)
+    results = search_folder(root, tokens, phrase, use_phrase, args.skip_po)
 
-    print(f"Found {len(results.matched_files):,} matches in {results.total_files:,} files. "
-          f"(Skipped {len(results.skipped_files):,} files, Encountered {len(results.errors):,} errors.)")
+    print(
+        f"Found {len(results.matched_files):,} matches in {results.total_files:,} files "
+        f"(Skipped {len(results.skipped_files):,}, Errors {len(results.errors):,})."
+    )
 
-    if args.show_matches or len(results.matched_files) < 10:
-        print(f"Showing {len(results.matched_files):,} matches:")
-        for file in results.matched_files:
-            print(file)
+    if results.matched_files and (args.show_matches or len(results.matched_files) < max_matches):
+        print("Matches:")
+        for match in results.matched_files:
+            print(f"  {match}")
 
-    if args.show_skipped:
-        print(f"Showing {len(results.skipped_files):,} skipped files:")
-        for file in results.skipped_files:
-            print(file)
+    if args.show_skipped and results.skipped_files:
+        print("Skipped files:")
+        for path in results.skipped_files:
+            print(f"  {path}")
 
-    if args.show_errors:
-        print(f"Showing {len(results.errors):,} errors:")
+    if args.show_errors and results.errors:
+        print("Errors:")
         for error in results.errors:
-            print(error)
+            print(f"  {error}")
 
 
 if __name__ == "__main__":
     main()
+#!/usr/bin/env python3

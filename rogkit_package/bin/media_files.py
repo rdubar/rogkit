@@ -157,6 +157,7 @@ def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
         return None
 
 def get_remote_media_files(path: str, server_ip: str, username: str) -> List[MediaFile]:
+    # TODO: load default media scan paths from configuration instead of /mnt wildcards.
     """
     Retrieve a list of media files from the specified path. If the path is available locally,
     retrieve the file list locally; otherwise, connect to the remote server.
@@ -337,6 +338,7 @@ def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
     processed_files = 0
 
     for file in media_files:
+        # TODO: avoid assuming /mnt/[disk]/Media layout when parsing paths.
         # Split the path into components: /mnt/[disk]/Media/[Location]/[Title]
         parts = file.filepath.split('/')
         if len(parts) < 5:
@@ -366,6 +368,7 @@ def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
     media_folders = []
     for (disk, location, title), files in folders.items():
         # Construct folderpath from the title level
+        # TODO: construct folder paths without hard-coded /mnt structure.
         folderpath = f"/mnt/{disk}/Media/{location}/{title}"
         media_folders.append(MediaFolder(
             disk=disk,
@@ -745,6 +748,7 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
     total = len(records_to_check)
     for count, record in enumerate(records_to_check):
         # print(f"Restoring: {record.filepath} to {record.disk}")
+        # TODO: derive destination base path from config rather than /mnt.
         new_file_path = f'/mnt/{record.disk}/Media/Movies/' + '/'.join(record.filepath.split('/')[5:])
 
         if not os.path.exists(record.filepath):
@@ -799,6 +803,7 @@ def main():
     parser.add_argument('-d', "--duplicates", action="store_true", help="Show duplicate media titles across disks (default)")
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one large file not classed as an 'extra'")
+    # TODO: provide a config-backed default for --path instead of /mnt/media*/Media.
     parser.add_argument('-p', "--path", default="/mnt/media*/Media", help="Path to search for media files")
     parser.add_argument('--hidden', action="store_true", help="Include hidden files")
     parser.add_argument('-R', "--restore", action="store_true", help="Restore media files from backup disk")
