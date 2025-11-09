@@ -172,7 +172,6 @@ alias speeder='$ROGKIT_PYTHON -m rogkit_package.bin.speeder "$@"'
 alias docker_bash='$ROGKIT_PYTHON -m rogkit_package.bin.docker_bash "$@"'
 alias dbash='$ROGKIT_PYTHON -m rogkit_package.bin.docker_bash "$@"'
 
-alias remote='$ROGKIT_PYTHON -m rogkit_package.bin.remote "$@"'
 alias spot='$ROGKIT_PYTHON -m rogkit_package.bin.spot "$@"'
 
 # ------------------------------------------------------------------------------

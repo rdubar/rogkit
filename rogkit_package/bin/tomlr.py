@@ -34,6 +34,10 @@ DEFAULT_ROGKIT_TOML = {
         "paths": [
             "~/Media",
         ],
+        "remote_host": "192.168.0.50",
+        "remote_user": "rog",
+        "remote_password": "",
+        "remote_folder": "/mnt/media1/Media/Movies",
     },
 }
 

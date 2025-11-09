@@ -4,6 +4,9 @@
 [backup]
 backup_from = [ "~/",]
 backup_to = [ "~/archive/",]
+# Optional exclusions
+# file_excludes = [".DS_Store", "*.pyc"]
+# folder_excludes = ["__pycache__", "/tmp"]
 
 [clean]
 # path to your translation_clean.sh script
@@ -17,9 +20,10 @@ ipinfo_api_key = ""
 
 [media]
 # default roots for media tools (cli); pass --path to override #
-paths = [
-  "~/Media",
-]
+remote_host = "192.168.0.50"
+remote_user = "rog"
+remote_password = ""
+remote_folders = ["/mnt/media1/Media/Movies"]
 
 [plex]
 plex_server_url = ""

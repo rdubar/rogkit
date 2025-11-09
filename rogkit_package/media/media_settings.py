@@ -23,4 +23,4 @@ media_paths = ['/mnt/expansion/Media','/mnt/archive/Media']
 
 afi_path = os.path.join(script_dir, 'afi_100.txt')
 
-FUZZY_DEFAULT = 90  # Default fuzzy search value
+FUZZY_DEFAULT = 90  # Default fuzzy search valugi

@@ -13,7 +13,7 @@ A collection of 85+ Python (and some Go) utilities for developers and system adm
 - **🖼️ Image & Document Processing** - HEIC conversion, resizing, PDF generation, transparency tools
 - **📊 Data Format Tools** - XML, TOML, ISO, and JSON parsing and manipulation
 - **🔢 Calculation & Conversion** - Time, bytes, numbers, ages, and unit conversions
-- **🐳 Container Management** - Docker utilities and remote execution
+- **🐳 Container Management** - Docker utilities
 - **🔐 Security Tools** - Password generation with strength analysis
 - **🎯 Text Utilities** - Clipboard, formatting, case conversion, and ASCII art
 - **ℹ️ System Information** - Hardware, network, location, and weather data
@@ -316,7 +316,6 @@ root_directory = "/absolute/path/to/project/root"
 | Command | Description | Aliases |
 |---------|-------------|---------|
 | `docker_bash` | Bash into Docker container | `dbash` |
-| `remote` | Execute commands remotely/locally | - |
 | `spot` | Spotify CLI control | - |
 
 ### 🗄️ Database & Storage
