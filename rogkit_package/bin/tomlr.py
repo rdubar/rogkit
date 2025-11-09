@@ -25,6 +25,14 @@ DEFAULT_ROGKIT_TOML = {
     "openai": {"openai_api_key": ""},
     "tmdb": {"tmdb_api_key": "", "tmdb_api_read_access_token": ""},
     "clean": {"script_path": ""},
+    "purge": {
+        "folders": [
+            "/Users/rdubar/apv/openerp-addons",
+            "/mnt/media1/Media/",
+            "/mnt/media2/Media/",
+            "/mnt/media3/Media/",
+        ],
+    },
 }
 
 def get_config_value(group: str, key: str, verbose: bool = False):

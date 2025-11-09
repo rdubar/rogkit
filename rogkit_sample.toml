@@ -5,9 +5,9 @@
 backup_from = [ "~/",]
 backup_to = [ "~/archive/",]
 
-[plex]
-plex_server_url = ""
-plex_server_token = ""
+[clean]
+# path to your translation_clean.sh script
+script_path = ""
 
 [openweather]
 openweather_api_key = ""
@@ -15,12 +15,21 @@ openweather_api_key = ""
 [ipinfo]
 ipinfo_api_key = ""
 
+[plex]
+plex_server_url = ""
+plex_server_token = ""
+
+[purge]
+# folders to scan when running `purge.py`; override with --folder if omitted
+folders = [
+  "",
+  "",
+]
+
 [vido]
 temp_folder = ""
 download_folder = ""
 default_input_file = ""
 
-[clean]
-# path to your translation_clean.sh script
-script_path = ""
+
 

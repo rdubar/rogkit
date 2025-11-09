@@ -2,6 +2,9 @@
 """
 File purge utility for removing junk files.
 
+Folder targets are read from the rogkit config `[purge]` section (`folders = [...]`)
+when available; otherwise at least one `--folder PATH` must be supplied.
+
 Recursively searches for and deletes files that satisfy all of:
   • extension whitelist (e.g., .txt, .nfo, .jpg)
   • case-insensitive substring match (no wildcards)
@@ -14,14 +17,7 @@ from typing import Iterable, List, Optional, Sequence, Set, Tuple
 
 from ..bin.bytes import byte_size
 from ..bin.delete import safe_delete
-
-
-DEFAULT_FOLDER_LIST = [
-    "/Users/rdubar/apv/openerp-addons",
-    "/mnt/media1/Media/",
-    "/mnt/media2/Media/",
-    "/mnt/media3/Media/",
-]
+from .tomlr import get_config_value
 
 
 def _process_text_list(raw_list: str) -> List[str]:
@@ -179,12 +175,39 @@ def delete_files(file_list):
             continue
         safe_delete(file)
 
+
+def _expand_paths(entries: Iterable[str]) -> List[str]:
+    expanded: List[str] = []
+    for entry in entries:
+        entry = entry.strip()
+        if not entry:
+            continue
+        expanded.append(os.path.abspath(os.path.expanduser(entry)))
+    return expanded
+
+
+def _resolve_target_folders(cli_folders: Optional[Iterable[str]]) -> Tuple[List[str], bool]:
+    config_value = get_config_value("purge", "folders")
+    config_folders: List[str] = []
+    if isinstance(config_value, str):
+        config_folders = _expand_paths([config_value])
+    elif isinstance(config_value, (list, tuple, set)):
+        config_folders = _expand_paths(config_value)
+
+    if config_folders:
+        return config_folders, True
+
+    cli_list = _expand_paths(cli_folders or [])
+    return cli_list, False
+
+
 def main():
     """CLI entry point for file purge utility."""
     parser = argparse.ArgumentParser(
         description=(
             "Search and delete junk files. Matches only if extension, substring, "
-            "and size filters all pass."
+            "and size filters all pass. Folder roots come from rogkit config "
+            "[purge].folders unless --folder is supplied."
         )
     )
     parser.add_argument(
@@ -206,7 +229,13 @@ def main():
     parser.add_argument(
         "-c", "--confirm", action="store_true", help="Confirm deletion of files."
     )
-    parser.add_argument("-f", "--folder", type=str, help="Folder to search.")
+    parser.add_argument(
+        "-f",
+        "--folder",
+        action="append",
+        dest="folders",
+        help="Folder to search (can be repeated).",
+    )
     parser.add_argument(
         "-p", "--purge-list", action="store_true", help="Show the base substrings."
     )
@@ -231,12 +260,30 @@ def main():
             print(item)
         return
 
-    folder_list = [args.folder] if args.folder else DEFAULT_FOLDER_LIST
-    folders = [x for x in folder_list if os.path.exists(x)]
+    folder_candidates, from_config = _resolve_target_folders(args.folders)
+    folders = [path for path in folder_candidates if os.path.isdir(path)]
+    missing = sorted(set(folder_candidates) - set(folders))
 
     if not folders:
-        print("No valid folder found. Exiting.")
+        if from_config:
+            print(
+                "No valid purge folders found in rogkit config. "
+                "Update [purge].folders or supply --folder PATH."
+            )
+        else:
+            print(
+                "No purge folders supplied. Provide --folder PATH or configure "
+                "[purge] folders in rogkit config."
+            )
         return
+
+    if missing:
+        print("Skipping missing folders:")
+        for path in missing:
+            print(f"  {path}")
+
+    source_label = "rogkit config" if from_config else "command line"
+    print(f"Scanning folders from {source_label}: {folders}")
 
     text_matches = _prepare_text_matches(
         BASE_TEXT_MATCHES,
