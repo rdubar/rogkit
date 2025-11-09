@@ -34,25 +34,20 @@ def _process_text_list(raw_list: str) -> List[str]:
 
 BASE_TEXT_MATCHES: List[str] = _process_text_list(
     """
-zone.identifier
-rarbg_do_not_mirror
-rarbg
-rarbg.com
-yify-torrents.com
-downloaded from torrentgalaxy.to
-torrent downloaded from
-new upcoming releases by xclusive
-downloaded from publichd
+._
 00.nfo
-tsyifyup... (tor).txt
-yifystatus.com
-www.yts
-sample.m
-ytsproxies
-visit me on facebook
 ahashare.com
-ytsyifyup
-._ 
+downloaded from
+new upcoming releases
+rarbg
+sample.
+torrent
+tsyifyup
+visit me on facebook
+www.yts
+yif
+yts
+zone.identifier
 """
 )
 
