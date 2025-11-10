@@ -23,7 +23,6 @@ import argparse
 import contextlib
 import dataclasses
 import os
-import pickle
 import shutil
 import sqlite3
 import sys
@@ -34,6 +33,14 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional
 
 from ..bin.bytes import byte_size
 from ..bin.tomlr import load_rogkit_toml
+from .plex_db_cache import (
+    CACHE_DIR,
+    build_cache_table,
+    describe_cache_state,
+    ensure_cache_table,
+    get_cache_metadata,
+    load_cached_records,
+)
 
 PI_DB = Path(
     "/var/lib/plexmediaserver/Library/Application Support/"
@@ -44,33 +51,10 @@ MAC_DB = Path(
     "Plex Media Server/Plug-in Support/Databases/com.plexapp.plugins.library.db"
 ).expanduser()
 
-CACHE_DIR = Path.home() / ".cache" / "rogkit" / "plex_db"
-CACHE_PICKLE_PATH = CACHE_DIR / "plex_search_cache.pkl"
-CACHE_SQLITE_PATH = CACHE_DIR / "plex_search_cache.sqlite3"
-REQUIRED_CACHE_COLUMNS = {
-    "id",
-    "title",
-    "title_low",
-    "metadata_type",
-    "year",
-    "parent_title",
-    "grandparent_title",
-    "added_at",
-    "duration_ms",
-    "duration_meta",
-    "width",
-    "height",
-    "size_bytes",
-    "file_path",
-    "disk",
-    "summary",
-}
-
-CACHE_STATE: Dict[str, Optional[List[Dict[str, Any]]]] = {"records": None}
-
 
 @dataclasses.dataclass(frozen=True)
 class RemoteConfig:
+    """Configuration for connecting to a remote Plex host."""
     host: str
     username: str
     password: Optional[str]
@@ -79,11 +63,13 @@ class RemoteConfig:
 
     @property
     def cache_path(self) -> Path:
+        """Return the path to the cache directory for the remote Plex host."""
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         return CACHE_DIR / self.db_path.name
 
 
 def load_remote_config() -> Optional[RemoteConfig]:
+    """Load remote connection details from the rogkit configuration."""
     config = load_rogkit_toml()
     plex_section = config.get("plex", {})
     remote_section = config.get("plex_remote", {})
@@ -226,6 +212,7 @@ def run_query(db_path: Path, sql: str, limit: int) -> None:
 
 
 def format_candidates() -> str:
+    """Return a human-readable list of known Plex database paths."""
     lines = []
     seen = set()
     for path in candidate_db_paths():
@@ -250,6 +237,7 @@ def format_candidates() -> str:
 
 
 def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
+    """Parse command-line arguments for the `pd` utility."""
     parser = argparse.ArgumentParser(
         description="Inspect the Plex Media Server SQLite database."
     )
@@ -276,6 +264,12 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         type=int,
         default=10,
         help="Maximum items to display with the built-in search formatter.",
+    )
+    parser.add_argument(
+        "-a",
+        "--all",
+        action="store_true",
+        help="Show all results instead of limiting to --number.",
     )
     parser.add_argument(
         "-L",
@@ -337,8 +331,12 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
 
 
 @contextlib.contextmanager
-def _ssh_client(remote: RemoteConfig) -> Iterator[paramiko.SSHClient]:
-    import paramiko  # type: ignore[import]
+def _ssh_client(remote: RemoteConfig):
+    """Yield an SSH client connected to the remote Plex host."""
+    try:
+        import paramiko  # type: ignore[import]
+    except ImportError as exc:  # pragma: no cover - environment-specific
+        raise RuntimeError("Paramiko is required for remote sync; install paramiko to use --update") from exc
 
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
@@ -354,9 +352,8 @@ def _ssh_client(remote: RemoteConfig) -> Iterator[paramiko.SSHClient]:
         client.close()
 
 
-def _copy_remote_file(sftp: paramiko.SFTPClient, remote_path: Path, local_path: Path) -> None:
-    import paramiko  # type: ignore[import]
-
+def _copy_remote_file(sftp, remote_path: Path, local_path: Path) -> None:
+    """Copy a single file from the remote host via SFTP."""
     local_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=str(local_path.parent), delete=False) as tmp_file:
         tmp_name = tmp_file.name
@@ -369,11 +366,7 @@ def _copy_remote_file(sftp: paramiko.SFTPClient, remote_path: Path, local_path: 
 
 
 def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
-    try:
-        import paramiko  # type: ignore[import]
-    except ImportError as exc:  # pragma: no cover - environment-specific
-        raise RuntimeError("Paramiko is required for remote sync; install paramiko to use --update") from exc
-
+    """Download the Plex SQLite database (and sidecars) from the remote host."""
     sync_start = perf_counter()
     if verbose:
         print(
@@ -434,208 +427,41 @@ def _initialize_cache_schema(conn: sqlite3.Connection) -> None:
     )
 
 
-def build_cache_table(db_path: Path) -> None:
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-
-    source_conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
-    try:
-        source_conn.row_factory = sqlite3.Row
-        rows = source_conn.execute(
-            """SELECT
-                mi.id,
-                mi.title,
-                LOWER(mi.title) AS title_low,
-                mi.metadata_type,
-                mi.year,
-                parent.title AS parent_title,
-                grandparent.title AS grandparent_title,
-                ROUND(mi.added_at) AS added_at,
-                MAX(m.duration) AS duration_ms,
-                MAX(mi.duration) AS duration_meta,
-                MAX(m.width) AS width,
-                MAX(m.height) AS height,
-                MAX(mp.size) AS size_bytes,
-                MIN(mp.file) AS file_path,
-                CASE
-                    WHEN MIN(mp.file) LIKE '/mnt/media1/%' THEN '[1]'
-                    WHEN MIN(mp.file) LIKE '/mnt/media2/%' THEN '[2]'
-                    WHEN MIN(mp.file) LIKE '/mnt/media3/%' THEN '[3]'
-                    ELSE ''
-                END AS disk,
-                substr(COALESCE(mi.summary, ''), 1, 280) AS summary
-            FROM metadata_items mi
-            LEFT JOIN metadata_items parent ON parent.id = mi.parent_id
-            LEFT JOIN metadata_items grandparent ON grandparent.id = parent.parent_id
-            LEFT JOIN media_items m ON m.metadata_item_id = mi.id
-            LEFT JOIN media_parts mp ON mp.media_item_id = m.id
-            WHERE mi.metadata_type IN (1, 2, 4)
-            GROUP BY mi.id"""
-        ).fetchall()
-    finally:
-        source_conn.close()
-
-    dest_conn = sqlite3.connect(str(CACHE_SQLITE_PATH))
-    try:
-        _initialize_cache_schema(dest_conn)
-        insert_sql = """
-            INSERT INTO plex_search_cache (
-                id,
-                title,
-                title_low,
-                metadata_type,
-                year,
-                parent_title,
-                grandparent_title,
-                added_at,
-                duration_ms,
-                duration_meta,
-                width,
-                height,
-                size_bytes,
-                file_path,
-                disk,
-                summary
-            ) VALUES (
-                :id,
-                :title,
-                :title_low,
-                :metadata_type,
-                :year,
-                :parent_title,
-                :grandparent_title,
-                :added_at,
-                :duration_ms,
-                :duration_meta,
-                :width,
-                :height,
-                :size_bytes,
-                :file_path,
-                :disk,
-                :summary
-            )
-        """
-        dest_conn.executemany(insert_sql, [dict(row) for row in rows])
-        dest_conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_plex_cache_title_low ON plex_search_cache(title_low)"
-        )
-        dest_conn.execute(
-            "CREATE INDEX IF NOT EXISTS idx_plex_cache_added ON plex_search_cache(added_at)"
-        )
-        dest_conn.commit()
-        _write_cache_pickle_from_conn(dest_conn)
-    finally:
-        dest_conn.close()
-
-    CACHE_STATE["records"] = None
-
-
-def ensure_cache_table(db_path: Path) -> None:
-    if not CACHE_SQLITE_PATH.exists():
-        build_cache_table(db_path)
-        return
-
-    rebuild = False
-    conn = sqlite3.connect(str(CACHE_SQLITE_PATH))
-    try:
-        row = conn.execute(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name='plex_search_cache'"
-        ).fetchone()
-        if row is None:
-            rebuild = True
-        else:
-            info = conn.execute("PRAGMA table_info(plex_search_cache)").fetchall()
-            existing_cols = {col[1] for col in info}
-            if not REQUIRED_CACHE_COLUMNS.issubset(existing_cols):
-                rebuild = True
-    finally:
-        conn.close()
-
-    if rebuild:
-        build_cache_table(db_path)
-    else:
-        ensure_cache_pickle()
-
-
-def _write_cache_pickle_from_conn(conn: sqlite3.Connection) -> None:
-    conn.row_factory = sqlite3.Row
-    rows = conn.execute(
-        """
-        SELECT
-            id,
-            title,
-            title_low,
-            metadata_type,
-            year,
-            parent_title,
-            grandparent_title,
-            added_at,
-            duration_ms,
-            duration_meta,
-            width,
-            height,
-            size_bytes,
-            file_path,
-            disk,
-            summary
-        FROM plex_search_cache
-        ORDER BY added_at DESC
-        """
-    ).fetchall()
-    data = [dict(row) for row in rows]
-    CACHE_DIR.mkdir(parents=True, exist_ok=True)
-    with CACHE_PICKLE_PATH.open("wb") as fh:
-        pickle.dump(data, fh)
-    CACHE_STATE["records"] = data
-
-
-def write_cache_pickle() -> None:
-    if not CACHE_SQLITE_PATH.exists():
-        return
-    conn = sqlite3.connect(str(CACHE_SQLITE_PATH))
-    try:
-        _write_cache_pickle_from_conn(conn)
-    finally:
-        conn.close()
-
-
-def ensure_cache_pickle() -> None:
-    if not CACHE_PICKLE_PATH.exists():
-        write_cache_pickle()
-    else:
-        CACHE_STATE["records"] = None
-
-
-def load_cached_records(db_path: Path) -> List[Dict[str, Any]]:
-    records = CACHE_STATE.get("records")
-    if records is None:
-        if not CACHE_PICKLE_PATH.exists():
-            build_cache_table(db_path)
-        with CACHE_PICKLE_PATH.open("rb") as fh:
-            CACHE_STATE["records"] = pickle.load(fh)
-    return CACHE_STATE["records"] or []
-
-
 def _sort_key_title(record: Dict[str, Any]) -> str:
+    """Sort cached records alphabetically by title."""
     return (record.get("title") or "").lower()
 
 
 def _sort_key_year(record: Dict[str, Any]) -> int:
+    """Sort cached records by release year (ascending)."""
     value = record.get("year")
     return int(value) if value is not None else 0
 
 
 def _sort_key_added(record: Dict[str, Any]) -> int:
+    """Sort cached records by the time they were added to Plex (descending)."""
     value = record.get("added_at")
     return int(value) if value is not None else 0
 
 
 def _truncate_summary(summary: Optional[str], max_length: int = 140) -> str:
+    """Collapse whitespace and shorten long summaries for CLI output."""
+
     if not summary:
         return ""
     squashed = " ".join(summary.split())
     if len(squashed) <= max_length:
         return squashed
     return f"{squashed[: max_length - 1]}…"
+
+
+def _format_cache_age(seconds: Optional[float]) -> str:
+    if seconds is None:
+        return "unknown"
+    seconds = max(0, int(seconds))
+    hours, remainder = divmod(seconds, 3600)
+    minutes, secs = divmod(remainder, 60)
+    return f"{hours}:{minutes:02}:{secs:02}"
 
 
 def _format_duration(duration_ms: Optional[int]) -> str:
@@ -722,6 +548,7 @@ def run_pretty_search(
     reverse: bool,
     deep: bool,
 ) -> tuple[List[Any], Optional[int]]:
+    """Execute the fast or deep search path and return matching records."""
     sort_alias_mapping = {
         "added": "added_at",
         "title": "title",
@@ -755,11 +582,9 @@ def run_pretty_search(
             filtered_full.sort(key=_sort_key_added, reverse=reverse_flag)
         total_matches = len(filtered_full)
         if limit and limit > 0:
-            filtered_visible = filtered_full[:limit]
-        else:
-            filtered_visible = filtered_full
+            filtered_full = filtered_full[:limit]
 
-        return filtered_visible, total_matches
+        return filtered_full, total_matches
 
     deep_clauses: List[str] = []
     filter_params: List[object] = []
@@ -853,7 +678,7 @@ def run_pretty_search(
 
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
-    """Main entry point for the plex_db command."""
+    """Entry point for the `pd` command-line interface."""
     args = parse_args(argv)
 
     if args.list_paths:
@@ -871,9 +696,12 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             )
             return 1
         try:
-            db_path = sync_remote_db(remote, verbose=True)
-            build_cache_table(db_path)
-        except (Exception) as exc:
+            synced_db_path = sync_remote_db(remote, verbose=True)
+            build_cache_table(synced_db_path)
+        except RuntimeError as exc:
+            print(str(exc), file=sys.stderr)
+            return 2
+        except (OSError, sqlite3.Error) as exc:
             print(f"Failed to refresh remote database: {exc}", file=sys.stderr)
             return 2
         if not args.query and not args.show_path and not args.search:
@@ -888,18 +716,19 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         print(db_path)
         return 0
 
-    if not db_path:
+    if db_path is None:
         if remote:
             print("No local Plex database found; attempting to pull from remote host...")
             pull_start = perf_counter()
             try:
-                db_path = sync_remote_db(remote, verbose=True)
+                synced_db_path = sync_remote_db(remote, verbose=True)
                 duration = perf_counter() - pull_start
-                build_cache_table(db_path)
+                build_cache_table(synced_db_path)
+                db_path = synced_db_path
             except RuntimeError as exc:
                 print(str(exc), file=sys.stderr)
                 return 2
-            except Exception as exc:
+            except (OSError, sqlite3.Error) as exc:
                 print(f"Failed to sync remote database: {exc}", file=sys.stderr)
                 return 2
             print(f"Synced remote database in {duration:.2f} seconds.")
@@ -913,11 +742,14 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     ensure_cache_table(db_path)
 
+    total_items, cache_age = get_cache_metadata(db_path)
+    print(describe_cache_state(total_items, cache_age))
+
     if not args.query and not args.search:
         rows, _ = run_pretty_search(
             db_path,
             [],
-            limit=args.number,
+            limit=None if args.all else args.number,
             sort="added",
             reverse=args.reverse,
             deep=False,
@@ -925,7 +757,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         if not rows:
             print("No media found in the Plex database.")
             return 0
-        print(f"Showing last {min(len(rows), args.number)} items added:")
+        if args.all:
+            print(f"Showing all {len(rows)} items added:")
+        else:
+            print(f"Showing last {min(len(rows), args.number)} items added:")
         for row in rows:
             print(_format_pretty_row(row, args))
         return 0
@@ -933,7 +768,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     if args.search and not args.query:
         search_terms = [term.lower() for term in args.search]
         sort = "year" if args.zed else args.sort
-        limit = None if args.zed else args.number
+        limit = None if args.all or args.zed else args.number
         rows, total_count = run_pretty_search(
             db_path,
             search_terms,
@@ -949,10 +784,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 print("No matching media found.")
             return 0
 
-        visible_rows = rows if args.zed else rows[: args.number]
+        visible_rows = rows
         total = total_count if total_count is not None else len(rows)
         match_label = "match" if total == 1 else "matches"
-        if args.zed or (total_count is not None and len(visible_rows) >= total):
+        if args.zed or args.all or (total_count is not None and len(visible_rows) >= total):
             heading = f"Showing all {total} {match_label}"
         elif total_count is not None:
             heading = f"Showing {len(visible_rows)} of {total} {match_label}"
@@ -962,7 +797,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
         for row in visible_rows:
             print(_format_pretty_row(row, args))
-        if not args.zed and total_count is not None and total > len(visible_rows):
+        if not args.zed and not args.all and total_count is not None and total > len(visible_rows):
             print(f"...and {total - len(visible_rows)} more results. Use -z to show all.")
         return 0
 
@@ -981,10 +816,13 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     return 0
 
-
-if __name__ == "__main__":
+def main_timer():
+    """Main entry point for the plex_db command with timing."""
     start_time = perf_counter()
-    result = main()
+    exit_code = main()
     elapsed_time = perf_counter() - start_time
     print(f"Operation completed in {elapsed_time:.4f} seconds.")
-    raise SystemExit(result)
+    return exit_code
+
+if __name__ == "__main__":
+    raise SystemExit(main_timer())
