@@ -48,6 +48,7 @@ MAC_DB = Path(
 
 CACHE_DIR = Path.home() / ".cache" / "rogkit" / "plex_db"
 CACHE_PICKLE_PATH = CACHE_DIR / "plex_search_cache.pkl"
+CACHE_SQLITE_PATH = CACHE_DIR / "plex_search_cache.sqlite3"
 REQUIRED_CACHE_COLUMNS = {
     "id",
     "title",
@@ -424,38 +425,16 @@ def _initialize_cache_schema(conn: sqlite3.Connection) -> None:
             summary TEXT
         )"""
     )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_plex_cache_title_low ON plex_search_cache(title_low)"
-    )
-    conn.execute(
-        "CREATE INDEX IF NOT EXISTS idx_plex_cache_added ON plex_search_cache(added_at)"
-    )
 
 
 def build_cache_table(db_path: Path) -> None:
-    conn = sqlite3.connect(str(db_path))
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+
+    source_conn = sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)
     try:
-        _initialize_cache_schema(conn)
-        conn.execute(
-            """INSERT INTO plex_search_cache (
-                id,
-                title,
-                title_low,
-                metadata_type,
-                year,
-                parent_title,
-                grandparent_title,
-                added_at,
-                duration_ms,
-                duration_meta,
-                width,
-                height,
-                size_bytes,
-                file_path,
-                disk,
-                summary
-            )
-            SELECT
+        source_conn.row_factory = sqlite3.Row
+        rows = source_conn.execute(
+            """SELECT
                 mi.id,
                 mi.title,
                 LOWER(mi.title) AS title_low,
@@ -484,35 +463,90 @@ def build_cache_table(db_path: Path) -> None:
             LEFT JOIN media_parts mp ON mp.media_item_id = m.id
             WHERE mi.metadata_type IN (1, 2, 4)
             GROUP BY mi.id"""
-        )
-        conn.execute("ANALYZE plex_search_cache")
-        conn.commit()
-        _write_cache_pickle_from_conn(conn)
+        ).fetchall()
     finally:
-        conn.close()
+        source_conn.close()
+
+    dest_conn = sqlite3.connect(str(CACHE_SQLITE_PATH))
+    try:
+        _initialize_cache_schema(dest_conn)
+        insert_sql = """
+            INSERT INTO plex_search_cache (
+                id,
+                title,
+                title_low,
+                metadata_type,
+                year,
+                parent_title,
+                grandparent_title,
+                added_at,
+                duration_ms,
+                duration_meta,
+                width,
+                height,
+                size_bytes,
+                file_path,
+                disk,
+                summary
+            ) VALUES (
+                :id,
+                :title,
+                :title_low,
+                :metadata_type,
+                :year,
+                :parent_title,
+                :grandparent_title,
+                :added_at,
+                :duration_ms,
+                :duration_meta,
+                :width,
+                :height,
+                :size_bytes,
+                :file_path,
+                :disk,
+                :summary
+            )
+        """
+        dest_conn.executemany(insert_sql, [dict(row) for row in rows])
+        dest_conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_plex_cache_title_low ON plex_search_cache(title_low)"
+        )
+        dest_conn.execute(
+            "CREATE INDEX IF NOT EXISTS idx_plex_cache_added ON plex_search_cache(added_at)"
+        )
+        dest_conn.commit()
+        _write_cache_pickle_from_conn(dest_conn)
+    finally:
+        dest_conn.close()
+
+    CACHE_STATE["records"] = None
 
 
 def ensure_cache_table(db_path: Path) -> None:
-    needs_rebuild = False
-    conn = sqlite3.connect(str(db_path))
+    if not CACHE_SQLITE_PATH.exists():
+        build_cache_table(db_path)
+        return
+
+    rebuild = False
+    conn = sqlite3.connect(str(CACHE_SQLITE_PATH))
     try:
         row = conn.execute(
             "SELECT name FROM sqlite_master WHERE type='table' AND name='plex_search_cache'"
         ).fetchone()
         if row is None:
-            needs_rebuild = True
+            rebuild = True
         else:
             info = conn.execute("PRAGMA table_info(plex_search_cache)").fetchall()
             existing_cols = {col[1] for col in info}
             if not REQUIRED_CACHE_COLUMNS.issubset(existing_cols):
-                needs_rebuild = True
+                rebuild = True
     finally:
         conn.close()
 
-    if needs_rebuild:
+    if rebuild:
         build_cache_table(db_path)
     else:
-        ensure_cache_pickle(db_path)
+        ensure_cache_pickle()
 
 
 def _write_cache_pickle_from_conn(conn: sqlite3.Connection) -> None:
@@ -547,17 +581,19 @@ def _write_cache_pickle_from_conn(conn: sqlite3.Connection) -> None:
     CACHE_STATE["records"] = data
 
 
-def write_cache_pickle(db_path: Path) -> None:
-    conn = sqlite3.connect(str(db_path))
+def write_cache_pickle() -> None:
+    if not CACHE_SQLITE_PATH.exists():
+        return
+    conn = sqlite3.connect(str(CACHE_SQLITE_PATH))
     try:
         _write_cache_pickle_from_conn(conn)
     finally:
         conn.close()
 
 
-def ensure_cache_pickle(db_path: Path) -> None:
+def ensure_cache_pickle() -> None:
     if not CACHE_PICKLE_PATH.exists():
-        write_cache_pickle(db_path)
+        write_cache_pickle()
     else:
         CACHE_STATE["records"] = None
 
@@ -566,7 +602,7 @@ def load_cached_records(db_path: Path) -> List[Dict[str, Any]]:
     records = CACHE_STATE.get("records")
     if records is None:
         if not CACHE_PICKLE_PATH.exists():
-            write_cache_pickle(db_path)
+            build_cache_table(db_path)
         with CACHE_PICKLE_PATH.open("rb") as fh:
             CACHE_STATE["records"] = pickle.load(fh)
     return CACHE_STATE["records"] or []
@@ -935,3 +971,4 @@ if __name__ == "__main__":
     elapsed_time = perf_counter() - start_time
     print(f"Operation completed in {elapsed_time:.2f} seconds.")
     raise SystemExit(result)
+e
