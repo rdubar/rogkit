@@ -209,31 +209,29 @@ root_directory = "/absolute/path/to/project/root"
 | `chat` | Interactive AI chat | - |
 | `lm` | Run local LLM (LM application) | - |
 
-### 📺 Media Library Management
+### 📺 Plex Database Toolkit
 
 | Command | Description | Aliases |
 |---------|-------------|---------|
-| `media` | Main Plex media library interface | `m` |
-| `plex` | Plex server operations | `p` |
-| `plex_db` | Inspect Plex SQLite database | `pd` |
+| `plex_db` | Fast Plex search backed by local caches | `pd` |
+| `plex_extra_sources.integrate` | Merge external catalogues into the cache | `integrate` |
+| `tmdb` | TMDb metadata manager and extras JSON builder | - |
 | `media_files` | Scan and analyze media files | `mfiles`, `mf` |
 | `media_scan` | Display technical video details | `mscan` |
 | `media_play` | Stream videos via SFTP (experimental) | `play` |
 | `shrink` | Find uncompressed DVD rips | - |
-| `tmdb` | TMDb API metadata manager | - |
 | `tkm` | Tkinter GUI media search | - |
 
-`pd` (no args) lists the 10 most recently added items. `pd tarantino -n 20 -i -p` mirrors the formatted Plex CLI output (title + year, size, resolution, runtime, disk), and `pd tarantino -z` shows every match sorted by year. Add `--deep` when you need slower summary/path/tag matching.
+`pd` (no args) lists the ten newest additions. Add a search term for instant cache-backed lookups, `-z` to show every match sorted by year, `-a/--all` to disable pagination, and `--deep` when you need summary/path/tag matches from the raw Plex database.
 
-**Media Library Features:**
-- SQLite database with SQLAlchemy ORM
-- Fuzzy search with thefuzz
-- TMDB metadata integration
-- Duplicate detection and removal
-- Custom CSV import for additional media
-- Resolution, codec, and bitrate tracking
-- Database backup/restore (`-F`/`-U`)
-- Export to DataFrame/CSV
+#### Media Workflow
+
+1. **Refresh the Plex snapshot (optional):** `pd --update` copies the live database locally (SSH settings come from `config.toml`).
+2. **Regenerate TMDb extras from CSV:** `tmdb --csv rogkit_package/media/media.csv` (defaults to `media.csv` if omitted). Use `--refresh` to force new lookups.
+3. **Merge external catalogues:** `integrate` writes the extras JSON into `plex_search_cache.sqlite3`, deduping on `(source, source_id)`, then rebuilds the pickle cache.
+4. **Search instantly:** `pd` for recents, `pd "<title>"`, `pd "<title>" --deep`, or `pd "<title>" -z` depending on the depth required.
+
+The CLI header shows cache size and age so you know when to rerun the refresh steps.
 
 ### 🗂️ File System Operations
 
@@ -502,29 +500,24 @@ uv export -o requirements.txt
 
 ## 🎯 Common Workflows
 
-### Media Library Management
+### Plex Database Workflow
 
 ```bash
-# Initial database setup
-media --reset                # Drop and rebuild database
-media --update              # Sync with Plex server
+# 1. Optional: keep a fresh Plex snapshot locally
+pd --update
 
-# Search operations
-media inception              # Basic search
-media -f 85 inception       # Fuzzy search (85% match)
-media "The Matrix" 1999     # Search with year
+# 2. Rebuild external catalogue metadata from CSV sources
+tmdb --csv rogkit_package/media/media.csv
+# (Add --refresh to force new TMDb lookups)
 
-# Display options
-media -a                     # Show all records
-media -y -a                 # Show all, sorted by year
-media -v -a                 # Show all, sorted by resolution
-media -n 20 -l              # Show latest 20 additions
+# 3. Merge extras into the fast cache
+integrate
 
-# Database maintenance
-media -D                     # Remove duplicates
-media -F                     # Freeze (backup) database
-media -U                     # Unfreeze (restore) database
-media --vacuum              # Optimize database
+# 4. Search instantly
+pd                     # newest 10 items
+pd "aliens"            # cache-backed title match
+pd "aliens" --deep     # include summary/path/tag matching
+pd "aliens" -z         # list every match sorted by year
 ```
 
 ### File Operations
@@ -572,6 +565,53 @@ bignum 1234567890          # 1,234,567,890
 # Convert bytes
 bytes 1234567890           # 1.23 GB
 ```
+
+
+## 🕰️ Legacy Media Suite
+
+The original `media` (CSV/SQLite management) and `plex` (Plex API) CLIs remain available for historical compatibility, but they are no longer the primary workflow. Use these only if you need legacy behaviours that have not yet been ported to `pd`.
+
+### Commands
+
+| Command | Description | Aliases |
+|---------|-------------|---------|
+| `media` | Main Plex media library interface | `m` |
+| `plex` | Plex server operations | `p` |
+
+### Legacy Workflow
+
+```bash
+# Database maintenance
+media --reset              # Drop and rebuild database
+media --update             # Sync with Plex server
+
+# Search operations
+media inception            # Basic search
+media -f 85 inception      # Fuzzy search (85% match)
+media "The Matrix" 1999    # Search with year
+
+# Display options
+media -a                   # Show all records
+media -y -a                # Show all, sorted by year
+media -v -a                # Show all, sorted by resolution
+media -n 20 -l             # Show latest 20 additions
+
+# Database tools
+media -D                   # Remove duplicates
+media -F                   # Freeze (backup) database
+media -U                   # Unfreeze (restore) database
+media --vacuum             # Optimise database
+```
+
+**Feature Highlights:**
+- SQLite database with SQLAlchemy ORM
+- Fuzzy search via `thefuzz`
+- TMDb metadata integration
+- Duplicate detection and removal
+- Custom CSV import support
+- Resolution, codec, and bitrate tracking
+- Database backup/restore (`-F`/`-U`)
+- Data export to DataFrame/CSV
 
 ---
 

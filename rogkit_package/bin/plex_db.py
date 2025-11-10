@@ -536,8 +536,15 @@ def _format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
     duration_str = _format_duration(duration_ms)
     path = row["file_path"]
     disk = _format_disk(path)
+    if isinstance(row, dict):
+        source_value = row.get("source")
+    else:
+        keys = row.keys() if hasattr(row, "keys") else []
+        source_value = row["source"] if "source" in keys else None
+    source_label = f"[{(source_value or 'plex').lower()}]"
 
-    lines = [f"{title_display}  {size_str:>9}  {resolution:>5}  {duration_str} {disk}"]
+    lines = [f"{title_display}  {size_str:>9}  {resolution:>5}  {duration_str} {disk or ''}"]
+    lines[0] = lines[0].rstrip() + f" {source_label}" if source_label else lines[0]
 
     if args.info:
         summary = _truncate_summary(row["summary"])

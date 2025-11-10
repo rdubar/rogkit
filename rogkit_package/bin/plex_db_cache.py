@@ -33,6 +33,11 @@ REQUIRED_CACHE_COLUMNS = {
     "file_path",
     "disk",
     "summary",
+    "source",
+    "source_id",
+    "extras",
+    "created_at",
+    "updated_at",
 }
 
 CACHE_STATE: Dict[str, Optional[List[Dict[str, Any]]]] = {"records": None}
@@ -43,8 +48,7 @@ def _initialize_cache_schema(conn: sqlite3.Connection) -> None:
 
     conn.execute("DROP TABLE IF EXISTS plex_search_cache")
     conn.execute(
-        """
-        CREATE TABLE plex_search_cache (
+        """CREATE TABLE plex_search_cache (
             id INTEGER PRIMARY KEY,
             title TEXT,
             title_low TEXT,
@@ -60,9 +64,13 @@ def _initialize_cache_schema(conn: sqlite3.Connection) -> None:
             size_bytes INTEGER,
             file_path TEXT,
             disk TEXT,
-            summary TEXT
-        )
-        """
+            summary TEXT,
+            source TEXT DEFAULT 'plex',
+            source_id TEXT,
+            extras TEXT,
+            created_at TEXT,
+            updated_at TEXT
+        )"""
     )
 
 
@@ -88,7 +96,12 @@ def _write_cache_pickle_from_conn(conn: sqlite3.Connection) -> None:
             size_bytes,
             file_path,
             disk,
-            summary
+            summary,
+            source,
+            source_id,
+            extras,
+            created_at,
+            updated_at
         FROM plex_search_cache
         ORDER BY added_at DESC
         """
@@ -164,7 +177,12 @@ def build_cache_table(db_path: Path) -> None:
                 size_bytes,
                 file_path,
                 disk,
-                summary
+                summary,
+                source,
+                source_id,
+                extras,
+                created_at,
+                updated_at
             ) VALUES (
                 :id,
                 :title,
@@ -181,10 +199,36 @@ def build_cache_table(db_path: Path) -> None:
                 :size_bytes,
                 :file_path,
                 :disk,
-                :summary
+                :summary,
+                :source,
+                :source_id,
+                :extras,
+                :created_at,
+                :updated_at
             )
         """
-        dest_conn.executemany(insert_sql, [dict(row) for row in rows])
+        for record in rows:
+            dest_conn.execute(
+                "INSERT INTO plex_search_cache (id, title, title_low, metadata_type, year, parent_title, grandparent_title, added_at, duration_ms, duration_meta, width, height, size_bytes, file_path, disk, summary, source, source_id, extras, created_at, updated_at) VALUES (?, ?, LOWER(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'plex', NULL, NULL, NULL, NULL)",
+                (
+                    record["id"],
+                    record["title"],
+                    record["title"],
+                    record["metadata_type"],
+                    record["year"],
+                    record.get("parent_title"),
+                    record.get("grandparent_title"),
+                    record.get("added_at"),
+                    record.get("duration_ms"),
+                    record.get("duration_meta"),
+                    record.get("width"),
+                    record.get("height"),
+                    record.get("size_bytes"),
+                    record.get("file_path"),
+                    record.get("disk"),
+                    record.get("summary"),
+                ),
+            )
         dest_conn.execute(
             "CREATE INDEX IF NOT EXISTS idx_plex_cache_title_low ON plex_search_cache(title_low)"
         )
