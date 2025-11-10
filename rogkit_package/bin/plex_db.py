@@ -23,6 +23,7 @@ import argparse
 import contextlib
 import dataclasses
 import os
+import pickle
 import shutil
 import sqlite3
 import sys
@@ -30,9 +31,6 @@ import tempfile
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, Iterable, Iterator, List, Optional
-
-import pickle
-import paramiko  # type: ignore[import]
 
 from ..bin.bytes import byte_size
 from ..bin.tomlr import load_rogkit_toml
@@ -340,6 +338,8 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
 
 @contextlib.contextmanager
 def _ssh_client(remote: RemoteConfig) -> Iterator[paramiko.SSHClient]:
+    import paramiko  # type: ignore[import]
+
     client = paramiko.SSHClient()
     client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
     client.connect(
@@ -355,6 +355,8 @@ def _ssh_client(remote: RemoteConfig) -> Iterator[paramiko.SSHClient]:
 
 
 def _copy_remote_file(sftp: paramiko.SFTPClient, remote_path: Path, local_path: Path) -> None:
+    import paramiko  # type: ignore[import]
+
     local_path.parent.mkdir(parents=True, exist_ok=True)
     with tempfile.NamedTemporaryFile(dir=str(local_path.parent), delete=False) as tmp_file:
         tmp_name = tmp_file.name
@@ -367,6 +369,11 @@ def _copy_remote_file(sftp: paramiko.SFTPClient, remote_path: Path, local_path: 
 
 
 def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
+    try:
+        import paramiko  # type: ignore[import]
+    except ImportError as exc:  # pragma: no cover - environment-specific
+        raise RuntimeError("Paramiko is required for remote sync; install paramiko to use --update") from exc
+
     sync_start = perf_counter()
     if verbose:
         print(
@@ -775,6 +782,13 @@ def run_pretty_search(
 
     where_clause = " AND ".join(deep_clauses) if deep_clauses else "1=1"
 
+    if order_column == "title":
+        deep_order_column = "mi.title"
+    elif order_column == "year":
+        deep_order_column = "mi.year"
+    else:
+        deep_order_column = "mi.added_at"
+
     data_sql = f"""
         SELECT
             mi.id,
@@ -808,7 +822,7 @@ def run_pretty_search(
           AND mp.file IS NOT NULL
           AND {where_clause}
         GROUP BY mi.id
-        ORDER BY {order_column} {direction}
+        ORDER BY {deep_order_column} {direction}
     """
 
     data_params = list(filter_params)
@@ -857,9 +871,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             )
             return 1
         try:
-            sync_remote_db(remote, verbose=True)
-            build_cache_table(remote.cache_path)
-        except (paramiko.SSHException, OSError) as exc:
+            db_path = sync_remote_db(remote, verbose=True)
+            build_cache_table(db_path)
+        except (Exception) as exc:
             print(f"Failed to refresh remote database: {exc}", file=sys.stderr)
             return 2
         if not args.query and not args.show_path and not args.search:
@@ -882,7 +896,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 db_path = sync_remote_db(remote, verbose=True)
                 duration = perf_counter() - pull_start
                 build_cache_table(db_path)
-            except (paramiko.SSHException, OSError) as exc:
+            except RuntimeError as exc:
+                print(str(exc), file=sys.stderr)
+                return 2
+            except Exception as exc:
                 print(f"Failed to sync remote database: {exc}", file=sys.stderr)
                 return 2
             print(f"Synced remote database in {duration:.2f} seconds.")
@@ -969,6 +986,5 @@ if __name__ == "__main__":
     start_time = perf_counter()
     result = main()
     elapsed_time = perf_counter() - start_time
-    print(f"Operation completed in {elapsed_time:.2f} seconds.")
+    print(f"Operation completed in {elapsed_time:.4f} seconds.")
     raise SystemExit(result)
-e
