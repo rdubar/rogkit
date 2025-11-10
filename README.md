@@ -216,6 +216,7 @@ root_directory = "/absolute/path/to/project/root"
 | `media` | Main Plex media library interface | `m` |
 | `plex` | Plex server operations | `p` |
 | `plex_search` | Search Plex library | `ps` |
+| `plex_db` | Inspect Plex SQLite database | `pb` |
 | `media_files` | Scan and analyze media files | `mfiles`, `mf` |
 | `media_scan` | Display technical video details | `mscan` |
 | `media_play` | Stream videos via SFTP (experimental) | `play` |

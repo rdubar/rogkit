@@ -52,6 +52,8 @@ alias plex='$ROGKIT_PYTHON -m rogkit_package.bin.plex "$@"'
 alias p='$ROGKIT_PYTHON -m rogkit_package.bin.plex "$@"'
 alias plex_search='$ROGKIT_PYTHON -m rogkit_package.bin.plex_search "$@"'
 alias ps='$ROGKIT_PYTHON -m rogkit_package.bin.plex_search "$@"'
+alias plex_db='$ROGKIT_PYTHON -m rogkit_package.bin.plex_db "$@"'
+alias pd='$ROGKIT_PYTHON -m rogkit_package.bin.plex_db "$@"'
 
 # Media file scanning and analysis
 alias media_files='$ROGKIT_PYTHON -m rogkit_package.bin.media_files "$@"'
