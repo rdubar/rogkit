@@ -208,6 +208,7 @@ def build_cache_table(db_path: Path) -> None:
             )
         """
         for record in rows:
+            record_keys = record.keys()
             dest_conn.execute(
                 "INSERT INTO plex_search_cache (id, title, title_low, metadata_type, year, parent_title, grandparent_title, added_at, duration_ms, duration_meta, width, height, size_bytes, file_path, disk, summary, source, source_id, extras, created_at, updated_at) VALUES (?, ?, LOWER(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'plex', NULL, NULL, NULL, NULL)",
                 (
@@ -216,17 +217,17 @@ def build_cache_table(db_path: Path) -> None:
                     record["title"],
                     record["metadata_type"],
                     record["year"],
-                    record.get("parent_title"),
-                    record.get("grandparent_title"),
-                    record.get("added_at"),
-                    record.get("duration_ms"),
-                    record.get("duration_meta"),
-                    record.get("width"),
-                    record.get("height"),
-                    record.get("size_bytes"),
-                    record.get("file_path"),
-                    record.get("disk"),
-                    record.get("summary"),
+                    record["parent_title"] if "parent_title" in record_keys else None,
+                    record["grandparent_title"] if "grandparent_title" in record_keys else None,
+                    record["added_at"] if "added_at" in record_keys else None,
+                    record["duration_ms"] if "duration_ms" in record_keys else None,
+                    record["duration_meta"] if "duration_meta" in record_keys else None,
+                    record["width"] if "width" in record_keys else None,
+                    record["height"] if "height" in record_keys else None,
+                    record["size_bytes"] if "size_bytes" in record_keys else None,
+                    record["file_path"] if "file_path" in record_keys else None,
+                    record["disk"] if "disk" in record_keys else None,
+                    record["summary"] if "summary" in record_keys else None,
                 ),
             )
         dest_conn.execute(
