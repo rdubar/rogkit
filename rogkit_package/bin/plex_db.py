@@ -366,7 +366,6 @@ def _copy_remote_file(sftp, remote_path: Path, local_path: Path) -> None:
 
 
 def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
-    """Download the Plex SQLite database (and sidecars) from the remote host."""
     sync_start = perf_counter()
     if verbose:
         print(
@@ -374,27 +373,38 @@ def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
             f"-> {remote.cache_path}"
         )
 
-    with _ssh_client(remote) as client:
-        sftp = client.open_sftp()
-        try:
-            sftp.stat(str(remote.db_path))
-        except FileNotFoundError as exc:  # pragma: no cover - defensive
-            raise FileNotFoundError(f"Remote database not found at {remote.db_path}") from exc
-
-        _copy_remote_file(sftp, remote.db_path, remote.cache_path)
-
+    if remote.db_path.exists():  # Local access available; no SSH needed
+        shutil.copy2(remote.db_path, remote.cache_path)
         for suffix in ("-wal", "-shm"):
-            remote_sidecar = Path(str(remote.db_path) + suffix)
-            local_sidecar = Path(str(remote.cache_path) + suffix)
-
-            try:
-                sftp.stat(str(remote_sidecar))
-            except FileNotFoundError:
+            source_sidecar = Path(str(remote.db_path) + suffix)
+            dest_sidecar = Path(str(remote.cache_path) + suffix)
+            if source_sidecar.exists():
+                shutil.copy2(source_sidecar, dest_sidecar)
+            else:
                 with contextlib.suppress(FileNotFoundError):
-                    os.remove(local_sidecar)
-                continue
+                    os.remove(dest_sidecar)
+    else:
+        with _ssh_client(remote) as client:
+            sftp = client.open_sftp()
+            try:
+                sftp.stat(str(remote.db_path))
+            except FileNotFoundError as exc:  # pragma: no cover - defensive
+                raise FileNotFoundError(f"Remote database not found at {remote.db_path}") from exc
 
-            _copy_remote_file(sftp, remote_sidecar, local_sidecar)
+            _copy_remote_file(sftp, remote.db_path, remote.cache_path)
+
+            for suffix in ("-wal", "-shm"):
+                remote_sidecar = Path(str(remote.db_path) + suffix)
+                local_sidecar = Path(str(remote.cache_path) + suffix)
+
+                try:
+                    sftp.stat(str(remote_sidecar))
+                except FileNotFoundError:
+                    with contextlib.suppress(FileNotFoundError):
+                        os.remove(local_sidecar)
+                    continue
+
+                _copy_remote_file(sftp, remote_sidecar, local_sidecar)
 
     if verbose:
         size = human_size(remote.cache_path.stat().st_size)
