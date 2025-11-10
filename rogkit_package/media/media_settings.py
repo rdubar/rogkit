@@ -19,7 +19,7 @@ additional_media_csv = os.path.join(script_dir, 'media.csv')
 tmdb_data_file = os.path.join(script_dir, 'tmdb.pkl')
 
 # TODO: pull media_paths from configuration instead of hard-coding /mnt mounts.
-media_paths = ['/mnt/expansion/Media','/mnt/archive/Media']
+media_paths = ['/mnt/media1/Media', '/mnt/media2/Media', '/mnt/media3/Media']
 
 afi_path = os.path.join(script_dir, 'afi_100.txt')
 

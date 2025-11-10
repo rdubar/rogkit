@@ -4,33 +4,51 @@ Spotify liked songs manager.
 CLI tool for viewing, searching, and managing Spotify liked songs with local caching.
 Supports duplicate detection and playlist browsing. Configuration via rogkit config.toml.
 """
-import os
-import json
-from dataclasses import dataclass
-from collections import Counter
-from time import perf_counter
+
+from __future__ import annotations
+
 import argparse
+import json
+import os
+from collections import Counter
+from dataclasses import dataclass, field
+from time import perf_counter
+from typing import Optional
 
 from dotenv import load_dotenv
 import spotipy  # type: ignore
 from spotipy.oauth2 import SpotifyOAuth  # type: ignore
+from spotipy.exceptions import SpotifyException  # type: ignore
 
 from ..bin.tomlr import load_rogkit_toml
 from .seconds import time_ago_in_words
 
-# Load environment variables from .env file if needed
+# Load environment variables from .env file if present
 load_dotenv()
+
+
+SPOTIFY_CONFIG_HELP = """
+Spotify credentials are required. Add the following to ~/.config/rogkit/config.toml:
+
+[spotify]
+spotify_client_id = "your_client_id"
+spotify_client_secret = "your_client_secret"
+spotify_redirect_uri = "https://your-app.example.com/callback"
+
+Spotify is deprecating HTTP redirects, so ensure the redirect URI is HTTPS.
+"""
 
 
 @dataclass
 class SpotifyClient:
     """Spotify API client wrapper with authentication."""
+
     client_id: str
     client_secret: str
     redirect_uri: str
     scope: str = 'user-library-read playlist-read-private playlist-read-collaborative'
     cache_path: str = ".spotify_cache"
-    sp: spotipy.Spotify = None
+    sp: Optional[spotipy.Spotify] = field(default=None, init=False)
 
     def authenticate(self):
         """Authenticate with Spotify using OAuth2."""
@@ -39,19 +57,26 @@ class SpotifyClient:
             client_secret=self.client_secret,
             redirect_uri=self.redirect_uri,
             scope=self.scope,
-            cache_path=self.cache_path
+            cache_path=self.cache_path,
         )
-        if not auth_manager.get_cached_token():
-            print('No cached token, proceeding with user authentication...')
-            token_info = auth_manager.get_access_token(as_dict=True)
-            print(f"Authentication successful, access token: {token_info['access_token']}")
+
+        token_info = auth_manager.get_cached_token()
+        if token_info:
+            print("Using cached Spotify token.")
+        else:
+            print('No cached token, launching Spotify authorization flow...')
+            token = auth_manager.get_access_token()
+            if not token:
+                raise RuntimeError("Failed to obtain Spotify access token.")
+            print("Authentication successful.")
+
         self.sp = spotipy.Spotify(auth_manager=auth_manager)
         print("Spotify client authenticated successfully.")
 
     def get_liked_songs(self):
         """Retrieve all liked songs from Spotify."""
         if not self.sp:
-            raise Exception("Spotify client is not authenticated.")
+            raise RuntimeError("Spotify client is not authenticated.")
         tracks = []
         results = self.sp.current_user_saved_tracks()
         while results:
@@ -64,7 +89,7 @@ class SpotifyClient:
     def get_user_playlists(self, limit=50, offset=0):
         """Retrieve user's playlists from Spotify."""
         if not self.sp:
-            raise Exception("Spotify client is not authenticated.")
+            raise RuntimeError("Spotify client is not authenticated.")
         playlists = []
         if limit < 1 or limit > 50:
             limit = 50
@@ -79,8 +104,8 @@ class SpotifyClient:
                 else:
                     break
             return playlists
-        except Exception as e:
-            print(f"Error fetching playlists: {e}")
+        except SpotifyException as exc:
+            print(f"Error fetching playlists: {exc}")
             return playlists
 
 
@@ -100,7 +125,7 @@ def process_arguments():
 def load_cache(file_path):
     """Load liked songs from local JSON cache."""
     if os.path.exists(file_path):
-        with open(file_path, 'r') as file:
+        with open(file_path, 'r', encoding='utf-8') as file:
             data = json.load(file)
             time_ago = time_ago_in_words(os.path.getmtime(file_path))
             print(f"Loaded {len(data):,} Liked songs.\nCache last updated {time_ago} ago.")
@@ -114,23 +139,38 @@ def save_cache(file_path, data):
         json.dump(data, file)
 
 
-def get_playlist(args, search_text):
+def _require_spotify_credentials():
+    """Load Spotify credentials from config/env and validate them."""
+    toml = load_rogkit_toml()
+    spotify_config = toml.get('spotify', {})
+    client_id = spotify_config.get('spotify_client_id') or os.getenv('SPOTIFY_CLIENT_ID')
+    client_secret = spotify_config.get('spotify_client_secret') or os.getenv('SPOTIFY_CLIENT_SECRET')
+    redirect_uri = spotify_config.get('spotify_redirect_uri') or os.getenv('SPOTIFY_REDIRECT_URI')
+
+    missing = []
+    if not client_id:
+        missing.append("spotify_client_id")
+    if not client_secret:
+        missing.append("spotify_client_secret")
+    if not redirect_uri:
+        missing.append("spotify_redirect_uri")
+
+    if missing:
+        print("Missing Spotify configuration values:", ", ".join(missing))
+        print(SPOTIFY_CONFIG_HELP)
+        raise SystemExit(1)
+
+    if redirect_uri.lower().startswith("http://"):
+        print("Spotify requires HTTPS redirect URIs. Please update spotify_redirect_uri to use https.")
+        print(SPOTIFY_CONFIG_HELP)
+        raise SystemExit(1)
+
+    return client_id, client_secret, redirect_uri
+
+
+def get_playlist(args):
     """Get liked songs, refreshing cache if needed."""
-    start_time = perf_counter()
-    try:
-        toml = load_rogkit_toml()
-        spotify_config = toml.get('spotify', {})
-    except Exception as e:
-        print(f"Error loading configuration from toml: {e}")
-        exit(1)
-
-    client_id = spotify_config.get('spotify_client_id', '') or os.getenv('SPOTIFY_CLIENT_ID')
-    client_secret = spotify_config.get('spotify_client_secret', '') or os.getenv('SPOTIFY_CLIENT_SECRET')
-    redirect_uri = spotify_config.get('spotify_redirect_uri', '') or os.getenv('SPOTIFY_REDIRECT_URI', "http://localhost:8888/callback/")
-
-    if not client_id or not client_secret or not redirect_uri:
-        print("Missing Spotify credentials in the configuration. Please check your config.toml file.")
-        exit(1)
+    client_id, client_secret, redirect_uri = _require_spotify_credentials()
 
     user_home = os.path.expanduser('~')
     cache_path = os.path.join(user_home, '.spotify_cache')
@@ -148,15 +188,15 @@ def get_playlist(args, search_text):
             liked_songs = client.get_liked_songs()
             save_cache(cache_path, liked_songs)
             print("Cache refreshed successfully.")
-        except Exception as e:
-            print(f"Spotify Authentication Error: {e}")
-            exit(1)
+        except (SpotifyException, RuntimeError) as exc:
+            print(f"Spotify Authentication Error: {exc}")
+            raise SystemExit(1) from exc
     else:
         # Load from cache if it exists and refresh is not requested
         liked_songs = load_cache(cache_path)
         if liked_songs is None:
             print("Cache file is empty or corrupt. Please refresh the cache.")
-            exit(1)
+            raise SystemExit(1)
 
     # Handle playlists only when explicitly requested
     if args.playlists:
@@ -168,11 +208,12 @@ def get_playlist(args, search_text):
         try:
             client.authenticate()
             playlists = client.get_user_playlists()
-            [print(playlist) for playlist in playlists]
+            for playlist in playlists:
+                print(playlist)
             print(f"Total playlists: {len(playlists):,}")
-        except Exception as e:
-            print(f"Error fetching playlists: {e}")
-        exit(0)
+        except (SpotifyException, RuntimeError) as exc:
+            print(f"Error fetching playlists: {exc}")
+        raise SystemExit(0)
 
     return liked_songs
 
@@ -183,17 +224,19 @@ def main():
     print("Rog's Spotify Playlist Utility")
     args, search_text = process_arguments()
 
-    liked_songs = get_playlist(args, search_text)
+    liked_songs = get_playlist(args)
 
     if args.all:
-        [print(song) for song in liked_songs]
+        for song in liked_songs:
+            print(song)
     elif search_text:
         matched = [song for song in liked_songs if search_text.lower() in song.lower()]
         if not matched:
             print(f"No matching songs found for '{search_text}' in the Liked playlist.")
         else:
             print(f"Found {len(matched):,} songs matching '{search_text}' in the Liked playlist:")
-            [print(" ",song) for song in matched]
+            for song in matched:
+                print(" ", song)
     
     if args.duplicates:
         song_counts = Counter(liked_songs)
@@ -202,7 +245,8 @@ def main():
             print("No duplicate songs found in the liked playist.")
         else:
             print(f"Duplicate songs: {len(duplicates):,}")
-            [print(song) for song in duplicates]
+            for song in duplicates:
+                print(song)
             
     # check if no arguments are given
     if not any(vars(args).values()):

@@ -29,6 +29,12 @@ remote_folders = ["/mnt/media1/Media/Movies"]
 plex_server_url = ""
 plex_server_token = ""
 
+[spotify]
+spotify_client_id = ""
+spotify_client_secret = ""
+# Spotify now requires HTTPS redirect URIs
+spotify_redirect_uri = "https://your-app.example.com/callback"
+
 [purge]
 # folders to scan when running `purge.py`; override with --folder if omitted
 folders = [

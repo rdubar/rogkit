@@ -30,6 +30,11 @@ DEFAULT_ROGKIT_TOML = {
             "~/Media",
         ],
     },
+    "spotify": {
+        "spotify_client_id": "",
+        "spotify_client_secret": "",
+        "spotify_redirect_uri": "https://your-app.example.com/callback",
+    },
     "media": {
         "paths": [
             "~/Media",
