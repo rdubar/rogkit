@@ -215,14 +215,15 @@ root_directory = "/absolute/path/to/project/root"
 |---------|-------------|---------|
 | `media` | Main Plex media library interface | `m` |
 | `plex` | Plex server operations | `p` |
-| `plex_search` | Search Plex library | `ps` |
-| `plex_db` | Inspect Plex SQLite database | `pb` |
+| `plex_db` | Inspect Plex SQLite database | `pd` |
 | `media_files` | Scan and analyze media files | `mfiles`, `mf` |
 | `media_scan` | Display technical video details | `mscan` |
 | `media_play` | Stream videos via SFTP (experimental) | `play` |
 | `shrink` | Find uncompressed DVD rips | - |
 | `tmdb` | TMDb API metadata manager | - |
 | `tkm` | Tkinter GUI media search | - |
+
+`pd` (no args) lists the 10 most recently added items. `pd tarantino -n 20 -i -p` mirrors the formatted Plex CLI output (title + year, size, resolution, runtime, disk), and `pd tarantino -z` shows every match sorted by year. Add `--deep` when you need slower summary/path/tag matching.
 
 **Media Library Features:**
 - SQLite database with SQLAlchemy ORM
