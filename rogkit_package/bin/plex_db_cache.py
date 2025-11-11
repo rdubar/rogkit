@@ -323,7 +323,7 @@ def describe_cache_state(total_items: int, cache_age_seconds: Optional[float]) -
     age_str = _format_cache_age(cache_age_seconds)
     return (
         "Rog's Fast Plex Tool\n"
-        f"Cache of {total_items:,} items last updated {age_str} ago."
+        f"Library of {total_items:,} items last updated {age_str} ago."
     )
 
 

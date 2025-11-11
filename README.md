@@ -222,14 +222,14 @@ root_directory = "/absolute/path/to/project/root"
 | `shrink` | Find uncompressed DVD rips | - |
 | `tkm` | Tkinter GUI media search | - |
 
-`pd` (no args) lists the ten newest additions. Add a search term for instant cache-backed lookups, `-z` to show every match sorted by year, `-a/--all` to disable pagination, and `--deep` when you need summary/path/tag matches from the raw Plex database.
+`pd` (no args) lists the ten newest additions. Add a search term for instant cache-backed lookups, `-z` to show every match sorted by year, `-a/--all` to disable pagination, `--deep` for summary/path/tag matches from the raw Plex database, and `--stats` to print totals for the displayed set.
 
 #### Media Workflow
 
 1. **Refresh the Plex snapshot (optional):** `pd --update` copies the live database locally (SSH settings come from `config.toml`).
 2. **Regenerate TMDb extras from CSV:** `tmdb --csv rogkit_package/media/media.csv` (defaults to `media.csv` if omitted). Use `--refresh` to force new lookups.
 3. **Merge external catalogues:** `integrate` writes the extras JSON into `plex_search_cache.sqlite3`, deduping on `(source, source_id)`, then rebuilds the pickle cache.
-4. **Search instantly:** `pd` for recents, `pd "<title>"`, `pd "<title>" --deep`, or `pd "<title>" -z` depending on the depth required.
+4. **Search instantly:** `pd` for recents, `pd "<title>"`, `pd "<title>" --deep`, `pd "<title>" -z`, or append `--stats` to any of them for totals.
 
 The CLI header shows cache size and age so you know when to rerun the refresh steps.
 
@@ -517,6 +517,7 @@ integrate
 pd                     # newest 10 items
 pd "aliens"            # cache-backed title match
 pd "aliens" --deep     # include summary/path/tag matching
+pd "aliens" --stats    # add aggregate totals for the displayed results
 pd "aliens" -z         # list every match sorted by year
 ```
 

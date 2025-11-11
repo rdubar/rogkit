@@ -29,7 +29,7 @@ import sys
 import tempfile
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Dict, Iterable, Iterator, List, Optional
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence
 
 from ..bin.bytes import byte_size
 from ..bin.tomlr import load_rogkit_toml
@@ -298,19 +298,21 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     )
     parser.add_argument(
         "--reverse",
+        "-r",
         action="store_true",
         help="Reverse the sort order for built-in search results.",
     )
     parser.add_argument(
         "--deep",
+        "-d_",
         action="store_true",
         help="Include summary, path, and tag matching (slower search).",
     )
     parser.add_argument(
-        "-z",
         "--zed",
+        "-z",
         action="store_true",
-        help="Show all matches sorted by year (equivalent to plex.py -z).",
+        help="Show all matches sorted by year.",
     )
     parser.add_argument(
         "--list-paths",
@@ -326,6 +328,11 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         "--show-path",
         action="store_true",
         help="Print the detected Plex database path and exit.",
+    )
+    parser.add_argument(
+        "--stats",
+        action="store_true",
+        help="Show aggregate stats (count, total runtime, total size) for the displayed items.",
     )
     return parser.parse_args(list(argv) if argv is not None else None)
 
@@ -483,6 +490,20 @@ def _format_duration(duration_ms: Optional[int]) -> str:
     return f"{hours:02}:{minutes:02}"
 
 
+def _row_value(row: Any, key: str, default: Any = None) -> Any:
+    """Return a field from a sqlite3.Row or mapping, falling back to a default."""
+
+    if isinstance(row, dict):
+        return row.get(key, default)
+    try:
+        keys = row.keys()  # type: ignore[attr-defined]
+    except AttributeError:
+        return default
+    if key in keys:
+        return row[key]
+    return default
+
+
 def _infer_resolution(width: Optional[int], height: Optional[int]) -> str:
     if width is None:
         return ""
@@ -536,11 +557,7 @@ def _format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
     duration_str = _format_duration(duration_ms)
     path = row["file_path"]
     disk = _format_disk(path)
-    if isinstance(row, dict):
-        source_value = row.get("source")
-    else:
-        keys = row.keys() if hasattr(row, "keys") else []
-        source_value = row["source"] if "source" in keys else None
+    source_value = _row_value(row, "source")
     source_label = f"[{(source_value or 'plex').lower()}]"
 
     lines = [f"{title_display}  {size_str:>9}  {resolution:>5}  {duration_str} {disk or ''}"]
@@ -554,6 +571,60 @@ def _format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
         lines.append(f"  {path}")
 
     return "\n".join(lines)
+
+
+def _format_duration_human(total_seconds: int) -> str:
+    if total_seconds <= 0:
+        return "0 seconds"
+
+    parts: List[str] = []
+    remainder = total_seconds
+    days, remainder = divmod(remainder, 86400)
+    if days:
+        parts.append(f"{days:,} day{'s' if days != 1 else ''}")
+    hours, remainder = divmod(remainder, 3600)
+    if hours:
+        parts.append(f"{hours} hour{'s' if hours != 1 else ''}")
+    minutes, seconds = divmod(remainder, 60)
+    if minutes:
+        parts.append(f"{minutes} minute{'s' if minutes != 1 else ''}")
+    if seconds or not parts:
+        parts.append(f"{seconds} second{'s' if seconds != 1 else ''}")
+
+    if len(parts) == 1:
+        return parts[0]
+    if len(parts) == 2:
+        return " and ".join(parts)
+    return ", ".join(parts[:-1]) + f" and {parts[-1]}"
+
+
+def _format_stats(rows: Sequence[Any]) -> str:
+    count = len(rows)
+
+    total_duration_ms = 0
+    total_size_bytes = 0
+    for row in rows:
+        duration_ms = _row_value(row, "duration_ms")
+        if duration_ms is None:
+            duration_ms = _row_value(row, "duration_meta")
+        if duration_ms:
+            try:
+                total_duration_ms += int(duration_ms)
+            except (TypeError, ValueError):
+                pass
+
+        size_bytes = _row_value(row, "size_bytes")
+        if size_bytes:
+            try:
+                total_size_bytes += int(size_bytes)
+            except (TypeError, ValueError):
+                pass
+
+    total_seconds = total_duration_ms // 1000 if total_duration_ms else 0
+    duration_str = _format_duration_human(total_seconds)
+    size_str = byte_size(total_size_bytes) if total_size_bytes else "0 bytes"
+    label = "item" if count == 1 else "items"
+    return f"{count:,} {label}: {duration_str} ({size_str})"
 
 
 def run_pretty_search(
@@ -780,6 +851,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             print(f"Showing last {min(len(rows), args.number)} items added:")
         for row in rows:
             print(_format_pretty_row(row, args))
+        if args.stats:
+            print(_format_stats(rows))
         return 0
 
     if args.search and not args.query:
@@ -816,6 +889,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             print(_format_pretty_row(row, args))
         if not args.zed and not args.all and total_count is not None and total > len(visible_rows):
             print(f"...and {total - len(visible_rows)} more results. Use -z to show all.")
+        if args.stats:
+            print(_format_stats(visible_rows))
         return 0
 
     if not args.query:
