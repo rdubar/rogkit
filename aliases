@@ -91,7 +91,6 @@ alias dirs='$ROGKIT_PYTHON -m rogkit_package.bin.dirs "$@"'
 alias empties='$ROGKIT_PYTHON -m rogkit_package.bin.empties "$@"'
 alias hidden='$ROGKIT_PYTHON -m rogkit_package.bin.hidden "$@"'
 alias large='$ROGKIT_PYTHON -m rogkit_package.bin.large "$@"'
-alias search='$ROGKIT_PYTHON -m rogkit_package.bin.search "$@"'
 
 # File cleaning
 alias clean='$ROGKIT_PYTHON -m rogkit_package.bin.clean "$@"'

@@ -127,7 +127,7 @@ source ~/.bashrc  # or source ~/.zshrc
 
 ## 🐹 Go Utilities
 
-RogKit ships several performance-sensitive tools as Go binaries (`replacer`, `files`, `ishtime`, etc.). Build them once and they’ll be available on `PATH` via the aliases file.
+RogKit ships several performance-sensitive tools as Go binaries (`replacer`, `search`, `ishtime`, etc.). Build them once and they’ll be available on `PATH` via the aliases file.
 
 ### Build All Go Commands
 
@@ -144,7 +144,7 @@ After building, use the Go versions directly:
 
 ```bash
 replacer --find TODO --path /some/project
-files --folder /some/project TODO
+search --path /some/project TODO "bar baz"
 ishtime --time 1115
 ```
 
@@ -243,7 +243,7 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `renamer` | Batch rename files with patterns | - |
 | `replacer` | Find and replace text in files | - |
 | `files` | Advanced file searching | - |
-| `search` | Search for text in files | - |
+| `search` | Go multi-term content search | - |
 | `dirs` | Directory analysis and statistics | - |
 | `empties` | Find empty files and directories | - |
 | `hidden` | Discover hidden files | - |
