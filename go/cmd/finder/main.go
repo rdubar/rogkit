@@ -31,6 +31,9 @@ func usage() {
 
 Traverse directories and list files that match patterns.
 
+By default finder respects .gitignore, .fdignore, and .ignore files. Use --include-ignored to
+search files that would normally be skipped.
+
 Examples:
   finder --search '*.go'
   finder --path ~/projects --search config --ignore-case
@@ -49,15 +52,17 @@ func main() {
 	var excludeExts multiValue
 
 	var (
-		countOnly     bool
-		ignoreCase    bool
-		caseSensitive bool
-		includeHidden bool
-		showTime      bool
-		relativePaths bool
-		withSize      bool
-		maxDepth      int
-		noIgnore      bool
+		countOnly      bool
+		ignoreCase     bool
+		caseSensitive  bool
+		includeHidden  bool
+		showTime       bool
+		relativePaths  bool
+		withSize       bool
+		verbose        bool
+		maxDepth       int
+		noIgnore       bool
+		includeIgnored bool
 	)
 
 	flag.Var(&roots, "path", "Root directory to search (repeatable)")
@@ -77,9 +82,16 @@ func main() {
 	flag.BoolVar(&relativePaths, "relative", false, "Print paths relative to their root")
 	flag.BoolVar(&withSize, "with-size", false, "Include the file size (bytes) in the output")
 	flag.IntVar(&maxDepth, "max-depth", -1, "Limit search depth relative to the root (-1 for unlimited)")
-	flag.BoolVar(&noIgnore, "no-ignore", false, "Do not respect .gitignore/.fdignore/.ignore files")
+	flag.BoolVar(&noIgnore, "no-ignore", false, "Include files ignored by .gitignore/.fdignore/.ignore files")
+	flag.BoolVar(&includeIgnored, "include-ignored", false, "Alias for --no-ignore")
+	flag.BoolVar(&verbose, "verbose", false, "Print summary information")
+	flag.BoolVar(&verbose, "v", false, "Shorthand for --verbose")
 
 	flag.Parse()
+
+	if includeIgnored {
+		noIgnore = true
+	}
 
 	args := flag.Args()
 	if len(searches) == 0 && len(args) > 0 {
@@ -111,7 +123,7 @@ func main() {
 	}
 
 	var start time.Time
-	if showTime {
+	if verbose && showTime {
 		start = time.Now()
 	}
 
@@ -141,11 +153,11 @@ func main() {
 		fmt.Println(stats.FilesMatched)
 	}
 
-	if showTime {
+	if verbose && showTime {
 		elapsed := time.Since(start)
 		fmt.Fprintf(os.Stderr, "Scanned %d files across %d roots (%d matches) in %s\n",
 			stats.FilesScanned, stats.RootsScanned, stats.FilesMatched, elapsed.Round(time.Millisecond))
-	} else if !countOnly {
+	} else if verbose && !countOnly {
 		fmt.Fprintf(os.Stderr, "Matched %d file(s) (scanned %d)\n", stats.FilesMatched, stats.FilesScanned)
 	}
 }
