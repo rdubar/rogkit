@@ -275,7 +275,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         "-L",
         "--length",
         type=int,
-        default=50,
+        default=60,
         help="Title column width when using the built-in search formatter.",
     )
     parser.add_argument(
@@ -557,11 +557,14 @@ def _format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
     duration_str = _format_duration(duration_ms)
     path = row["file_path"]
     disk = _format_disk(path)
-    source_value = _row_value(row, "source")
-    source_label = f"[{(source_value or 'plex').lower()}]"
+    source_value = (_row_value(row, "source") or "plex").lower()
+    disk_token = (disk or "").strip("[]")
+    if disk_token:
+        source_label = f"{source_value} {disk_token}"
+    else:
+        source_label = source_value
 
-    lines = [f"{title_display}  {size_str:>9}  {resolution:>5}  {duration_str} {disk or ''}"]
-    lines[0] = lines[0].rstrip() + f" {source_label}" if source_label else lines[0]
+    lines = [f"{source_label:<7}  {size_str:>9}  {resolution:>5}  {duration_str}  {title_display}"]
 
     if args.info:
         summary = _truncate_summary(row["summary"])
