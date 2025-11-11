@@ -144,6 +144,7 @@ After building, use the Go versions directly:
 
 ```bash
 replacer --find TODO --path /some/project
+replacer --find TODO --replace DONE --write --confirm --path /some/project
 search --path /some/project TODO "bar baz"
 ishtime --time 1115
 ```

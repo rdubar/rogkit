@@ -2,91 +2,117 @@ package main
 
 import (
 	"bufio"
+	"errors"
 	"flag"
 	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+	"unicode"
 
+	"github.com/rdubar/rogkit/go/internal/finder"
 	"github.com/rdubar/rogkit/go/internal/util"
 )
+
+type multiValue []string
+
+func (m *multiValue) String() string {
+	if m == nil {
+		return ""
+	}
+	return strings.Join(*m, ",")
+}
+
+func (m *multiValue) Set(value string) error {
+	*m = append(*m, value)
+	return nil
+}
 
 func usage() {
 	fmt.Fprintf(os.Stderr, `Usage: replacer --find TEXT [options]
 
-Search recursively for TEXT starting at --path (default ".") and optionally replace it.
+Search recursively for TEXT starting at --path (default "."). Runs in dry-run mode
+by default; pass --write to apply replacements. Combine with --confirm to approve
+each change interactively.
 
 Options:
 `)
 	flag.PrintDefaults()
 }
 
-func main() {
-	flag.Usage = usage
+type matchEngine struct {
+	needle          string
+	replacement     string
+	caseInsensitive bool
+	write           bool
+}
 
-	root := flag.String("path", ".", "Root directory to search")
-	find := flag.String("find", "", "Text to find (required)")
-	replace := flag.String("replace", "", "Replacement text (optional)")
-	confirm := flag.Bool("confirm", false, "Confirm each replacement interactively")
-	showMatches := flag.Bool("list", false, "List matching (and replaced) file paths")
-	flag.Parse()
+func newMatchEngine(find, replace string, caseInsensitive, write bool) (matchEngine, error) {
+	needle := strings.TrimSpace(find)
+	if needle == "" {
+		return matchEngine{}, errors.New("empty --find value")
+	}
+	if !write && replace == "" {
+		// pure search
+		return matchEngine{
+			needle:          find,
+			replacement:     replace,
+			caseInsensitive: caseInsensitive,
+			write:           false,
+		}, nil
+	}
+	return matchEngine{
+		needle:          find,
+		replacement:     replace,
+		caseInsensitive: caseInsensitive,
+		write:           write,
+	}, nil
+}
 
-	if len(os.Args) == 1 {
-		usage()
-		os.Exit(1)
+func (m matchEngine) process(data []byte) (bool, []byte, int) {
+	if len(m.needle) == 0 {
+		return false, nil, 0
 	}
 
-	if strings.TrimSpace(*find) == "" {
-		fmt.Fprintln(os.Stderr, "error: --find argument is required\n")
-		usage()
-		os.Exit(1)
+	original := string(data)
+	searchSpace := original
+	needle := m.needle
+
+	if m.caseInsensitive {
+		searchSpace = strings.ToLower(original)
+		needle = strings.ToLower(needle)
 	}
 
-	absRoot, err := filepath.Abs(*root)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "error resolving path: %v\n", err)
-		os.Exit(1)
+	if !strings.Contains(searchSpace, needle) {
+		return false, nil, 0
 	}
 
-	summary := process(absRoot, *find, *replace, *confirm, *showMatches)
-
-	fmt.Printf("Scanned %d files in %s\n", summary.totalScanned, summary.duration.Truncate(time.Millisecond))
-	fmt.Printf("Matches: %d\n", summary.matches)
-	if *replace != "" {
-		fmt.Printf("Replacements: %d\n", summary.replacements)
-	}
-	if len(summary.errors) > 0 {
-		fmt.Printf("Errors: %d\n", len(summary.errors))
-		for _, e := range summary.errors {
-			fmt.Fprintf(os.Stderr, "error: %s (%v)\n", e.path, e.err)
-		}
-	}
-	fmt.Printf("Total time: %s\n", summary.duration.Truncate(time.Millisecond))
-
-	if *showMatches && len(summary.matchedPaths) > 0 {
-		fmt.Println("Matching files:")
-		for _, path := range summary.matchedPaths {
-			fmt.Printf("  %s\n", path)
-		}
+	if !m.write {
+		return true, nil, countOccurrences(searchSpace, needle)
 	}
 
-	if *showMatches && len(summary.replacedPaths) > 0 {
-		fmt.Println("Replaced files:")
-		for _, path := range summary.replacedPaths {
-			fmt.Printf("  %s\n", path)
-		}
+	if m.caseInsensitive {
+		replaced, replacements := replaceAllCaseInsensitive(original, m.needle, m.replacement)
+		return true, []byte(replaced), replacements
 	}
+
+	replacements := strings.Count(original, m.needle)
+	replaced := strings.ReplaceAll(original, m.needle, m.replacement)
+	return true, []byte(replaced), replacements
 }
 
 type summary struct {
-	totalScanned  int
-	matches       int
-	replacements  int
-	errors        []errorEntry
-	duration      time.Duration
-	matchedPaths  []string
-	replacedPaths []string
+	textFilesChecked    int
+	matchingFiles       int
+	occurrencesFound    int
+	filesChanged        int
+	occurrencesReplaced int
+	confirmDeclined     int
+	errors              []errorEntry
+	duration            time.Duration
+	matchedPaths        []string
+	changedPaths        []string
 }
 
 type errorEntry struct {
@@ -94,97 +120,240 @@ type errorEntry struct {
 	err  error
 }
 
-func process(root, find, replace string, confirm, collectMatches bool) summary {
+func main() {
+	flag.Usage = usage
+
+	var roots multiValue
+	var filters multiValue
+	var includeExts multiValue
+	var excludeExts multiValue
+
+	var (
+		findArg        string
+		replaceArg     string
+		writeChanges   bool
+		confirmEach    bool
+		listMatches    bool
+		ignoreCase     bool
+		caseSensitive  bool
+		includeHidden  bool
+		relativePaths  bool
+		showTime       bool
+		verbose        bool
+		maxDepth       int
+		noIgnore       bool
+		includeIgnored bool
+	)
+
+	flag.Var(&roots, "path", "Root directory to search (repeatable)")
+	flag.Var(&roots, "p", "Shorthand for --path")
+	flag.Var(&filters, "filter", "Restrict processing to files whose paths match these patterns (glob or substring, repeatable)")
+	flag.Var(&includeExts, "ext", "Only include files with this extension (repeatable, no leading dot required)")
+	flag.Var(&excludeExts, "exclude-ext", "Exclude files with this extension (repeatable)")
+	flag.StringVar(&findArg, "find", "", "Text to find (required)")
+	flag.StringVar(&replaceArg, "replace", "", "Replacement text (dry-run unless --write)")
+	flag.BoolVar(&writeChanges, "write", false, "Write changes to disk (default: dry-run)")
+	flag.BoolVar(&confirmEach, "confirm", false, "Confirm each replacement interactively (implies --write)")
+	flag.BoolVar(&listMatches, "list", false, "List matching (and changed) file paths")
+	flag.BoolVar(&ignoreCase, "ignore-case", false, "Force case-insensitive content matching")
+	flag.BoolVar(&caseSensitive, "case-sensitive", false, "Force case-sensitive matching (overrides --ignore-case)")
+	flag.BoolVar(&includeHidden, "include-hidden", false, "Include hidden files and directories")
+	flag.BoolVar(&includeHidden, "hidden", false, "Shorthand for --include-hidden")
+	flag.BoolVar(&relativePaths, "relative", false, "Print paths relative to their search root")
+	flag.BoolVar(&showTime, "time", false, "Display how long the search took (with --verbose)")
+	flag.BoolVar(&verbose, "verbose", false, "Print summary information to stderr")
+	flag.BoolVar(&verbose, "v", false, "Shorthand for --verbose")
+	flag.IntVar(&maxDepth, "max-depth", -1, "Limit search depth relative to the root (-1 for unlimited)")
+	flag.BoolVar(&noIgnore, "no-ignore", false, "Include files ignored by .gitignore/.fdignore/.ignore files")
+	flag.BoolVar(&includeIgnored, "include-ignored", false, "Alias for --no-ignore")
+
+	flag.Parse()
+
+	if len(os.Args) == 1 {
+		usage()
+		os.Exit(1)
+	}
+
+	if includeIgnored {
+		noIgnore = true
+	}
+
+	if confirmEach {
+		writeChanges = true
+	}
+
+	if !writeChanges && replaceArg != "" {
+		fmt.Fprintln(os.Stderr, "info: running in dry-run mode; no files will be modified (use --write to apply changes)")
+	}
+
+	if writeChanges && replaceArg == "" {
+		fmt.Fprintln(os.Stderr, "error: --write requires --replace text")
+		usage()
+		os.Exit(1)
+	}
+
+	if confirmEach && replaceArg == "" {
+		fmt.Fprintln(os.Stderr, "error: --confirm requires --replace text")
+		usage()
+		os.Exit(1)
+	}
+
+	if len(roots) == 0 {
+		roots = append(roots, ".")
+	}
+
+	contentIgnoreCase := resolveIgnoreCase([]string{findArg}, ignoreCase, caseSensitive)
+
+	engine, err := newMatchEngine(findArg, replaceArg, contentIgnoreCase, writeChanges)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "replacer: %v\n", err)
+		os.Exit(1)
+	}
+
+	opts := finder.Options{
+		Roots:         roots,
+		Patterns:      filters,
+		IgnoreCase:    resolveIgnoreCase(filters, ignoreCase, caseSensitive),
+		IncludeHidden: includeHidden,
+		IncludeExt:    includeExts,
+		ExcludeExt:    excludeExts,
+		MaxDepth:      maxDepth,
+		RespectIgnore: !noIgnore,
+	}
+
 	start := time.Now()
 
-	var out summary
-	var promptReader *bufio.Scanner
+	var (
+		sum          summary
+		promptReader *bufio.Scanner
+	)
 
-	doReplace := replace != ""
-	if confirm {
+	if confirmEach {
 		promptReader = bufio.NewScanner(os.Stdin)
 	}
 
-	err := filepath.WalkDir(root, func(path string, d os.DirEntry, walkErr error) error {
-		if walkErr != nil {
-			out.errors = append(out.errors, errorEntry{path: path, err: walkErr})
-			if d != nil && d.IsDir() && util.ShouldSkip(path) {
-				return filepath.SkipDir
-			}
+	stats, walkErr := finder.Walk(opts, func(res finder.Result) error {
+		if !util.IsTextFile(res.Path) {
 			return nil
 		}
+		sum.textFilesChecked++
 
-		if d.IsDir() {
-			if util.ShouldSkip(path) && path != root {
-				return filepath.SkipDir
-			}
-			return nil
-		}
-
-		if util.ShouldSkip(path) {
-			return nil
-		}
-
-		out.totalScanned++
-
-		if !util.IsTextFile(path) {
-			return nil
-		}
-
-		data, err := os.ReadFile(path)
+		data, err := os.ReadFile(res.Path)
 		if err != nil {
-			out.errors = append(out.errors, errorEntry{path: path, err: err})
+			sum.errors = append(sum.errors, errorEntry{path: res.Path, err: err})
 			return nil
 		}
 
-		if !strings.Contains(string(data), find) {
+		match, replaced, occurrences := engine.process(data)
+		if !match {
 			return nil
 		}
 
-		out.matches++
-
-		if collectMatches {
-			out.matchedPaths = append(out.matchedPaths, path)
+		displayPath := res.Path
+		if relativePaths {
+			if rel, err := filepath.Rel(res.Root, res.Path); err == nil {
+				displayPath = rel
+			}
 		}
 
-		if !doReplace {
+		sum.matchingFiles++
+		sum.occurrencesFound += occurrences
+		if listMatches {
+			sum.matchedPaths = append(sum.matchedPaths, displayPath)
+		}
+
+		if !engine.write {
 			return nil
 		}
 
-		replaceContent := strings.ReplaceAll(string(data), find, replace)
-		if replaceContent == string(data) {
+		if occurrences == 0 || replaced == nil {
 			return nil
 		}
 
-		if confirm {
-			fmt.Printf("Replace in %s? [y/N]: ", path)
+		if confirmEach {
+			fmt.Printf("Replace %d occurrence(s) in %s? [y/N]: ", occurrences, displayPath)
 			if !promptYes(promptReader) {
+				sum.confirmDeclined++
 				return nil
 			}
 		}
 
-		if err := writeFilePreserveMode(path, []byte(replaceContent)); err != nil {
-			out.errors = append(out.errors, errorEntry{path: path, err: err})
+		if err := writeFilePreserveMode(res.Path, replaced); err != nil {
+			sum.errors = append(sum.errors, errorEntry{path: res.Path, err: err})
 			return nil
 		}
 
-		out.replacements++
-		if collectMatches {
-			out.replacedPaths = append(out.replacedPaths, path)
+		sum.filesChanged++
+		sum.occurrencesReplaced += occurrences
+		if listMatches {
+			sum.changedPaths = append(sum.changedPaths, displayPath)
 		}
-		if confirm {
-			fmt.Printf("Replaced: %s\n", path)
+		if confirmEach {
+			fmt.Printf("Replaced %d occurrence(s) in %s\n", occurrences, displayPath)
 		}
 		return nil
 	})
 
-	out.duration = time.Since(start)
+	elapsed := time.Since(start)
 
-	if err != nil {
-		out.errors = append(out.errors, errorEntry{path: root, err: err})
+	if walkErr != nil {
+		sum.errors = append(sum.errors, errorEntry{path: strings.Join(roots, ","), err: walkErr})
 	}
 
-	return out
+	printSummary(sum, stats, engine.write, confirmEach, verbose, showTime, elapsed)
+
+	if listMatches && len(sum.matchedPaths) > 0 {
+		fmt.Println()
+		fmt.Println("Matched files:")
+		for _, path := range sum.matchedPaths {
+			fmt.Printf("  %s\n", path)
+		}
+	}
+
+	if listMatches && engine.write && len(sum.changedPaths) > 0 {
+		fmt.Println()
+		fmt.Println("Modified files:")
+		for _, path := range sum.changedPaths {
+			fmt.Printf("  %s\n", path)
+		}
+	}
+
+	if len(sum.errors) > 0 {
+		fmt.Fprintln(os.Stderr, "\nErrors:")
+		for _, entry := range sum.errors {
+			fmt.Fprintf(os.Stderr, "  %s: %v\n", entry.path, entry.err)
+		}
+		os.Exit(1)
+	}
+}
+
+func printSummary(sum summary, stats finder.Stats, wrote, confirmed, verbose, showTime bool, elapsed time.Duration) {
+	fmt.Println()
+	fmt.Println("Summary")
+	fmt.Println("-------")
+	fmt.Printf("Roots scanned:        %d\n", stats.RootsScanned)
+	fmt.Printf("Files scanned:        %d\n", stats.FilesScanned)
+	fmt.Printf("Text files checked:   %d\n", sum.textFilesChecked)
+	fmt.Printf("Matching files:       %d\n", sum.matchingFiles)
+	fmt.Printf("Match occurrences:    %d\n", sum.occurrencesFound)
+	if wrote {
+		fmt.Printf("Files modified:       %d\n", sum.filesChanged)
+		fmt.Printf("Replacements applied: %d\n", sum.occurrencesReplaced)
+		if confirmed {
+			fmt.Printf("Skipped (confirm):    %d\n", sum.confirmDeclined)
+		}
+	} else {
+		fmt.Println("Files modified:       0 (dry run)")
+		fmt.Println("Replacements applied: 0")
+	}
+
+	if !wrote {
+		fmt.Println("\nDry run complete. Re-run with --write to apply replacements.")
+	}
+
+	if verbose && showTime {
+		fmt.Fprintf(os.Stderr, "\nElapsed: %s\n", elapsed.Round(time.Millisecond))
+	}
 }
 
 func writeFilePreserveMode(path string, data []byte) error {
@@ -216,4 +385,73 @@ func promptYes(scanner *bufio.Scanner) bool {
 	}
 	answer := strings.TrimSpace(scanner.Text())
 	return strings.EqualFold(answer, "y") || strings.EqualFold(answer, "yes")
+}
+
+func resolveIgnoreCase(patterns []string, ignoreCase bool, caseSensitive bool) bool {
+	if caseSensitive {
+		return false
+	}
+	if ignoreCase {
+		return true
+	}
+	return smartCase(patterns)
+}
+
+func smartCase(patterns []string) bool {
+	if len(patterns) == 0 {
+		return false
+	}
+	for _, pattern := range patterns {
+		for _, r := range pattern {
+			if unicode.IsLetter(r) && unicode.IsUpper(r) {
+				return false
+			}
+		}
+	}
+	return true
+}
+
+func countOccurrences(haystack, needle string) int {
+	if needle == "" {
+		return 0
+	}
+	count := 0
+	index := 0
+	for {
+		pos := strings.Index(haystack[index:], needle)
+		if pos == -1 {
+			break
+		}
+		count++
+		index += pos + len(needle)
+	}
+	return count
+}
+
+func replaceAllCaseInsensitive(s, old, new string) (string, int) {
+	if old == "" {
+		return s, 0
+	}
+	lowerS := strings.ToLower(s)
+	lowerOld := strings.ToLower(old)
+
+	var builder strings.Builder
+	builder.Grow(len(s))
+
+	index := 0
+	replacements := 0
+	for index < len(s) {
+		pos := strings.Index(lowerS[index:], lowerOld)
+		if pos == -1 {
+			builder.WriteString(s[index:])
+			break
+		}
+		start := index + pos
+		builder.WriteString(s[index:start])
+		builder.WriteString(new)
+		index = start + len(old)
+		replacements++
+	}
+
+	return builder.String(), replacements
 }
