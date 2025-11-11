@@ -275,7 +275,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         "-L",
         "--length",
         type=int,
-        default=60,
+        default=50,
         help="Title column width when using the built-in search formatter.",
     )
     parser.add_argument(
