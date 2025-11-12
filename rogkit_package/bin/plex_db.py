@@ -10,6 +10,8 @@ Features:
     - Run read-only SQL queries without risking corruption. The tool first tries
       immutable read-only access; if that fails it creates a temporary snapshot
       (including WAL/SHM) and queries the snapshot instead.
+    - Automatically fall back to a deep metadata/tag search when the fast cache
+      turns up empty.
 
 Examples:
     pd --show-path
@@ -22,14 +24,20 @@ from __future__ import annotations
 import argparse
 import contextlib
 import dataclasses
+import io
+import json
 import os
+import socket
+import subprocess
+import threading
+import time
 import shutil
 import sqlite3
 import sys
 import tempfile
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
 
 from ..bin.bytes import byte_size
 from ..bin.tomlr import load_rogkit_toml
@@ -41,6 +49,11 @@ from .plex_db_cache import (
     get_cache_metadata,
     load_cached_records,
 )
+
+DAEMON_ENV_FLAG = "PLEX_DB_DAEMON_ACTIVE"
+DAEMON_SOCKET_NAME = "plex_db_daemon.sock"
+DAEMON_STARTUP_TIMEOUT_SECONDS = 5.0
+DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
 
 PI_DB = Path(
     "/var/lib/plexmediaserver/Library/Application Support/"
@@ -66,6 +79,222 @@ class RemoteConfig:
         """Return the path to the cache directory for the remote Plex host."""
         CACHE_DIR.mkdir(parents=True, exist_ok=True)
         return CACHE_DIR / self.db_path.name
+
+
+def _daemon_socket_path() -> Path:
+    CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    return CACHE_DIR / DAEMON_SOCKET_NAME
+
+
+def _remove_stale_socket(path: Path) -> None:
+    if path.exists():
+        try:
+            path.unlink()
+        except OSError:
+            pass
+
+
+@contextlib.contextmanager
+def _daemon_env_guard() -> Iterator[None]:
+    previous = os.environ.get(DAEMON_ENV_FLAG)
+    os.environ[DAEMON_ENV_FLAG] = "1"
+    try:
+        yield
+    finally:
+        if previous is None:
+            with contextlib.suppress(KeyError):
+                del os.environ[DAEMON_ENV_FLAG]
+        else:
+            os.environ[DAEMON_ENV_FLAG] = previous
+
+
+def _connect_to_daemon(timeout: float = 1.0) -> socket.socket:
+    path = _daemon_socket_path()
+    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    sock.settimeout(timeout)
+    sock.connect(str(path))
+    return sock
+
+
+def _send_daemon_message(payload: Dict[str, Any], *, timeout: float) -> Dict[str, Any]:
+    sock = _connect_to_daemon(timeout=timeout)
+    try:
+        message = json.dumps(payload) + "\n"
+        sock.sendall(message.encode("utf-8"))
+        sock.shutdown(socket.SHUT_WR)
+        with sock.makefile("r", encoding="utf-8") as response_stream:
+            response_line = response_stream.readline()
+        if not response_line:
+            raise RuntimeError("Daemon closed connection without response")
+        return json.loads(response_line)
+    finally:
+        sock.close()
+
+
+def _spawn_daemon_process() -> bool:
+    if os.environ.get(DAEMON_ENV_FLAG) == "1":
+        return False
+    python = sys.executable or "python3"
+    module = "rogkit_package.bin.plex_db"
+    env = os.environ.copy()
+    env.pop(DAEMON_ENV_FLAG, None)
+    try:
+        subprocess.Popen(
+            [python, "-m", module, "--daemon"],
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            start_new_session=True,
+            env=env,
+        )
+    except OSError:
+        return False
+    return True
+
+
+def _daemon_ping() -> bool:
+    try:
+        response = _send_daemon_message(
+            {"action": "ping"},
+            timeout=1.0,
+        )
+    except (FileNotFoundError, ConnectionError, OSError, socket.timeout):
+        return False
+    return response.get("status") == "ok"
+
+
+def _wait_for_daemon_startup(deadline: float) -> bool:
+    while time.monotonic() < deadline:
+        if _daemon_ping():
+            return True
+        time.sleep(0.1)
+    return False
+
+
+def _request_daemon_shutdown() -> bool:
+    try:
+        response = _send_daemon_message(
+            {"action": "shutdown"},
+            timeout=5.0,
+        )
+    except (FileNotFoundError, ConnectionError, OSError, socket.timeout):
+        return False
+    return response.get("status") == "ok"
+
+
+def _execute_cli_in_daemon(argv: Sequence[str]) -> Tuple[int, str, str]:
+    stdout_buffer = io.StringIO()
+    stderr_buffer = io.StringIO()
+    with _daemon_env_guard():
+        with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(
+            stderr_buffer
+        ):
+            exit_code = main(argv)
+    return exit_code, stdout_buffer.getvalue(), stderr_buffer.getvalue()
+
+
+class PlexDBDaemon:
+    """Simple foreground daemon that keeps plex_db warm for local clients."""
+
+    def __init__(self, socket_path: Path):
+        self.socket_path = socket_path
+        self._stop_event = threading.Event()
+        self._server_socket: Optional[socket.socket] = None
+
+    def serve_forever(self) -> None:
+        _remove_stale_socket(self.socket_path)
+        server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        server_socket.bind(str(self.socket_path))
+        server_socket.listen(8)
+        server_socket.settimeout(1.0)
+        os.chmod(str(self.socket_path), 0o600)
+        self._server_socket = server_socket
+        print(f"Plex DB daemon listening on {self.socket_path}")
+        try:
+            while not self._stop_event.is_set():
+                try:
+                    client, _ = server_socket.accept()
+                except socket.timeout:
+                    continue
+                except OSError as exc:
+                    if self._stop_event.is_set():
+                        break
+                    raise exc
+                thread = threading.Thread(
+                    target=self._handle_client,
+                    args=(client,),
+                    daemon=True,
+                )
+                thread.start()
+        finally:
+            self._shutdown_socket()
+            _remove_stale_socket(self.socket_path)
+            print("Plex DB daemon stopped.")
+
+    def stop(self) -> None:
+        self._stop_event.set()
+
+    def _shutdown_socket(self) -> None:
+        if self._server_socket is not None:
+            try:
+                self._server_socket.close()
+            finally:
+                self._server_socket = None
+
+    def _handle_client(self, client_socket: socket.socket) -> None:
+        with client_socket:
+            try:
+                data = b""
+                while True:
+                    chunk = client_socket.recv(65536)
+                    if not chunk:
+                        break
+                    data += chunk
+                    if b"\n" in chunk:
+                        break
+                if not data:
+                    return
+                line = data.split(b"\n", 1)[0]
+                payload = json.loads(line.decode("utf-8"))
+            except Exception as exc:  # pragma: no cover - defensive
+                response = {"status": "error", "error": f"Invalid request: {exc}"}
+                client_socket.sendall((json.dumps(response) + "\n").encode("utf-8"))
+                return
+
+            action = payload.get("action", "execute")
+            if action == "ping":
+                response = {"status": "ok"}
+            elif action == "shutdown":
+                self.stop()
+                response = {"status": "ok", "message": "Shutting down"}
+            elif action == "execute":
+                argv = [str(arg) for arg in payload.get("argv", [])]
+                if any(flag in argv for flag in ("--daemon", "--stop-daemon")):
+                    response = {
+                        "status": "error",
+                        "error": "Nested daemon commands are not supported inside the daemon.",
+                        "exit_code": 2,
+                    }
+                else:
+                    try:
+                        exit_code, stdout_text, stderr_text = _execute_cli_in_daemon(argv)
+                    except Exception as exc:  # pragma: no cover - defensive
+                        response = {
+                            "status": "error",
+                            "error": f"Execution failure: {exc}",
+                            "exit_code": 1,
+                        }
+                    else:
+                        response = {
+                            "status": "ok",
+                            "exit_code": exit_code,
+                            "stdout": stdout_text,
+                            "stderr": stderr_text,
+                        }
+            else:
+                response = {"status": "error", "error": f"Unknown action {action!r}"}
+
+            client_socket.sendall((json.dumps(response) + "\n").encode("utf-8"))
 
 
 def load_remote_config() -> Optional[RemoteConfig]:
@@ -306,7 +535,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         "--deep",
         "-d_",
         action="store_true",
-        help="Include summary, path, and tag matching (slower search).",
+        help="Include summary, path, and tag matching (slower search; tried automatically if cache search has no matches).",
     )
     parser.add_argument(
         "--zed",
@@ -333,6 +562,21 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         "--stats",
         action="store_true",
         help="Show aggregate stats (count, total runtime, total size) for the displayed items.",
+    )
+    parser.add_argument(
+        "--daemon",
+        action="store_true",
+        help="Run plex_db as a foreground daemon serving subsequent CLI requests.",
+    )
+    parser.add_argument(
+        "--stop-daemon",
+        action="store_true",
+        help="Ask the running plex_db daemon to exit.",
+    )
+    parser.add_argument(
+        "--no-daemon",
+        action="store_true",
+        help="Run locally without attempting to use the background daemon.",
     )
     return parser.parse_args(list(argv) if argv is not None else None)
 
@@ -459,6 +703,29 @@ def _sort_key_added(record: Dict[str, Any]) -> int:
     """Sort cached records by the time they were added to Plex (descending)."""
     value = record.get("added_at")
     return int(value) if value is not None else 0
+
+
+def _record_matches_deep(record: Dict[str, Any], terms: Sequence[str]) -> bool:
+    if not terms:
+        return True
+
+    haystacks = [
+        (record.get("title_low") or ""),
+        (record.get("title") or "").lower(),
+        (record.get("parent_title") or "").lower(),
+        (record.get("grandparent_title") or "").lower(),
+        (record.get("summary") or "").lower(),
+        (record.get("file_path") or "").lower(),
+    ]
+
+    tags_text = record.get("tags_text")
+    if tags_text:
+        haystacks.append(tags_text.lower())
+
+    for term in terms:
+        if not any(term in hay for hay in haystacks):
+            return False
+    return True
 
 
 def _truncate_summary(summary: Optional[str], max_length: int = 140) -> str:
@@ -640,18 +907,17 @@ def run_pretty_search(
     deep: bool,
 ) -> tuple[List[Any], Optional[int]]:
     """Execute the fast or deep search path and return matching records."""
-    sort_alias_mapping = {
-        "added": "added_at",
-        "title": "title",
-        "year": "year",
-    }
-    order_column = sort_alias_mapping.get(sort, "added_at")
-    direction = "ASC" if sort == "title" else "DESC"
-    if reverse:
-        direction = "DESC" if direction == "ASC" else "ASC"
+    records = load_cached_records(db_path)
+
+    def _apply_sort(items: List[Dict[str, Any]]) -> None:
+        if sort == "title":
+            items.sort(key=_sort_key_title, reverse=reverse)
+        elif sort == "year":
+            items.sort(key=_sort_key_year, reverse=not reverse)
+        else:
+            items.sort(key=_sort_key_added, reverse=not reverse)
 
     if not deep:
-        records = load_cached_records(db_path)
         if terms:
             term_list = [term.lower() for term in terms]
             filtered_full = [
@@ -662,115 +928,105 @@ def run_pretty_search(
         else:
             filtered_full = list(records)
 
-        if sort == "title":
-            reverse_flag = reverse
-            filtered_full.sort(key=_sort_key_title, reverse=reverse_flag)
-        elif sort == "year":
-            reverse_flag = not reverse
-            filtered_full.sort(key=_sort_key_year, reverse=reverse_flag)
-        else:
-            reverse_flag = not reverse
-            filtered_full.sort(key=_sort_key_added, reverse=reverse_flag)
+        _apply_sort(filtered_full)
         total_matches = len(filtered_full)
         if limit and limit > 0:
             filtered_full = filtered_full[:limit]
 
         return filtered_full, total_matches
 
-    deep_clauses: List[str] = []
-    filter_params: List[object] = []
+    term_list = [term.lower() for term in terms]
+    filtered_full = [
+        record
+        for record in records
+        if _record_matches_deep(record, term_list)
+    ]
 
-    for term in terms:
-        pattern = f"%{term.lower()}%"
-        deep_clauses.append(
-            "(" + " OR ".join(
-                [
-                    "LOWER(mi.title) LIKE ?",
-                    "LOWER(COALESCE(parent.title, '')) LIKE ?",
-                    "LOWER(COALESCE(grandparent.title, '')) LIKE ?",
-                    "LOWER(COALESCE(mi.summary, '')) LIKE ?",
-                    "LOWER(COALESCE(mp.file, '')) LIKE ?",
-                    "LOWER(COALESCE(tag.tag, '')) LIKE ?",
-                ]
-            ) + ")"
-        )
-        filter_params.extend([pattern, pattern, pattern, pattern, pattern, pattern])
-
-    where_clause = " AND ".join(deep_clauses) if deep_clauses else "1=1"
-
-    if order_column == "title":
-        deep_order_column = "mi.title"
-    elif order_column == "year":
-        deep_order_column = "mi.year"
-    else:
-        deep_order_column = "mi.added_at"
-
-    data_sql = f"""
-        SELECT
-            mi.id,
-            mi.title,
-            mi.year,
-            mi.metadata_type,
-            MAX(parent.title) AS parent_title,
-            MAX(grandparent.title) AS grandparent_title,
-            MAX(m.duration) AS duration_ms,
-            MAX(mi.duration) AS duration_meta,
-            MAX(m.width) AS width,
-            MAX(m.height) AS height,
-            MAX(mp.size) AS size_bytes,
-            MIN(mp.file) AS file_path,
-            MAX(mi.summary) AS summary,
-            MAX(mi.added_at) AS added_at,
-            CASE
-                WHEN MIN(mp.file) LIKE '/mnt/media1/%' THEN '[1]'
-                WHEN MIN(mp.file) LIKE '/mnt/media2/%' THEN '[2]'
-                WHEN MIN(mp.file) LIKE '/mnt/media3/%' THEN '[3]'
-                ELSE ''
-            END AS disk
-        FROM metadata_items mi
-        LEFT JOIN metadata_items parent ON parent.id = mi.parent_id
-        LEFT JOIN metadata_items grandparent ON grandparent.id = parent.parent_id
-        LEFT JOIN media_items m ON m.metadata_item_id = mi.id
-        LEFT JOIN media_parts mp ON mp.media_item_id = m.id
-        LEFT JOIN taggings tg ON tg.metadata_item_id = mi.id
-        LEFT JOIN tags tag ON tag.id = tg.tag_id
-        WHERE mi.metadata_type IN (1, 2, 4)
-          AND mp.file IS NOT NULL
-          AND {where_clause}
-        GROUP BY mi.id
-        ORDER BY {deep_order_column} {direction}
-    """
-
-    data_params = list(filter_params)
+    _apply_sort(filtered_full)
+    total_matches = len(filtered_full)
     if limit and limit > 0:
-        data_sql += " LIMIT ?"
-        data_params.append(limit)
+        filtered_full = filtered_full[:limit]
 
-    total_sql = f"""
-        SELECT COUNT(DISTINCT mi.id)
-        FROM metadata_items mi
-        LEFT JOIN metadata_items parent ON parent.id = mi.parent_id
-        LEFT JOIN metadata_items grandparent ON grandparent.id = parent.parent_id
-        LEFT JOIN media_items m ON m.metadata_item_id = mi.id
-        LEFT JOIN media_parts mp ON mp.media_item_id = m.id
-        LEFT JOIN taggings tg ON tg.metadata_item_id = mi.id
-        LEFT JOIN tags tag ON tag.id = tg.tag_id
-        WHERE mi.metadata_type IN (1, 2, 4)
-          AND mp.file IS NOT NULL
-          AND {where_clause}
-    """
+    return filtered_full, total_matches
 
-    with open_database(db_path) as conn:
-        total_row = conn.execute(total_sql, filter_params).fetchone()
-        total_matches_optional = int(total_row[0]) if total_row else None
-        rows = conn.execute(data_sql, data_params).fetchall()
 
-    return rows, total_matches_optional
+def run_daemon() -> int:
+    socket_path = _daemon_socket_path()
+    daemon = PlexDBDaemon(socket_path)
+    try:
+        daemon.serve_forever()
+    except KeyboardInterrupt:  # pragma: no cover - manual interruption
+        daemon.stop()
+        print("Plex DB daemon interrupted.")
+    return 0
+
+
+def _forward_to_daemon(argv_list: Sequence[str], *, auto_start: bool = True) -> Optional[int]:
+    try:
+        response = _send_daemon_message(
+            {"action": "execute", "argv": list(argv_list)},
+            timeout=DAEMON_REQUEST_TIMEOUT_SECONDS,
+        )
+    except (FileNotFoundError, ConnectionError, OSError, socket.timeout):
+        if not auto_start:
+            return None
+        if not _spawn_daemon_process():
+            print(
+                "plex_db: unable to launch daemon automatically; running locally.",
+                file=sys.stderr,
+            )
+            return None
+        deadline = time.monotonic() + DAEMON_STARTUP_TIMEOUT_SECONDS
+        if not _wait_for_daemon_startup(deadline):
+            print(
+                "plex_db: daemon did not become ready; running locally.",
+                file=sys.stderr,
+            )
+            return None
+        try:
+            response = _send_daemon_message(
+                {"action": "execute", "argv": list(argv_list)},
+                timeout=DAEMON_REQUEST_TIMEOUT_SECONDS,
+            )
+        except (FileNotFoundError, ConnectionError, OSError, socket.timeout):
+            print(
+                "plex_db: daemon connection failed after startup; running locally.",
+                file=sys.stderr,
+            )
+            return None
+    status = response.get("status")
+    if status != "ok":
+        error = response.get("error", "Unknown daemon error")
+        print(f"[plex_db daemon] {error}", file=sys.stderr)
+        return int(response.get("exit_code", 1))
+    stdout_text = response.get("stdout") or ""
+    stderr_text = response.get("stderr") or ""
+    if stdout_text:
+        sys.stdout.write(stdout_text)
+    if stderr_text:
+        sys.stderr.write(stderr_text)
+    return int(response.get("exit_code", 0))
 
 
 def main(argv: Optional[Iterable[str]] = None) -> int:
     """Entry point for the `pd` command-line interface."""
-    args = parse_args(argv)
+    argv_list = list(argv) if argv is not None else sys.argv[1:]
+    args = parse_args(argv_list)
+
+    if args.daemon:
+        return run_daemon()
+
+    if args.stop_daemon:
+        if _request_daemon_shutdown():
+            print("Requested plex_db daemon shutdown.")
+            return 0
+        print("No plex_db daemon appears to be running.", file=sys.stderr)
+        return 1
+
+    if os.environ.get(DAEMON_ENV_FLAG) != "1" and not args.no_daemon:
+        forwarded_exit = _forward_to_daemon(argv_list)
+        if forwarded_exit is not None:
+            return forwarded_exit
 
     if args.list_paths:
         print("Candidate Plex database paths:")
@@ -862,19 +1118,29 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         search_terms = [term.lower() for term in args.search]
         sort = "year" if args.zed else args.sort
         limit = None if args.all or args.zed else args.number
+        reverse_value = args.reverse if not args.zed else False
         rows, total_count = run_pretty_search(
             db_path,
             search_terms,
             limit=limit,
             sort=sort,
-            reverse=args.reverse if not args.zed else False,
+            reverse=reverse_value,
             deep=args.deep,
         )
+        auto_deep_used = False
+        if not rows and not args.deep:
+            print("No cached matches found; running deep search...")
+            rows, total_count = run_pretty_search(
+                db_path,
+                search_terms,
+                limit=limit,
+                sort=sort,
+                reverse=reverse_value,
+                deep=True,
+            )
+            auto_deep_used = True
         if not rows:
-            if args.search and not args.deep:
-                print("No matching media found. Try --deep for summary/tag matching.")
-            else:
-                print("No matching media found.")
+            print("No matching media found.")
             return 0
 
         visible_rows = rows
@@ -886,7 +1152,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             heading = f"Showing {len(visible_rows)} of {total} {match_label}"
         else:
             heading = f"Showing {len(visible_rows)} {match_label}"
-        print(f"{heading} for {' '.join(args.search)!r}:")
+        mode_label = " (deep search)" if args.deep or auto_deep_used else ""
+        print(f"{heading}{mode_label} for {' '.join(args.search)!r}:")
 
         for row in visible_rows:
             print(_format_pretty_row(row, args))

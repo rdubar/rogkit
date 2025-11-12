@@ -33,6 +33,7 @@ REQUIRED_CACHE_COLUMNS = {
     "file_path",
     "disk",
     "summary",
+    "tags_text",
     "source",
     "source_id",
     "extras",
@@ -65,6 +66,7 @@ def _initialize_cache_schema(conn: sqlite3.Connection) -> None:
             file_path TEXT,
             disk TEXT,
             summary TEXT,
+            tags_text TEXT,
             source TEXT DEFAULT 'plex',
             source_id TEXT,
             extras TEXT,
@@ -97,6 +99,7 @@ def _write_cache_pickle_from_conn(conn: sqlite3.Connection) -> None:
             file_path,
             disk,
             summary,
+            tags_text,
             source,
             source_id,
             extras,
@@ -144,12 +147,15 @@ def build_cache_table(db_path: Path) -> None:
                     WHEN MIN(mp.file) LIKE '/mnt/media3/%' THEN '[3]'
                     ELSE ''
                 END AS disk,
-                substr(COALESCE(mi.summary, ''), 1, 280) AS summary
+                substr(COALESCE(mi.summary, ''), 1, 280) AS summary,
+                REPLACE(GROUP_CONCAT(DISTINCT tag.tag), ',', ' ') AS tags_text
             FROM metadata_items mi
             LEFT JOIN metadata_items parent ON parent.id = mi.parent_id
             LEFT JOIN metadata_items grandparent ON grandparent.id = parent.parent_id
             LEFT JOIN media_items m ON m.metadata_item_id = mi.id
             LEFT JOIN media_parts mp ON mp.media_item_id = m.id
+            LEFT JOIN taggings tg ON tg.metadata_item_id = mi.id
+            LEFT JOIN tags tag ON tag.id = tg.tag_id
             WHERE mi.metadata_type IN (1, 2, 4)
             GROUP BY mi.id
             """
@@ -178,6 +184,7 @@ def build_cache_table(db_path: Path) -> None:
                 file_path,
                 disk,
                 summary,
+                tags_text,
                 source,
                 source_id,
                 extras,
@@ -210,7 +217,7 @@ def build_cache_table(db_path: Path) -> None:
         for record in rows:
             record_keys = record.keys()
             dest_conn.execute(
-                "INSERT INTO plex_search_cache (id, title, title_low, metadata_type, year, parent_title, grandparent_title, added_at, duration_ms, duration_meta, width, height, size_bytes, file_path, disk, summary, source, source_id, extras, created_at, updated_at) VALUES (?, ?, LOWER(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'plex', NULL, NULL, NULL, NULL)",
+                "INSERT INTO plex_search_cache (id, title, title_low, metadata_type, year, parent_title, grandparent_title, added_at, duration_ms, duration_meta, width, height, size_bytes, file_path, disk, summary, tags_text, source, source_id, extras, created_at, updated_at) VALUES (?, ?, LOWER(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'plex', NULL, NULL, NULL, NULL)",
                 (
                     record["id"],
                     record["title"],
@@ -228,6 +235,7 @@ def build_cache_table(db_path: Path) -> None:
                     record["file_path"] if "file_path" in record_keys else None,
                     record["disk"] if "disk" in record_keys else None,
                     record["summary"] if "summary" in record_keys else None,
+                    record["tags_text"] if "tags_text" in record_keys else None,
                 ),
             )
         dest_conn.execute(

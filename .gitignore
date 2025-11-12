@@ -12,9 +12,6 @@
 # Project data artifacts
 rogkit_package/data/*
 
-# lists of media files to check
-lists/
-
 # Go build artifacts
 go/bin/
 
