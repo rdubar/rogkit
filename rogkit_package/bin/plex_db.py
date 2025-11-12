@@ -185,11 +185,18 @@ def _request_daemon_shutdown() -> bool:
 def _execute_cli_in_daemon(argv: Sequence[str]) -> Tuple[int, str, str]:
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
-    with _daemon_env_guard():
-        with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(
-            stderr_buffer
-        ):
-            exit_code = main(argv)
+    try:
+        with _daemon_env_guard():
+            with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(
+                stderr_buffer
+            ):
+                exit_code = main(argv)
+    except SystemExit as exc:
+        code = exc.code
+        exit_code = int(code) if isinstance(code, int) else 0
+    except Exception as exc:  # pragma: no cover - defensive  # pylint: disable=broad-except
+        stderr_buffer.write(f"plex_db daemon execution failure: {exc}\n")
+        return 1, stdout_buffer.getvalue(), stderr_buffer.getvalue()
     return exit_code, stdout_buffer.getvalue(), stderr_buffer.getvalue()
 
 
@@ -256,12 +263,13 @@ class PlexDBDaemon:
                     return
                 line = data.split(b"\n", 1)[0]
                 payload = json.loads(line.decode("utf-8"))
-            except Exception as exc:  # pragma: no cover - defensive
-                response = {"status": "error", "error": f"Invalid request: {exc}"}
-                client_socket.sendall((json.dumps(response) + "\n").encode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError, ValueError, OSError) as exc:  # pragma: no cover - defensive
+                error_payload = {"status": "error", "error": f"Invalid request: {exc}"}
+                client_socket.sendall((json.dumps(error_payload) + "\n").encode("utf-8"))
                 return
 
             action = payload.get("action", "execute")
+            response: Dict[str, Any]
             if action == "ping":
                 response = {"status": "ok"}
             elif action == "shutdown":
@@ -276,21 +284,13 @@ class PlexDBDaemon:
                         "exit_code": 2,
                     }
                 else:
-                    try:
-                        exit_code, stdout_text, stderr_text = _execute_cli_in_daemon(argv)
-                    except Exception as exc:  # pragma: no cover - defensive
-                        response = {
-                            "status": "error",
-                            "error": f"Execution failure: {exc}",
-                            "exit_code": 1,
-                        }
-                    else:
-                        response = {
-                            "status": "ok",
-                            "exit_code": exit_code,
-                            "stdout": stdout_text,
-                            "stderr": stderr_text,
-                        }
+                    exit_code, stdout_text, stderr_text = _execute_cli_in_daemon(argv)
+                    response = {
+                        "status": "ok",
+                        "exit_code": exit_code,
+                        "stdout": stdout_text,
+                        "stderr": stderr_text,
+                    }
             else:
                 response = {"status": "error", "error": f"Unknown action {action!r}"}
 
@@ -970,6 +970,11 @@ def _forward_to_daemon(argv_list: Sequence[str], *, auto_start: bool = True) -> 
     except (FileNotFoundError, ConnectionError, OSError, socket.timeout):
         if not auto_start:
             return None
+        print(
+            "plex_db: starting background daemon and warming cache...",
+            file=sys.stderr,
+        )
+        sys.stderr.flush()
         if not _spawn_daemon_process():
             print(
                 "plex_db: unable to launch daemon automatically; running locally.",
