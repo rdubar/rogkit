@@ -1027,7 +1027,6 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     args = parse_args(argv_list)
 
     if os.environ.get(DAEMON_ENV_FLAG) != "1" and not args.no_daemon and not args.daemon and not args.stop_daemon:
-        print("Connecting to media daemon...", flush=True)
         forwarded_exit = _forward_to_daemon(argv_list)
         if forwarded_exit is not None:
             return forwarded_exit
