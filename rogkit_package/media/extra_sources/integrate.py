@@ -9,8 +9,8 @@ from datetime import datetime, UTC
 from pathlib import Path
 from typing import Optional
 
-from rogkit_package.bin.plex_db_cache import CACHE_SQLITE_PATH, write_cache_pickle
-from rogkit_package.plex_extra_sources.cache import load_extras_cache
+from rogkit_package.media.media_cache import CACHE_SQLITE_PATH, write_cache_pickle
+from .cache import EXTRAS_CACHE_PATH, load_extras_cache
 
 REQUIRED_EXTRA_COLUMNS = {
     "source": "TEXT DEFAULT 'plex'",
@@ -77,10 +77,13 @@ def merge_extras_into_cache(
             f"Cache database {cache_db} not found. Run `pd` at least once to build the cache."
         )
 
-    extras = load_extras_cache(Path(extras_path)) if extras_path else load_extras_cache()
+    extras_file = Path(extras_path) if extras_path else EXTRAS_CACHE_PATH
+    extras = load_extras_cache(extras_file)
     if not extras:
-        print("No extras found to merge.")
+        print(f"No extras found to merge (looked in {extras_file}).")
         return 0
+
+    print(f"Merging extras from {extras_file} ...")
 
     conn = sqlite3.connect(str(cache_db))
     try:
@@ -96,7 +99,6 @@ def merge_extras_into_cache(
             if not title:
                 continue
 
-            title_low = title.lower()
             year = record.get("year")
             runtime_minutes = record.get("runtime_minutes")
             duration_ms = runtime_minutes * 60 * 1000 if isinstance(runtime_minutes, (int, float)) else None

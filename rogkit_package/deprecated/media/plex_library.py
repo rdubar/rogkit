@@ -21,7 +21,7 @@ from .media_records import PlexRecordORM, PlexRecord, common_schema, get_possibl
 from .database_utils import Base, engine, Session, update_database_schema
 from .media_settings import additional_media_csv, db_df_path
 from .tmdb import DataList
-from ..bin.seconds import convert_seconds
+from rogkit_package.bin.seconds import convert_seconds
 
 from thefuzz import fuzz, process  # type: ignore
 

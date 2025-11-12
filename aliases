@@ -44,15 +44,14 @@ alias lm='$ROGKIT_PYTHON -m rogkit_package.bin.lm "$@"'
 # Media Library Management (Plex Integration)
 # ------------------------------------------------------------------------------
 # Primary media library interface
-alias media='$ROGKIT_PYTHON -m rogkit_package.media.media_main "$@"'
-alias m='$ROGKIT_PYTHON -m rogkit_package.media.media_main "$@"'
+alias media='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
+alias m='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
 
 # Plex operations
-alias plex='$ROGKIT_PYTHON -m rogkit_package.bin.plex "$@"'
-alias po='$ROGKIT_PYTHON -m rogkit_package.bin.plex "$@"'
-alias plex_db='$ROGKIT_PYTHON -m rogkit_package.bin.plex_db "$@"'
-alias p='$ROGKIT_PYTHON -m rogkit_package.bin.plex_db "$@"'
-alias integrate='$ROGKIT_PYTHON -m rogkit_package.plex_extra_sources.integrate "$@"'
+alias plex_db='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
+alias p='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
+alias pb='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
+alias integrate='$ROGKIT_PYTHON -m rogkit_package.media.extra_sources.integrate "$@"'
 
 # Media file scanning and analysis
 alias media_files='$ROGKIT_PYTHON -m rogkit_package.bin.media_files "$@"'
@@ -67,9 +66,9 @@ alias media_play='$ROGKIT_PYTHON -m rogkit_package.bin.media_play "$@"'
 alias play='$ROGKIT_PYTHON -m rogkit_package.bin.media_play "$@"'
 
 # Media processing
-alias shrink='$ROGKIT_PYTHON -m rogkit_package.media.shrink "$@"'
-alias tmdb='$ROGKIT_PYTHON -m rogkit_package.media.tmdb "$@"'
-alias tkm='$ROGKIT_PYTHON -m rogkit_package.media.media_tk "$@"'
+alias shrink='$ROGKIT_PYTHON -m rogkit_package.deprecated.media.shrink "$@"'
+alias tmdb='$ROGKIT_PYTHON -m rogkit_package.deprecated.media.tmdb "$@"'
+alias tkm='$ROGKIT_PYTHON -m rogkit_package.deprecated.media.media_tk "$@"'
 
 # ------------------------------------------------------------------------------
 # File System Operations

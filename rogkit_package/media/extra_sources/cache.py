@@ -6,7 +6,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
-from rogkit_package.bin.plex_db_cache import CACHE_DIR, CACHE_SQLITE_PATH, write_cache_pickle as _write_pickle
+from rogkit_package.media.media_cache import CACHE_DIR, CACHE_SQLITE_PATH, write_cache_pickle as _write_pickle
 
 
 EXTRAS_CACHE_PATH = CACHE_DIR / "extras_tmdb.json"

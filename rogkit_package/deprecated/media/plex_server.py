@@ -9,7 +9,7 @@ import os
 from dotenv import load_dotenv  # type: ignore
 from plexapi.server import PlexServer as PlexAPIServer  # type: ignore
 
-from ..bin.tomlr import load_rogkit_toml
+from rogkit_package.bin.tomlr import load_rogkit_toml
 
 load_dotenv()
 

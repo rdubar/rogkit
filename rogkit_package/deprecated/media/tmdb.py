@@ -17,9 +17,9 @@ from typing import Dict, Iterable, List, Optional, Tuple, Any
 import requests  # type: ignore
 
 from rogkit_package.bin.tomlr import load_rogkit_toml
-from rogkit_package.media.media_settings import tmdb_data_file
-from rogkit_package.media.media_records import common_schema
-from rogkit_package.plex_extra_sources.cache import EXTRAS_CACHE_PATH, write_extras_cache
+from .media_settings import tmdb_data_file
+from .media_records import common_schema
+from rogkit_package.media.extra_sources.cache import EXTRAS_CACHE_PATH, write_extras_cache
 
 
 def get_api_key():

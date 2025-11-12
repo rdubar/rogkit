@@ -166,54 +166,6 @@ def build_cache_table(db_path: Path) -> None:
     dest_conn = sqlite3.connect(str(CACHE_SQLITE_PATH))
     try:
         _initialize_cache_schema(dest_conn)
-        insert_sql = """
-            INSERT INTO plex_search_cache (
-                id,
-                title,
-                title_low,
-                metadata_type,
-                year,
-                parent_title,
-                grandparent_title,
-                added_at,
-                duration_ms,
-                duration_meta,
-                width,
-                height,
-                size_bytes,
-                file_path,
-                disk,
-                summary,
-                tags_text,
-                source,
-                source_id,
-                extras,
-                created_at,
-                updated_at
-            ) VALUES (
-                :id,
-                :title,
-                :title_low,
-                :metadata_type,
-                :year,
-                :parent_title,
-                :grandparent_title,
-                :added_at,
-                :duration_ms,
-                :duration_meta,
-                :width,
-                :height,
-                :size_bytes,
-                :file_path,
-                :disk,
-                :summary,
-                :source,
-                :source_id,
-                :extras,
-                :created_at,
-                :updated_at
-            )
-        """
         for record in rows:
             record_keys = record.keys()
             dest_conn.execute(
@@ -330,7 +282,7 @@ def describe_cache_state(total_items: int, cache_age_seconds: Optional[float]) -
 
     age_str = _format_cache_age(cache_age_seconds)
     return (
-        "Rog's Fast Plex Tool\n"
+        "Rog's Fast Media Tool\n"
         f"Library of {total_items:,} items last updated {age_str} ago."
     )
 

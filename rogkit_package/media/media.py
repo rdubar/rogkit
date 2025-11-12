@@ -1,21 +1,23 @@
 # pyright: reportMissingImports=false
 """
-Utility for inspecting the Plex Media Server SQLite database.
+Daemon-backed media search and management utility.
 
 Features:
     - Detect whether the local machine has a Plex database in the usual places
       (Pi server install, macOS desktop, cached snapshot, or a user-specified override).
     - Seamlessly refresh a cached copy of the database from a remote Plex server
-      over SSH/SFTP with `--update`.
+      over SSH/SFTP with `--update` (or `--update-plex` to skip extras).
     - Run read-only SQL queries without risking corruption. The tool first tries
       immutable read-only access; if that fails it creates a temporary snapshot
       (including WAL/SHM) and queries the snapshot instead.
     - Automatically fall back to a deep metadata/tag search when the fast cache
-      turns up empty.
+      turns up empty, with optional deep scan triggers.
+    - Merge pre-computed extras into the cache so external metadata appears in fast searches.
 
 Examples:
     pd --show-path
     pd --update
+    pd --update-plex
     pd --query "SELECT title, year FROM metadata_items WHERE title LIKE '%Dylan%'" --limit 10
 """
 
@@ -41,7 +43,8 @@ from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tupl
 
 from ..bin.bytes import byte_size
 from ..bin.tomlr import load_rogkit_toml
-from .plex_db_cache import (
+from .extra_sources.integrate import merge_extras_into_cache
+from .media_cache import (
     CACHE_DIR,
     build_cache_table,
     describe_cache_state,
@@ -51,7 +54,7 @@ from .plex_db_cache import (
 )
 
 DAEMON_ENV_FLAG = "PLEX_DB_DAEMON_ACTIVE"
-DAEMON_SOCKET_NAME = "plex_db_daemon.sock"
+DAEMON_SOCKET_NAME = "media_daemon.sock"
 DAEMON_STARTUP_TIMEOUT_SECONDS = 5.0
 DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
 
@@ -135,7 +138,7 @@ def _spawn_daemon_process() -> bool:
     if os.environ.get(DAEMON_ENV_FLAG) == "1":
         return False
     python = sys.executable or "python3"
-    module = "rogkit_package.bin.plex_db"
+    module = "rogkit_package.media.media"
     env = os.environ.copy()
     env.pop(DAEMON_ENV_FLAG, None)
     try:
@@ -195,13 +198,13 @@ def _execute_cli_in_daemon(argv: Sequence[str]) -> Tuple[int, str, str]:
         code = exc.code
         exit_code = int(code) if isinstance(code, int) else 0
     except Exception as exc:  # pragma: no cover - defensive  # pylint: disable=broad-except
-        stderr_buffer.write(f"plex_db daemon execution failure: {exc}\n")
+        stderr_buffer.write(f"media daemon execution failure: {exc}\n")
         return 1, stdout_buffer.getvalue(), stderr_buffer.getvalue()
     return exit_code, stdout_buffer.getvalue(), stderr_buffer.getvalue()
 
 
 class PlexDBDaemon:
-    """Simple foreground daemon that keeps plex_db warm for local clients."""
+    """Simple foreground daemon that keeps the media cache warm for local clients."""
 
     def __init__(self, socket_path: Path):
         self.socket_path = socket_path
@@ -216,7 +219,7 @@ class PlexDBDaemon:
         server_socket.settimeout(1.0)
         os.chmod(str(self.socket_path), 0o600)
         self._server_socket = server_socket
-        print(f"Plex DB daemon listening on {self.socket_path}")
+        print(f"Media daemon listening on {self.socket_path}")
         try:
             while not self._stop_event.is_set():
                 try:
@@ -236,7 +239,7 @@ class PlexDBDaemon:
         finally:
             self._shutdown_socket()
             _remove_stale_socket(self.socket_path)
-            print("Plex DB daemon stopped.")
+            print("Media daemon stopped.")
 
     def stop(self) -> None:
         self._stop_event.set()
@@ -551,7 +554,12 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--update",
         action="store_true",
-        help="Download/refresh the Plex database from the configured remote host.",
+        help="Refresh the Plex database and merge extra media sources into the cache.",
+    )
+    parser.add_argument(
+        "--update-plex",
+        action="store_true",
+        help="Refresh the Plex database snapshot without merging extras.",
     )
     parser.add_argument(
         "--show-path",
@@ -566,12 +574,12 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
     parser.add_argument(
         "--daemon",
         action="store_true",
-        help="Run plex_db as a foreground daemon serving subsequent CLI requests.",
+        help="Run the media daemon in the foreground, serving subsequent CLI requests.",
     )
     parser.add_argument(
         "--stop-daemon",
         action="store_true",
-        help="Ask the running plex_db daemon to exit.",
+        help="Ask the running media daemon to exit.",
     )
     parser.add_argument(
         "--no-daemon",
@@ -957,7 +965,7 @@ def run_daemon() -> int:
         daemon.serve_forever()
     except KeyboardInterrupt:  # pragma: no cover - manual interruption
         daemon.stop()
-        print("Plex DB daemon interrupted.")
+        print("Media daemon interrupted.")
     return 0
 
 
@@ -971,20 +979,20 @@ def _forward_to_daemon(argv_list: Sequence[str], *, auto_start: bool = True) -> 
         if not auto_start:
             return None
         print(
-            "plex_db: starting background daemon and warming cache...",
+            "media: starting background daemon and warming cache...",
             file=sys.stderr,
         )
         sys.stderr.flush()
         if not _spawn_daemon_process():
             print(
-                "plex_db: unable to launch daemon automatically; running locally.",
+                "media: unable to launch daemon automatically; running locally.",
                 file=sys.stderr,
             )
             return None
         deadline = time.monotonic() + DAEMON_STARTUP_TIMEOUT_SECONDS
         if not _wait_for_daemon_startup(deadline):
             print(
-                "plex_db: daemon did not become ready; running locally.",
+                "media: daemon did not become ready; running locally.",
                 file=sys.stderr,
             )
             return None
@@ -995,14 +1003,14 @@ def _forward_to_daemon(argv_list: Sequence[str], *, auto_start: bool = True) -> 
             )
         except (FileNotFoundError, ConnectionError, OSError, socket.timeout):
             print(
-                "plex_db: daemon connection failed after startup; running locally.",
+                "media: daemon connection failed after startup; running locally.",
                 file=sys.stderr,
             )
             return None
     status = response.get("status")
     if status != "ok":
         error = response.get("error", "Unknown daemon error")
-        print(f"[plex_db daemon] {error}", file=sys.stderr)
+        print(f"[media daemon] {error}", file=sys.stderr)
         return int(response.get("exit_code", 1))
     stdout_text = response.get("stdout") or ""
     stderr_text = response.get("stderr") or ""
@@ -1018,20 +1026,28 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     argv_list = list(argv) if argv is not None else sys.argv[1:]
     args = parse_args(argv_list)
 
-    if args.daemon:
-        return run_daemon()
-
-    if args.stop_daemon:
-        if _request_daemon_shutdown():
-            print("Requested plex_db daemon shutdown.")
-            return 0
-        print("No plex_db daemon appears to be running.", file=sys.stderr)
-        return 1
-
-    if os.environ.get(DAEMON_ENV_FLAG) != "1" and not args.no_daemon:
+    if os.environ.get(DAEMON_ENV_FLAG) != "1" and not args.no_daemon and not args.daemon and not args.stop_daemon:
+        print("Connecting to media daemon...", flush=True)
         forwarded_exit = _forward_to_daemon(argv_list)
         if forwarded_exit is not None:
             return forwarded_exit
+
+    if args.daemon:
+        return run_daemon()
+
+    if args.update and args.update_plex:
+        print(
+            "Specify only one of --update or --update-plex.",
+            file=sys.stderr,
+        )
+        return 2
+
+    if args.stop_daemon:
+        if _request_daemon_shutdown():
+            print("Requested media daemon shutdown.")
+            return 0
+        print("No media daemon appears to be running.", file=sys.stderr)
+        return 1
 
     if args.list_paths:
         print("Candidate Plex database paths:")
@@ -1040,16 +1056,32 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     remote = load_remote_config()
 
-    if args.update:
+    if args.update or args.update_plex:
         if not remote:
             print(
                 "Remote configuration not found. Add a [plex_remote] section to your rogkit config.",
                 file=sys.stderr,
             )
             return 1
+        include_extras = args.update
+        total_steps = 3 if include_extras else 2
+        current_step = 1
         try:
+            print(f"[Step {current_step}/{total_steps}] Refreshing Plex snapshot...", flush=True)
             synced_db_path = sync_remote_db(remote, verbose=True)
+            current_step += 1
+            print(f"[Step {current_step}/{total_steps}] Rebuilding fast media cache...", flush=True)
             build_cache_table(synced_db_path)
+            if include_extras:
+                current_step += 1
+                print(f"[Step {current_step}/{total_steps}] Integrating extras catalog...", flush=True)
+                inserted = merge_extras_into_cache(None, None, None)
+                if inserted:
+                    print(f"Integrated {inserted} extra record(s) into the cache.")
+                else:
+                    print("No extras catalog entries were merged.")
+            else:
+                print("Extras integration skipped (--update-plex).")
         except RuntimeError as exc:
             print(str(exc), file=sys.stderr)
             return 2

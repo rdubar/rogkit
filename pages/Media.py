@@ -3,44 +3,67 @@ Streamlit page for media library visualization.
 
 Displays Plex media library as DataFrame with charts showing movies by year, decade, and genre.
 """
-import streamlit as st  # type: ignore
-from rogkit_package.media.plex_library import PlexLibrary
 import pandas as pd  # type: ignore
+import streamlit as st  # type: ignore
+
+from rogkit_package.media.media import detect_db_path
+from rogkit_package.media.media_cache import (
+    load_cached_records,
+    ensure_cache_table,
+)
 
 st.set_page_config(page_title="RogKit", page_icon=":tools:")
 
-st.header("Roger's Media Library")
+st.header("Roger's Fast Media Library")
 
-df_full = PlexLibrary().get_df()
+db_path = detect_db_path()
+if db_path is None:
+    st.error(
+        "No media database detected. Run `media --update` or `media --update-plex` "
+        "to build the local cache before loading this dashboard."
+    )
+    st.stop()
 
+ensure_cache_table(db_path)
+records = load_cached_records(db_path)
 
+if not records:
+    st.warning("The media cache is empty. Run `media` first to populate it.")
+    st.stop()
 
-# get only the columns we want to display
-# title, year, rating, genres, actors, writers, summary, section, platform, resolution, last_modified
-df = df_full[['title', 'year', 'rating', 'genres', 'actors', 'writers', 'summary', 'section', 'platform', 'resolution', 'last_modified']]
-movies_by_year = df['year'].value_counts().sort_index()
-movies_by_decade = df['year'] // 10 * 10
-movies_by_decade = movies_by_decade.value_counts().sort_index()
-movies_by_genre = df['genres'].str.split(', ', expand=True).stack().value_counts()
-# convert year to string
-df['year'] = df['year'].astype(str)
-# get rid of the .0 in the year
-df['year'] = df['year'].str.replace('.0', '')
+df_full = pd.DataFrame(records)
+columns_to_display = [
+    "title",
+    "year",
+    "metadata_type",
+    "summary",
+    "size_bytes",
+    "disk",
+    "source",
+    "file_path",
+    "added_at",
+]
 
+available_columns = [col for col in columns_to_display if col in df_full.columns]
+df_display = df_full[available_columns].copy()
 
-st.write(df)
+if "year" in df_display.columns:
+    df_display["year"] = df_display["year"].fillna(0).astype(int).replace(0, pd.NA)
+    df_display["year_display"] = df_display["year"].astype("Int64").astype(str).replace("<NA>", "")
 
-# Graph the number of movies by year
-st.subheader('Movies by Year')
+st.write(df_display)
 
-st.bar_chart(movies_by_year)
+if "year" in df_display.columns:
+    year_series = df_display["year"].dropna().astype(int)
+    if not year_series.empty:
+        st.subheader("Items by Year")
+        st.bar_chart(year_series.value_counts().sort_index())
 
-# Graph the number of movies by decade
-st.subheader('Movies by Decade')
+        st.subheader("Items by Decade")
+        decades = (year_series // 10) * 10
+        st.bar_chart(decades.value_counts().sort_index())
+else:
+    st.info("Year metadata is unavailable in the current cache.")
 
-st.bar_chart(movies_by_decade)
-
-# Graph the number of movies by genre
-st.subheader('Movies by Genre')
-st.bar_chart(movies_by_genre)
+# TODO: Restore genre/actor-based visualisations once genre metadata is cached again.
 

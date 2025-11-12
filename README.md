@@ -210,12 +210,12 @@ root_directory = "/absolute/path/to/project/root"
 | `chat` | Interactive AI chat | - |
 | `lm` | Run local LLM (LM application) | - |
 
-### 📺 Plex Database Toolkit
+### 📺 Media Toolkit
 
 | Command | Description | Aliases |
 |---------|-------------|---------|
-| `plex_db` | Fast Plex search backed by local caches | `pd` |
-| `plex_extra_sources.integrate` | Merge external catalogues into the cache | `integrate` |
+| `media` (daemon-backed) | Daemon-backed media search with local caches | `pd`, `p`, `pb` |
+| `media.extra_sources.integrate` | Merge external catalogues into the cache | `integrate` |
 | `tmdb` | TMDb metadata manager and extras JSON builder | - |
 | `media_files` | Scan and analyze media files | `mfiles`, `mf` |
 | `media_scan` | Display technical video details | `mscan` |
@@ -223,14 +223,14 @@ root_directory = "/absolute/path/to/project/root"
 | `shrink` | Find uncompressed DVD rips | - |
 | `tkm` | Tkinter GUI media search | - |
 
-`pd` (no args) lists the ten newest additions. Add a search term for instant cache-backed lookups, `-z` to show every match sorted by year, `-a/--all` to disable pagination, `--deep` for summary/path/tag matches from the raw Plex database, and `--stats` to print totals for the displayed set.
+`media` (no args) lists the ten newest additions. Add a search term for instant cache-backed lookups, `-z` to show every match sorted by year, `-a/--all` to disable pagination, `--deep` for summary/path/tag matches from the raw Plex database, and `--stats` to print totals for the displayed set.
 
 #### Media Workflow
 
-1. **Refresh the Plex snapshot (optional):** `pd --update` copies the live database locally (SSH settings come from `config.toml`).
-2. **Regenerate TMDb extras from CSV:** `tmdb --csv rogkit_package/media/media.csv` (defaults to `media.csv` if omitted). Use `--refresh` to force new lookups.
-3. **Merge external catalogues:** `integrate` writes the extras JSON into `plex_search_cache.sqlite3`, deduping on `(source, source_id)`, then rebuilds the pickle cache.
-4. **Search instantly:** `pd` for recents, `pd "<title>"`, `pd "<title>" --deep`, `pd "<title>" -z`, or append `--stats` to any of them for totals.
+1. **Refresh the Plex snapshot:** `media --update` copies the live database locally and automatically merges any extras JSON cache into the search cache. Use `media --update-plex` if you only want the raw Plex snapshot without merging extras (SSH settings come from `config.toml`).
+2. **Regenerate TMDb extras from CSV:** `tmdb --csv rogkit_package/deprecated/media/media.csv` (defaults to `media.csv` if omitted). Use `--refresh` to force new lookups.
+3. **Merge external catalogues manually (optional):** `integrate` writes the extras JSON into `plex_search_cache.sqlite3`, deduping on `(source, source_id)`, then rebuilds the pickle cache (already handled by `media --update`).
+4. **Search instantly:** `media` for recents, `media "<title>"`, `media "<title>" --deep`, `media "<title>" -z`, or append `--stats` to any of them for totals.
 
 The CLI header shows cache size and age so you know when to rerun the refresh steps.
 
@@ -437,7 +437,7 @@ config = load_rogkit_toml()
 plex_url = config.get('plex', {}).get('plex_server_url')
 
 # Plex media library
-from rogkit_package.media.plex_library import PlexLibrary
+from rogkit_package.deprecated.media.plex_library import PlexLibrary
 library = PlexLibrary()
 results = library.search("inception", fuzzy=90)
 for movie in results:
@@ -571,14 +571,15 @@ bytes 1234567890           # 1.23 GB
 
 ## 🕰️ Legacy Media Suite
 
-The original `media` (CSV/SQLite management) and `plex` (Plex API) CLIs remain available for historical compatibility, but they are no longer the primary workflow. Use these only if you need legacy behaviours that have not yet been ported to `pd`.
+The original CSV/SQLite `media` CLI remains available under `rogkit_package.deprecated`.
+Use it only if you need behaviours that have not yet been ported to the daemon-backed `pd`
+workflow.
 
 ### Commands
 
 | Command | Description | Aliases |
 |---------|-------------|---------|
 | `media` | Main Plex media library interface | `m` |
-| `plex` | Plex server operations | `p` |
 
 ### Legacy Workflow
 

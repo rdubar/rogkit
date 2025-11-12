@@ -8,15 +8,15 @@ Plex media library records stored in the local database.
 import datetime
 from pprint import pp
 from time import perf_counter
-from rogkit_package.media.media_records import PlexRecordORM
-from rogkit_package.media.plex_library import PlexLibrary, update_database_schema, engine
-from rogkit_package.media.plex_server import PlexServer
-from rogkit_package.media.shrink import shrink_list
+from .media_records import PlexRecordORM
+from .plex_library import PlexLibrary, update_database_schema, engine
+from .plex_server import PlexServer
+from .shrink import shrink_list
 from rogkit_package.bin.seconds import convert_seconds
 from rogkit_package.bin.bytes import byte_size
-from rogkit_package.media.media_args import process_arguments
-from rogkit_package.media.media_settings import afi_path
-from rogkit_package.media.media_utils import freeze_database, restore_database, last_updated, sort_results_by_attribute
+from .media_args import process_arguments
+from .media_settings import afi_path
+from .media_utils import freeze_database, restore_database, last_updated, sort_results_by_attribute
 
 def main():
     start_time = perf_counter()

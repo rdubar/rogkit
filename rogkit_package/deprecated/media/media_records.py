@@ -6,7 +6,7 @@ displaying media metadata from Plex servers.
 """
 import dataclasses
 from sqlalchemy import Column, Integer, Boolean, String, DateTime
-from rogkit_package.media.database_utils import Base, engine
+from .database_utils import Base, engine
 from rogkit_package.bin.bytes import byte_size
 from rogkit_package.bin.seconds import hms_string
 

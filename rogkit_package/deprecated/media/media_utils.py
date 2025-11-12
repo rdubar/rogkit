@@ -8,8 +8,8 @@ import os
 import shutil
 import time
 from .media_settings import db_path, db_backup_path
-from ..bin.seconds import convert_seconds
-from ..bin.bytes import byte_size
+from rogkit_package.bin.seconds import convert_seconds
+from rogkit_package.bin.bytes import byte_size
 
 
 def sort_by_resolution(results):

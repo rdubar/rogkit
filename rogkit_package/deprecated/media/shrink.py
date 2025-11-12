@@ -7,7 +7,7 @@ useful for finding candidates for recompression to save disk space.
 import os
 import argparse
 from .media_settings import media_paths
-from ..bin.files import media_info
+from rogkit_package.bin.files import media_info
 
 
 def shrink_list(paths, search=None):
