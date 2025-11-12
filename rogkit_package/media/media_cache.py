@@ -34,6 +34,7 @@ REQUIRED_CACHE_COLUMNS = {
     "disk",
     "summary",
     "tags_text",
+    "tags_raw",
     "source",
     "source_id",
     "extras",
@@ -67,6 +68,7 @@ def _initialize_cache_schema(conn: sqlite3.Connection) -> None:
             disk TEXT,
             summary TEXT,
             tags_text TEXT,
+            tags_raw TEXT,
             source TEXT DEFAULT 'plex',
             source_id TEXT,
             extras TEXT,
@@ -100,6 +102,7 @@ def _write_cache_pickle_from_conn(conn: sqlite3.Connection) -> None:
             disk,
             summary,
             tags_text,
+            tags_raw,
             source,
             source_id,
             extras,
@@ -148,7 +151,7 @@ def build_cache_table(db_path: Path) -> None:
                     ELSE ''
                 END AS disk,
                 substr(COALESCE(mi.summary, ''), 1, 280) AS summary,
-                REPLACE(GROUP_CONCAT(DISTINCT tag.tag), ',', ' ') AS tags_text
+                '' AS tags_text, '' AS tags_raw
             FROM metadata_items mi
             LEFT JOIN metadata_items parent ON parent.id = mi.parent_id
             LEFT JOIN metadata_items grandparent ON grandparent.id = parent.parent_id
@@ -169,7 +172,7 @@ def build_cache_table(db_path: Path) -> None:
         for record in rows:
             record_keys = record.keys()
             dest_conn.execute(
-                "INSERT INTO plex_search_cache (id, title, title_low, metadata_type, year, parent_title, grandparent_title, added_at, duration_ms, duration_meta, width, height, size_bytes, file_path, disk, summary, tags_text, source, source_id, extras, created_at, updated_at) VALUES (?, ?, LOWER(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'plex', NULL, NULL, NULL, NULL)",
+                "INSERT INTO plex_search_cache (id, title, title_low, metadata_type, year, parent_title, grandparent_title, added_at, duration_ms, duration_meta, width, height, size_bytes, file_path, disk, summary, tags_text, tags_raw, source, source_id, extras, created_at, updated_at) VALUES (?, ?, LOWER(?), ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'plex', NULL, NULL, NULL, NULL)",
                 (
                     record["id"],
                     record["title"],
@@ -188,6 +191,7 @@ def build_cache_table(db_path: Path) -> None:
                     record["disk"] if "disk" in record_keys else None,
                     record["summary"] if "summary" in record_keys else None,
                     record["tags_text"] if "tags_text" in record_keys else None,
+                    record["tags_raw"] if "tags_raw" in record_keys else None,
                 ),
             )
         dest_conn.execute(

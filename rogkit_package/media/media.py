@@ -928,11 +928,26 @@ def run_pretty_search(
     if not deep:
         if terms:
             term_list = [term.lower() for term in terms]
-            filtered_full = [
-                record
-                for record in records
-                if all(term in record["title_low"] for term in term_list)
-            ]
+            filtered_full = []
+            for record in records:
+                title_low = record.get("title_low", "")
+                summary = (record.get("summary") or "").lower()
+                disk = (record.get("disk") or "").lower()
+                year = str(record.get("year") or "").lower()
+                source = (record.get("source") or "").lower()
+                tags = (record.get("tags_text") or "").lower()
+                combined = " ".join(
+                    [
+                        title_low,
+                        summary,
+                        disk,
+                        year,
+                        source,
+                        tags,
+                    ]
+                )
+                if all(term in combined for term in term_list):
+                    filtered_full.append(record)
         else:
             filtered_full = list(records)
 
