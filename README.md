@@ -633,9 +633,6 @@ This is a personal toolkit, but suggestions and improvements are welcome!
 
 ## 📝 TODO
 
-- [ ] Rename `plex_library`/`PlexLibrary` to `media_library`/`MediaLibrary`
-- [ ] Integrate TOML config into `backup` command
-- [ ] Complete `media_play` SSH streaming functionality
 - [ ] Add comprehensive test suite
 - [ ] Create detailed wiki documentation
 - [ ] Package distribution via PyPI
