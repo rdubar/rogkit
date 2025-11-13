@@ -227,10 +227,11 @@ root_directory = "/absolute/path/to/project/root"
 
 #### Media Workflow
 
-1. **Refresh the Plex snapshot:** `media --update` copies the live database locally and automatically merges any extras JSON cache into the search cache. Use `media --update-plex` if you only want the raw Plex snapshot without merging extras (SSH settings come from `config.toml`).
+1. **Refresh the Plex snapshot:** `media --update` pulls a compressed copy of the live database (skipping the download entirely if it has not changed) and automatically merges any extras JSON cache into the search cache. Use `media --update-plex` if you only want the raw Plex snapshot without merging extras (SSH settings come from `config.toml`).
 2. **Regenerate TMDb extras from CSV:** `tmdb --csv rogkit_package/deprecated/media/media.csv` (defaults to `media.csv` if omitted). Use `--refresh` to force new lookups.
 3. **Merge external catalogues manually (optional):** `integrate` writes the extras JSON into `plex_search_cache.sqlite3`, deduping on `(source, source_id)`, then rebuilds the pickle cache (already handled by `media --update`).
 4. **Search instantly:** `media` for recents, `media "<title>"`, `media "<title>" --deep`, `media "<title>" -z`, or append `--stats` to any of them for totals.
+5. **Restart the daemon after updates:** If you keep the media daemon running in the background (e.g., via `media --daemon`), restart it after upgrading the CLI—use `media --stop-daemon` followed by `media --daemon`—so new flags like `--people` are recognized.
 
 The CLI header shows cache size and age so you know when to rerun the refresh steps.
 

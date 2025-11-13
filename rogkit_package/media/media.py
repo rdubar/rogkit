@@ -27,11 +27,13 @@ from __future__ import annotations
 import argparse
 import contextlib
 import dataclasses
+import gzip
 import io
 import json
 import os
 import socket
 import subprocess
+import shlex
 import threading
 import time
 import shutil
@@ -617,6 +619,108 @@ def _ssh_client(remote: RemoteConfig):
         client.close()
 
 
+
+
+def _remote_file_state(remote: RemoteConfig, *, sftp=None) -> tuple[int, int]:
+    '''Return (size, mtime) for the remote database file.'''
+    path = str(remote.db_path)
+    if sftp is not None:
+        attrs = sftp.stat(path)
+        return attrs.st_size, int(attrs.st_mtime)
+
+    try:
+        import paramiko
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise RuntimeError('Paramiko required for remote operations') from exc
+
+    with _ssh_client(remote) as client:
+        stdin, stdout, stderr = client.exec_command(f"stat -c '%s %Y' {path}")
+        output = stdout.read().decode().strip()
+        if not output:
+            raise FileNotFoundError(f"stat failed for {path}: {stderr.read().decode().strip()}")
+        size_str, mtime_str = output.split()
+        return int(size_str), int(mtime_str)
+
+
+def _local_file_state(path: Path) -> tuple[int, int]:
+    if not path.exists():
+        return -1, -1
+    stat = path.stat()
+    return stat.st_size, int(stat.st_mtime)
+
+
+
+def _remote_file_state(remote: RemoteConfig, *, sftp=None) -> tuple[int, int]:
+    """Return (size, mtime) for the remote database file."""
+    path = str(remote.db_path)
+    if sftp is not None:
+        attrs = sftp.stat(path)
+        return attrs.st_size, int(attrs.st_mtime)
+
+    try:
+        import paramiko
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise RuntimeError('Paramiko required for remote operations') from exc
+
+    with _ssh_client(remote) as client:
+        stdin, stdout, stderr = client.exec_command(f"stat -c '%s %Y' {path}")
+        output = stdout.read().decode().strip()
+        if not output:
+            raise FileNotFoundError(f"stat failed for {path}: {stderr.read().decode().strip()}")
+        size_str, mtime_str = output.split()
+        return int(size_str), int(mtime_str)
+
+
+def _local_file_state(path: Path) -> tuple[int, int]:
+    if not path.exists():
+        return -1, -1
+    stat = path.stat()
+    return stat.st_size, int(stat.st_mtime)
+
+
+def _state_path(path: Path) -> Path:
+    return Path(f"{path}.state")
+
+
+def _read_cached_state(path: Path) -> Optional[tuple[int, int]]:
+    state_path = _state_path(path)
+    if not state_path.exists():
+        return None
+    try:
+        size_str, mtime_str = state_path.read_text().strip().split()
+        return int(size_str), int(mtime_str)
+    except Exception:
+        return None
+
+
+def _write_cached_state(path: Path, size: int, mtime: int) -> None:
+    state_path = _state_path(path)
+    state_path.write_text(f"{size} {mtime}\n")
+
+
+def _copy_remote_file_compressed(client, remote_path: Path, local_path: Path) -> bool:
+    """Attempt to copy a remote file using gzip compression."""
+    tmp = tempfile.NamedTemporaryFile(dir=str(local_path.parent), delete=False)
+    tmp_name = tmp.name
+    tmp.close()
+    command = f"gzip -c -- {shlex.quote(str(remote_path))}"
+    stdin, stdout, stderr = client.exec_command(command)
+    stderr_data = b""
+    try:
+        remote_stream = stdout.channel.makefile('rb')
+        with remote_stream as stream, gzip.GzipFile(fileobj=stream) as gz, open(tmp_name, 'wb') as dest:
+            shutil.copyfileobj(gz, dest)
+        exit_status = stdout.channel.recv_exit_status()
+        if exit_status != 0:
+            stderr_data = stderr.read()
+            raise RuntimeError(f'gzip exited with status {exit_status}')
+        os.replace(tmp_name, local_path)
+        return True
+    except Exception:
+        with contextlib.suppress(FileNotFoundError):
+            os.unlink(tmp_name)
+        return False
+
 def _copy_remote_file(sftp, remote_path: Path, local_path: Path) -> None:
     """Copy a single file from the remote host via SFTP."""
     local_path.parent.mkdir(parents=True, exist_ok=True)
@@ -630,6 +734,8 @@ def _copy_remote_file(sftp, remote_path: Path, local_path: Path) -> None:
             os.unlink(tmp_name)
 
 
+
+
 def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
     sync_start = perf_counter()
     if verbose:
@@ -638,42 +744,78 @@ def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
             f"-> {remote.cache_path}"
         )
 
+    performed_transfer = False
+
     if remote.db_path.exists():  # Local access available; no SSH needed
-        shutil.copy2(remote.db_path, remote.cache_path)
+        src_size, src_mtime = _local_file_state(remote.db_path)
+        cached_state = _read_cached_state(remote.cache_path)
+        if cached_state != (src_size, src_mtime):
+            shutil.copy2(remote.db_path, remote.cache_path)
+            _write_cached_state(remote.cache_path, src_size, src_mtime)
+            performed_transfer = True
         for suffix in ("-wal", "-shm"):
             source_sidecar = Path(str(remote.db_path) + suffix)
             dest_sidecar = Path(str(remote.cache_path) + suffix)
             if source_sidecar.exists():
-                shutil.copy2(source_sidecar, dest_sidecar)
+                side_size, side_mtime = _local_file_state(source_sidecar)
+                if _read_cached_state(dest_sidecar) != (side_size, side_mtime):
+                    shutil.copy2(source_sidecar, dest_sidecar)
+                    _write_cached_state(dest_sidecar, side_size, side_mtime)
+                    performed_transfer = True
             else:
                 with contextlib.suppress(FileNotFoundError):
                     os.remove(dest_sidecar)
+                state_path = _state_path(dest_sidecar)
+                with contextlib.suppress(FileNotFoundError):
+                    state_path.unlink()
     else:
         with _ssh_client(remote) as client:
             sftp = client.open_sftp()
             try:
-                sftp.stat(str(remote.db_path))
+                remote_size, remote_mtime = _remote_file_state(remote, sftp=sftp)
             except FileNotFoundError as exc:  # pragma: no cover - defensive
+                sftp.close()
                 raise FileNotFoundError(f"Remote database not found at {remote.db_path}") from exc
 
-            _copy_remote_file(sftp, remote.db_path, remote.cache_path)
+            cached_state = _read_cached_state(remote.cache_path)
+            if cached_state != (remote_size, remote_mtime):
+                if not _copy_remote_file_compressed(client, remote.db_path, remote.cache_path):
+                    _copy_remote_file(sftp, remote.db_path, remote.cache_path)
+                _write_cached_state(remote.cache_path, remote_size, remote_mtime)
+                performed_transfer = True
 
             for suffix in ("-wal", "-shm"):
                 remote_sidecar = Path(str(remote.db_path) + suffix)
                 local_sidecar = Path(str(remote.cache_path) + suffix)
 
                 try:
-                    sftp.stat(str(remote_sidecar))
+                    attrs = sftp.stat(str(remote_sidecar))
                 except FileNotFoundError:
                     with contextlib.suppress(FileNotFoundError):
                         os.remove(local_sidecar)
+                    state_path = _state_path(local_sidecar)
+                    with contextlib.suppress(FileNotFoundError):
+                        state_path.unlink()
                     continue
 
-                _copy_remote_file(sftp, remote_sidecar, local_sidecar)
+                side_state = (attrs.st_size, int(attrs.st_mtime))
+                if _read_cached_state(local_sidecar) == side_state and local_sidecar.exists():
+                    continue
 
+                if not _copy_remote_file_compressed(client, remote_sidecar, local_sidecar):
+                    _copy_remote_file(sftp, remote_sidecar, local_sidecar)
+                _write_cached_state(local_sidecar, *side_state)
+                performed_transfer = True
+
+            sftp.close()
+
+    elapsed = perf_counter() - sync_start
     if verbose:
-        size = human_size(remote.cache_path.stat().st_size)
-        print(f"Downloaded {size} to {remote.cache_path} in {perf_counter() - sync_start:.2f} seconds.")
+        size_str = human_size(remote.cache_path.stat().st_size) if remote.cache_path.exists() else "0B"
+        if performed_transfer:
+            print(f"Downloaded {size_str} to {remote.cache_path} in {elapsed:.2f} seconds.")
+        else:
+            print(f"Cache already up to date ({size_str}); checked in {elapsed:.2f} seconds.")
 
     return remote.cache_path
 
