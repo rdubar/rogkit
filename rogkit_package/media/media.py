@@ -27,14 +27,10 @@ from __future__ import annotations
 import argparse
 import contextlib
 import dataclasses
-import gzip
 import io
-import json
 import os
 import socket
 import subprocess
-import shlex
-import threading
 import time
 import shutil
 import sqlite3
@@ -42,7 +38,7 @@ import sys
 import tempfile
 from pathlib import Path
 from time import perf_counter
-from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple
+from typing import Any, Dict, Iterable, Iterator, List, Optional, Sequence, Tuple, cast
 
 from ..bin.bytes import byte_size
 from ..bin.tomlr import load_rogkit_toml
@@ -54,6 +50,14 @@ from .media_cache import (
     ensure_cache_table,
     get_cache_metadata,
     load_cached_records,
+)
+from .daemon import (
+    MediaDaemon,
+    daemon_env_guard,
+    request_daemon_shutdown as _daemon_request_shutdown,
+    send_daemon_message as _daemon_send_message,
+    spawn_daemon_process as _daemon_spawn_process,
+    wait_for_daemon_startup as _daemon_wait_for_startup,
 )
 
 DAEMON_ENV_FLAG = "PLEX_DB_DAEMON_ACTIVE"
@@ -92,111 +96,36 @@ def _daemon_socket_path() -> Path:
     return CACHE_DIR / DAEMON_SOCKET_NAME
 
 
-def _remove_stale_socket(path: Path) -> None:
-    if path.exists():
-        try:
-            path.unlink()
-        except OSError:
-            pass
-
-
-@contextlib.contextmanager
-def _daemon_env_guard() -> Iterator[None]:
-    previous = os.environ.get(DAEMON_ENV_FLAG)
-    os.environ[DAEMON_ENV_FLAG] = "1"
-    try:
-        yield
-    finally:
-        if previous is None:
-            with contextlib.suppress(KeyError):
-                del os.environ[DAEMON_ENV_FLAG]
-        else:
-            os.environ[DAEMON_ENV_FLAG] = previous
-
-
-def _connect_to_daemon(timeout: float = 1.0) -> socket.socket:
-    path = _daemon_socket_path()
-    sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-    sock.settimeout(timeout)
-    sock.connect(str(path))
-    return sock
-
-
 def _send_daemon_message(payload: Dict[str, Any], *, timeout: float) -> Dict[str, Any]:
-    sock = _connect_to_daemon(timeout=timeout)
-    try:
-        message = json.dumps(payload) + "\n"
-        sock.sendall(message.encode("utf-8"))
-        sock.shutdown(socket.SHUT_WR)
-        with sock.makefile("r", encoding="utf-8") as response_stream:
-            response_line = response_stream.readline()
-        if not response_line:
-            raise RuntimeError("Daemon closed connection without response")
-        return json.loads(response_line)
-    finally:
-        sock.close()
+    return _daemon_send_message(_daemon_socket_path(), payload, timeout=timeout)
 
 
 def _spawn_daemon_process() -> bool:
-    if os.environ.get(DAEMON_ENV_FLAG) == "1":
-        return False
     python = sys.executable or "python3"
     module = "rogkit_package.media.media"
-    env = os.environ.copy()
-    env.pop(DAEMON_ENV_FLAG, None)
-    try:
-        subprocess.Popen(
-            [python, "-m", module, "--daemon"],
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-            start_new_session=True,
-            env=env,
-        )
-    except OSError:
-        return False
-    return True
-
-
-def _daemon_ping() -> bool:
-    try:
-        response = _send_daemon_message(
-            {"action": "ping"},
-            timeout=1.0,
-        )
-    except (FileNotFoundError, ConnectionError, OSError, socket.timeout):
-        return False
-    return response.get("status") == "ok"
+    return _daemon_spawn_process(python, module, DAEMON_ENV_FLAG)
 
 
 def _wait_for_daemon_startup(deadline: float) -> bool:
-    while time.monotonic() < deadline:
-        if _daemon_ping():
-            return True
-        time.sleep(0.1)
-    return False
+    timeout = max(0.0, deadline - time.monotonic())
+    return _daemon_wait_for_startup(_daemon_socket_path(), timeout=timeout)
 
 
 def _request_daemon_shutdown() -> bool:
-    try:
-        response = _send_daemon_message(
-            {"action": "shutdown"},
-            timeout=5.0,
-        )
-    except (FileNotFoundError, ConnectionError, OSError, socket.timeout):
-        return False
-    return response.get("status") == "ok"
-
+    return _daemon_request_shutdown(
+        _daemon_socket_path(),
+        timeout=DAEMON_REQUEST_TIMEOUT_SECONDS,
+    )
 
 def _execute_cli_in_daemon(argv: Sequence[str]) -> Tuple[int, str, str]:
     stdout_buffer = io.StringIO()
     stderr_buffer = io.StringIO()
     try:
-        with _daemon_env_guard():
+        with daemon_env_guard(DAEMON_ENV_FLAG):
             with contextlib.redirect_stdout(stdout_buffer), contextlib.redirect_stderr(
                 stderr_buffer
             ):
-                exit_code = main(argv)
+                exit_code = main(argv)  # type: ignore[name-defined]
     except SystemExit as exc:
         code = exc.code
         exit_code = int(code) if isinstance(code, int) else 0
@@ -204,104 +133,6 @@ def _execute_cli_in_daemon(argv: Sequence[str]) -> Tuple[int, str, str]:
         stderr_buffer.write(f"media daemon execution failure: {exc}\n")
         return 1, stdout_buffer.getvalue(), stderr_buffer.getvalue()
     return exit_code, stdout_buffer.getvalue(), stderr_buffer.getvalue()
-
-
-class PlexDBDaemon:
-    """Simple foreground daemon that keeps the media cache warm for local clients."""
-
-    def __init__(self, socket_path: Path):
-        self.socket_path = socket_path
-        self._stop_event = threading.Event()
-        self._server_socket: Optional[socket.socket] = None
-
-    def serve_forever(self) -> None:
-        _remove_stale_socket(self.socket_path)
-        server_socket = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        server_socket.bind(str(self.socket_path))
-        server_socket.listen(8)
-        server_socket.settimeout(1.0)
-        os.chmod(str(self.socket_path), 0o600)
-        self._server_socket = server_socket
-        print(f"Media daemon listening on {self.socket_path}")
-        try:
-            while not self._stop_event.is_set():
-                try:
-                    client, _ = server_socket.accept()
-                except socket.timeout:
-                    continue
-                except OSError as exc:
-                    if self._stop_event.is_set():
-                        break
-                    raise exc
-                thread = threading.Thread(
-                    target=self._handle_client,
-                    args=(client,),
-                    daemon=True,
-                )
-                thread.start()
-        finally:
-            self._shutdown_socket()
-            _remove_stale_socket(self.socket_path)
-            print("Media daemon stopped.")
-
-    def stop(self) -> None:
-        self._stop_event.set()
-
-    def _shutdown_socket(self) -> None:
-        if self._server_socket is not None:
-            try:
-                self._server_socket.close()
-            finally:
-                self._server_socket = None
-
-    def _handle_client(self, client_socket: socket.socket) -> None:
-        with client_socket:
-            try:
-                data = b""
-                while True:
-                    chunk = client_socket.recv(65536)
-                    if not chunk:
-                        break
-                    data += chunk
-                    if b"\n" in chunk:
-                        break
-                if not data:
-                    return
-                line = data.split(b"\n", 1)[0]
-                payload = json.loads(line.decode("utf-8"))
-            except (json.JSONDecodeError, UnicodeDecodeError, ValueError, OSError) as exc:  # pragma: no cover - defensive
-                error_payload = {"status": "error", "error": f"Invalid request: {exc}"}
-                client_socket.sendall((json.dumps(error_payload) + "\n").encode("utf-8"))
-                return
-
-            action = payload.get("action", "execute")
-            response: Dict[str, Any]
-            if action == "ping":
-                response = {"status": "ok"}
-            elif action == "shutdown":
-                self.stop()
-                response = {"status": "ok", "message": "Shutting down"}
-            elif action == "execute":
-                argv = [str(arg) for arg in payload.get("argv", [])]
-                if any(flag in argv for flag in ("--daemon", "--stop-daemon")):
-                    response = {
-                        "status": "error",
-                        "error": "Nested daemon commands are not supported inside the daemon.",
-                        "exit_code": 2,
-                    }
-                else:
-                    exit_code, stdout_text, stderr_text = _execute_cli_in_daemon(argv)
-                    response = {
-                        "status": "ok",
-                        "exit_code": exit_code,
-                        "stdout": stdout_text,
-                        "stderr": stderr_text,
-                    }
-            else:
-                response = {"status": "error", "error": f"Unknown action {action!r}"}
-
-            client_socket.sendall((json.dumps(response) + "\n").encode("utf-8"))
-
 
 def load_remote_config() -> Optional[RemoteConfig]:
     """Load remote connection details from the rogkit configuration."""
@@ -601,7 +432,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
 def _ssh_client(remote: RemoteConfig):
     """Yield an SSH client connected to the remote Plex host."""
     try:
-        import paramiko  # type: ignore[import]
+        import paramiko  # type: ignore[import]  # pylint: disable=import-outside-toplevel
     except ImportError as exc:  # pragma: no cover - environment-specific
         raise RuntimeError("Paramiko is required for remote sync; install paramiko to use --update") from exc
 
@@ -621,23 +452,19 @@ def _ssh_client(remote: RemoteConfig):
 
 
 
-def _remote_file_state(remote: RemoteConfig, *, sftp=None) -> tuple[int, int]:
-    '''Return (size, mtime) for the remote database file.'''
-    path = str(remote.db_path)
+def _remote_file_state(remote: RemoteConfig, path: Path, *, sftp=None) -> tuple[int, int]:
+    """Return (size, mtime) for a remote file."""
+    remote_path = str(path)
     if sftp is not None:
-        attrs = sftp.stat(path)
+        attrs = sftp.stat(remote_path)
         return attrs.st_size, int(attrs.st_mtime)
 
-    try:
-        import paramiko
-    except ImportError as exc:  # pragma: no cover - optional dependency
-        raise RuntimeError('Paramiko required for remote operations') from exc
-
     with _ssh_client(remote) as client:
-        stdin, stdout, stderr = client.exec_command(f"stat -c '%s %Y' {path}")
+        _, stdout, stderr = client.exec_command(f"stat -c '%s %Y' {remote_path}")
         output = stdout.read().decode().strip()
         if not output:
-            raise FileNotFoundError(f"stat failed for {path}: {stderr.read().decode().strip()}")
+            raise FileNotFoundError(
+                f"stat failed for {remote_path}: {stderr.read().decode().strip()}")
         size_str, mtime_str = output.split()
         return int(size_str), int(mtime_str)
 
@@ -645,37 +472,8 @@ def _remote_file_state(remote: RemoteConfig, *, sftp=None) -> tuple[int, int]:
 def _local_file_state(path: Path) -> tuple[int, int]:
     if not path.exists():
         return -1, -1
-    stat = path.stat()
-    return stat.st_size, int(stat.st_mtime)
-
-
-
-def _remote_file_state(remote: RemoteConfig, *, sftp=None) -> tuple[int, int]:
-    """Return (size, mtime) for the remote database file."""
-    path = str(remote.db_path)
-    if sftp is not None:
-        attrs = sftp.stat(path)
-        return attrs.st_size, int(attrs.st_mtime)
-
-    try:
-        import paramiko
-    except ImportError as exc:  # pragma: no cover - optional dependency
-        raise RuntimeError('Paramiko required for remote operations') from exc
-
-    with _ssh_client(remote) as client:
-        stdin, stdout, stderr = client.exec_command(f"stat -c '%s %Y' {path}")
-        output = stdout.read().decode().strip()
-        if not output:
-            raise FileNotFoundError(f"stat failed for {path}: {stderr.read().decode().strip()}")
-        size_str, mtime_str = output.split()
-        return int(size_str), int(mtime_str)
-
-
-def _local_file_state(path: Path) -> tuple[int, int]:
-    if not path.exists():
-        return -1, -1
-    stat = path.stat()
-    return stat.st_size, int(stat.st_mtime)
+    stat_result = path.stat()
+    return stat_result.st_size, int(stat_result.st_mtime)
 
 
 def _state_path(path: Path) -> Path:
@@ -683,43 +481,53 @@ def _state_path(path: Path) -> Path:
 
 
 def _read_cached_state(path: Path) -> Optional[tuple[int, int]]:
-    state_path = _state_path(path)
-    if not state_path.exists():
+    state_file = _state_path(path)
+    if not state_file.exists():
         return None
     try:
-        size_str, mtime_str = state_path.read_text().strip().split()
+        size_str, mtime_str = state_file.read_text(encoding="utf-8").strip().split()
         return int(size_str), int(mtime_str)
-    except Exception:
+    except (OSError, ValueError):
         return None
 
 
 def _write_cached_state(path: Path, size: int, mtime: int) -> None:
-    state_path = _state_path(path)
-    state_path.write_text(f"{size} {mtime}\n")
+    state_file = _state_path(path)
+    state_file.write_text(f"{size} {mtime}\n", encoding="utf-8")
 
 
-def _copy_remote_file_compressed(client, remote_path: Path, local_path: Path) -> bool:
-    """Attempt to copy a remote file using gzip compression."""
-    tmp = tempfile.NamedTemporaryFile(dir=str(local_path.parent), delete=False)
-    tmp_name = tmp.name
-    tmp.close()
-    command = f"gzip -c -- {shlex.quote(str(remote_path))}"
-    stdin, stdout, stderr = client.exec_command(command)
-    stderr_data = b""
-    try:
-        remote_stream = stdout.channel.makefile('rb')
-        with remote_stream as stream, gzip.GzipFile(fileobj=stream) as gz, open(tmp_name, 'wb') as dest:
-            shutil.copyfileobj(gz, dest)
-        exit_status = stdout.channel.recv_exit_status()
-        if exit_status != 0:
-            stderr_data = stderr.read()
-            raise RuntimeError(f'gzip exited with status {exit_status}')
-        os.replace(tmp_name, local_path)
-        return True
-    except Exception:
-        with contextlib.suppress(FileNotFoundError):
-            os.unlink(tmp_name)
+def _remove_cached_state(path: Path) -> None:
+    state_file = _state_path(path)
+    with contextlib.suppress(FileNotFoundError):
+        state_file.unlink()
+
+
+def _copy_remote_file_rsync(remote: RemoteConfig, remote_path: Path, local_path: Path) -> bool:
+    """Attempt to copy a remote file using rsync for efficiency."""
+    rsync_path = shutil.which('rsync')
+    if not rsync_path:
         return False
+
+    local_path.parent.mkdir(parents=True, exist_ok=True)
+    remote_spec = f"{remote.username}@{remote.host}:{str(remote_path)}"
+    command = [
+        rsync_path,
+        '--archive',
+        '--compress',
+        '--partial',
+        '--inplace',
+        '--protect-args',
+        '-e',
+        f"ssh -p {remote.port}",
+        remote_spec,
+        str(local_path),
+    ]
+    try:
+        subprocess.run(command, check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        return True
+    except subprocess.CalledProcessError:
+        return False
+
 
 def _copy_remote_file(sftp, remote_path: Path, local_path: Path) -> None:
     """Copy a single file from the remote host via SFTP."""
@@ -737,6 +545,7 @@ def _copy_remote_file(sftp, remote_path: Path, local_path: Path) -> None:
 
 
 def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
+    """Sync the remote Plex database to the local cache."""
     sync_start = perf_counter()
     if verbose:
         print(
@@ -747,44 +556,44 @@ def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
     performed_transfer = False
 
     if remote.db_path.exists():  # Local access available; no SSH needed
-        src_size, src_mtime = _local_file_state(remote.db_path)
+        src_state = _local_file_state(remote.db_path)
         cached_state = _read_cached_state(remote.cache_path)
-        if cached_state != (src_size, src_mtime):
+        if cached_state != src_state or not remote.cache_path.exists():
+            remote.cache_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.copy2(remote.db_path, remote.cache_path)
-            _write_cached_state(remote.cache_path, src_size, src_mtime)
+            _write_cached_state(remote.cache_path, *src_state)
             performed_transfer = True
-        for suffix in ("-wal", "-shm"):
+        for suffix in ('-wal', '-shm'):
             source_sidecar = Path(str(remote.db_path) + suffix)
             dest_sidecar = Path(str(remote.cache_path) + suffix)
             if source_sidecar.exists():
-                side_size, side_mtime = _local_file_state(source_sidecar)
-                if _read_cached_state(dest_sidecar) != (side_size, side_mtime):
+                side_state = _local_file_state(source_sidecar)
+                cached_side = _read_cached_state(dest_sidecar)
+                if cached_side != side_state or not dest_sidecar.exists():
                     shutil.copy2(source_sidecar, dest_sidecar)
-                    _write_cached_state(dest_sidecar, side_size, side_mtime)
+                    _write_cached_state(dest_sidecar, *side_state)
                     performed_transfer = True
             else:
                 with contextlib.suppress(FileNotFoundError):
                     os.remove(dest_sidecar)
-                state_path = _state_path(dest_sidecar)
-                with contextlib.suppress(FileNotFoundError):
-                    state_path.unlink()
+                _remove_cached_state(dest_sidecar)
     else:
         with _ssh_client(remote) as client:
             sftp = client.open_sftp()
             try:
-                remote_size, remote_mtime = _remote_file_state(remote, sftp=sftp)
+                remote_state = _remote_file_state(remote, remote.db_path, sftp=sftp)
             except FileNotFoundError as exc:  # pragma: no cover - defensive
                 sftp.close()
                 raise FileNotFoundError(f"Remote database not found at {remote.db_path}") from exc
 
             cached_state = _read_cached_state(remote.cache_path)
-            if cached_state != (remote_size, remote_mtime):
-                if not _copy_remote_file_compressed(client, remote.db_path, remote.cache_path):
+            if cached_state != remote_state or not remote.cache_path.exists():
+                if not _copy_remote_file_rsync(remote, remote.db_path, remote.cache_path):
                     _copy_remote_file(sftp, remote.db_path, remote.cache_path)
-                _write_cached_state(remote.cache_path, remote_size, remote_mtime)
+                _write_cached_state(remote.cache_path, *remote_state)
                 performed_transfer = True
 
-            for suffix in ("-wal", "-shm"):
+            for suffix in ('-wal', '-shm'):
                 remote_sidecar = Path(str(remote.db_path) + suffix)
                 local_sidecar = Path(str(remote.cache_path) + suffix)
 
@@ -793,16 +602,15 @@ def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
                 except FileNotFoundError:
                     with contextlib.suppress(FileNotFoundError):
                         os.remove(local_sidecar)
-                    state_path = _state_path(local_sidecar)
-                    with contextlib.suppress(FileNotFoundError):
-                        state_path.unlink()
+                    _remove_cached_state(local_sidecar)
                     continue
 
                 side_state = (attrs.st_size, int(attrs.st_mtime))
-                if _read_cached_state(local_sidecar) == side_state and local_sidecar.exists():
+                cached_side = _read_cached_state(local_sidecar)
+                if cached_side == side_state and local_sidecar.exists():
                     continue
 
-                if not _copy_remote_file_compressed(client, remote_sidecar, local_sidecar):
+                if not _copy_remote_file_rsync(remote, remote_sidecar, local_sidecar):
                     _copy_remote_file(sftp, remote_sidecar, local_sidecar)
                 _write_cached_state(local_sidecar, *side_state)
                 performed_transfer = True
@@ -811,11 +619,11 @@ def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
 
     elapsed = perf_counter() - sync_start
     if verbose:
-        size_str = human_size(remote.cache_path.stat().st_size) if remote.cache_path.exists() else "0B"
+        size = human_size(remote.cache_path.stat().st_size) if remote.cache_path.exists() else '0B'
         if performed_transfer:
-            print(f"Downloaded {size_str} to {remote.cache_path} in {elapsed:.2f} seconds.")
+            print(f"Downloaded {size} to {remote.cache_path} in {elapsed:.2f} seconds.")
         else:
-            print(f"Cache already up to date ({size_str}); checked in {elapsed:.2f} seconds.")
+            print(f"Cache already up to date ({size}); checked in {elapsed:.2f} seconds.")
 
     return remote.cache_path
 
@@ -862,6 +670,7 @@ def _sort_key_added(record: Dict[str, Any]) -> int:
 
 
 def _record_matches_deep(record: Dict[str, Any], terms: Sequence[str]) -> bool:
+    """Check if a cached record matches a list of search terms."""
     if not terms:
         return True
 
@@ -896,6 +705,7 @@ def _truncate_summary(summary: Optional[str], max_length: int = 140) -> str:
 
 
 def _format_cache_age(seconds: Optional[float]) -> str:
+    """Format a cache age in seconds as a string in the format HH:MM:SS."""
     if seconds is None:
         return "unknown"
     seconds = max(0, int(seconds))
@@ -905,6 +715,7 @@ def _format_cache_age(seconds: Optional[float]) -> str:
 
 
 def _format_duration(duration_ms: Optional[int]) -> str:
+    """Format a duration in milliseconds as a string in the format HH:MM."""
     if not duration_ms:
         return ""
     seconds = duration_ms // 1000
@@ -928,6 +739,7 @@ def _row_value(row: Any, key: str, default: Any = None) -> Any:
 
 
 def _infer_resolution(width: Optional[int], height: Optional[int]) -> str:
+    """Infer the resolution from a width and height."""
     if width is None:
         return ""
 
@@ -947,12 +759,14 @@ def _infer_resolution(width: Optional[int], height: Optional[int]) -> str:
 
 
 def _format_disk(path: Optional[str]) -> str:
+    """Format a disk label from a file path."""
     if not path or len(path) <= 10:
         return ""
     return f"[{path[10]}]"
 
 
 def _compose_title(row: sqlite3.Row) -> str:
+    """Compose a title from a row of media data."""
     title = row["title"] or "<untitled>"
     if row["metadata_type"] == 4:  # episode
         show = row["grandparent_title"]
@@ -967,6 +781,7 @@ def _compose_title(row: sqlite3.Row) -> str:
 
 
 def _format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
+    """Format a row of media data for pretty printing."""
     title = _compose_title(row)
     if len(title) > args.length:
         title_display = title[: args.length - 1] + "…"
@@ -1000,6 +815,7 @@ def _format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
 
 
 def _format_duration_human(total_seconds: int) -> str:
+    """Format a duration in seconds as a human-readable string."""
     if total_seconds <= 0:
         return "0 seconds"
 
@@ -1025,6 +841,7 @@ def _format_duration_human(total_seconds: int) -> str:
 
 
 def _format_stats(rows: Sequence[Any]) -> str:
+    """Format statistics for a list of media items."""
     count = len(rows)
 
     total_duration_ms = 0
@@ -1123,7 +940,7 @@ def run_people_search(
         ORDER BY {order_column} {direction}
     """
 
-    data_params = list(params)
+    data_params = cast(List[Any], list(params))
     if limit and limit > 0:
         data_sql += " LIMIT ?"
         data_params.append(limit)
@@ -1217,8 +1034,9 @@ def run_pretty_search(
 
 
 def run_daemon() -> int:
+    """Run the media daemon."""
     socket_path = _daemon_socket_path()
-    daemon = PlexDBDaemon(socket_path)
+    daemon = MediaDaemon(socket_path, _execute_cli_in_daemon)
     try:
         daemon.serve_forever()
     except KeyboardInterrupt:  # pragma: no cover - manual interruption
@@ -1228,6 +1046,7 @@ def run_daemon() -> int:
 
 
 def _forward_to_daemon(argv_list: Sequence[str], *, auto_start: bool = True) -> Optional[int]:
+    """Forward a command to the media daemon."""
     try:
         response = _send_daemon_message(
             {"action": "execute", "argv": list(argv_list)},
@@ -1434,7 +1253,6 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 reverse=reverse_value,
                 deep=args.deep,
             )
-            auto_deep_used = False
             if not rows and not args.deep:
                 print("No cached matches found; running deep search...")
                 rows, total_count = run_pretty_search(
@@ -1445,7 +1263,6 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                     reverse=reverse_value,
                     deep=True,
                 )
-                auto_deep_used = True
                 mode_label = " (deep search)"
             elif args.deep:
                 mode_label = " (deep search)"
