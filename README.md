@@ -223,7 +223,7 @@ root_directory = "/absolute/path/to/project/root"
 | `shrink` | Find uncompressed DVD rips | - |
 | `tkm` | Tkinter GUI media search | - |
 
-`media` (no args) lists the ten newest additions. Add a search term for instant cache-backed lookups, `-z` to show every match sorted by year, `-a/--all` to disable pagination, `--deep` for summary/path/tag matches from the raw Plex database, and `--stats` to print totals for the displayed set.
+`media` (no args) lists the ten newest additions. Add a search term for instant cache-backed lookups, `-z` to show every match sorted by year, `-a/--all` to disable pagination, `--deep` for summary/path/tag matches from the raw Plex database, `--people` to focus on actors/directors via SQL, and `--stats` to print totals for the displayed set.
 
 #### Media Workflow
 

@@ -13,6 +13,7 @@ Features:
     - Automatically fall back to a deep metadata/tag search when the fast cache
       turns up empty, with optional deep scan triggers.
     - Merge pre-computed extras into the cache so external metadata appears in fast searches.
+    - Use `--people` to query actors/directors on-demand via the live Plex database.
 
 Examples:
     pd --show-path
@@ -572,6 +573,11 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         help="Show aggregate stats (count, total runtime, total size) for the displayed items.",
     )
     parser.add_argument(
+        "--people",
+        action="store_true",
+        help="Search actors/directors via the live Plex database.",
+    )
+    parser.add_argument(
         "--daemon",
         action="store_true",
         help="Run the media daemon in the foreground, serving subsequent CLI requests.",
@@ -905,6 +911,101 @@ def _format_stats(rows: Sequence[Any]) -> str:
     return f"{count:,} {label}: {duration_str} ({size_str})"
 
 
+
+
+PEOPLE_TAG_TYPES = (4, 5, 6, 7, 10)
+
+
+def run_people_search(
+    db_path: Path,
+    terms: list[str],
+    *,
+    limit: Optional[int],
+    sort: str,
+    reverse: bool,
+) -> tuple[list[Any], Optional[int]]:
+    """Run a SQL search focused on people (actors, directors, writers)."""
+
+    if not terms:
+        return [], 0
+
+    where_fragments: list[str] = []
+    params: list[str] = []
+    for term in terms:
+        pattern = f"%{term}%"
+        where_fragments.append("LOWER(tag.tag) LIKE ?")
+        params.append(pattern)
+
+    where_clause = " AND ".join(where_fragments)
+    sort_alias_mapping = {"added": "mi.added_at", "title": "mi.title", "year": "mi.year"}
+    order_column = sort_alias_mapping.get(sort, "mi.added_at")
+    direction = "ASC" if sort == "title" else "DESC"
+    if reverse:
+        direction = "DESC" if direction == "ASC" else "ASC"
+
+    tag_type_sql = ", ".join(str(t) for t in PEOPLE_TAG_TYPES)
+    data_sql = f"""
+        SELECT
+            mi.id,
+            mi.title,
+            mi.year,
+            mi.metadata_type,
+            MAX(parent.title) AS parent_title,
+            MAX(grandparent.title) AS grandparent_title,
+            MAX(m.duration) AS duration_ms,
+            MAX(mi.duration) AS duration_meta,
+            MAX(m.width) AS width,
+            MAX(m.height) AS height,
+            MAX(mp.size) AS size_bytes,
+            MIN(mp.file) AS file_path,
+            MAX(mi.summary) AS summary,
+            MAX(mi.added_at) AS added_at,
+            CASE
+                WHEN MIN(mp.file) LIKE '/mnt/media1/%' THEN '[1]'
+                WHEN MIN(mp.file) LIKE '/mnt/media2/%' THEN '[2]'
+                WHEN MIN(mp.file) LIKE '/mnt/media3/%' THEN '[3]'
+                ELSE ''
+            END AS disk
+        FROM metadata_items mi
+        LEFT JOIN metadata_items parent ON parent.id = mi.parent_id
+        LEFT JOIN metadata_items grandparent ON grandparent.id = parent.parent_id
+        LEFT JOIN media_items m ON m.metadata_item_id = mi.id
+        LEFT JOIN media_parts mp ON mp.media_item_id = m.id
+        LEFT JOIN taggings tg ON tg.metadata_item_id = mi.id
+        LEFT JOIN tags tag ON tag.id = tg.tag_id
+        WHERE mi.metadata_type IN (1, 2, 4)
+          AND mp.file IS NOT NULL
+          AND tag.tag_type IN ({tag_type_sql})
+          AND {where_clause}
+        GROUP BY mi.id
+        ORDER BY {order_column} {direction}
+    """
+
+    data_params = list(params)
+    if limit and limit > 0:
+        data_sql += " LIMIT ?"
+        data_params.append(limit)
+
+    total_sql = f"""
+        SELECT COUNT(DISTINCT mi.id)
+        FROM metadata_items mi
+        LEFT JOIN media_items m ON m.metadata_item_id = mi.id
+        LEFT JOIN media_parts mp ON mp.media_item_id = m.id
+        LEFT JOIN taggings tg ON tg.metadata_item_id = mi.id
+        LEFT JOIN tags tag ON tag.id = tg.tag_id
+        WHERE mi.metadata_type IN (1, 2, 4)
+          AND mp.file IS NOT NULL
+          AND tag.tag_type IN ({tag_type_sql})
+          AND {where_clause}
+    """
+
+    with open_database(db_path) as conn:
+        total_row = conn.execute(total_sql, params).fetchone()
+        total_matches = int(total_row[0]) if total_row else None
+        rows = conn.execute(data_sql, data_params).fetchall()
+
+    return rows, total_matches
+
 def run_pretty_search(
     db_path: Path,
     terms: List[str],
@@ -1165,31 +1266,48 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             print(_format_stats(rows))
         return 0
 
+
     if args.search and not args.query:
         search_terms = [term.lower() for term in args.search]
         sort = "year" if args.zed else args.sort
         limit = None if args.all or args.zed else args.number
         reverse_value = args.reverse if not args.zed else False
-        rows, total_count = run_pretty_search(
-            db_path,
-            search_terms,
-            limit=limit,
-            sort=sort,
-            reverse=reverse_value,
-            deep=args.deep,
-        )
-        auto_deep_used = False
-        if not rows and not args.deep:
-            print("No cached matches found; running deep search...")
+
+        mode_label = ""
+        if args.people:
+            rows, total_count = run_people_search(
+                db_path,
+                search_terms,
+                limit=limit,
+                sort=sort,
+                reverse=reverse_value,
+            )
+            mode_label = " (people search)"
+        else:
             rows, total_count = run_pretty_search(
                 db_path,
                 search_terms,
                 limit=limit,
                 sort=sort,
                 reverse=reverse_value,
-                deep=True,
+                deep=args.deep,
             )
-            auto_deep_used = True
+            auto_deep_used = False
+            if not rows and not args.deep:
+                print("No cached matches found; running deep search...")
+                rows, total_count = run_pretty_search(
+                    db_path,
+                    search_terms,
+                    limit=limit,
+                    sort=sort,
+                    reverse=reverse_value,
+                    deep=True,
+                )
+                auto_deep_used = True
+                mode_label = " (deep search)"
+            elif args.deep:
+                mode_label = " (deep search)"
+
         if not rows:
             print("No matching media found.")
             return 0
@@ -1203,7 +1321,6 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             heading = f"Showing {len(visible_rows)} of {total} {match_label}"
         else:
             heading = f"Showing {len(visible_rows)} {match_label}"
-        mode_label = " (deep search)" if args.deep or auto_deep_used else ""
         print(f"{heading}{mode_label} for {' '.join(args.search)!r}:")
 
         for row in visible_rows:
