@@ -57,6 +57,7 @@ func main() {
 		caseSensitive  bool
 		includeHidden  bool
 		showTime       bool
+		timer          bool
 		relativePaths  bool
 		withSize       bool
 		verbose        bool
@@ -79,6 +80,7 @@ func main() {
 	flag.BoolVar(&includeHidden, "include-hidden", false, "Include hidden files and directories")
 	flag.BoolVar(&includeHidden, "hidden", false, "Shorthand for --include-hidden")
 	flag.BoolVar(&showTime, "time", false, "Display how long the search took")
+	flag.BoolVar(&timer, "timer", false, "Report how long the search took")
 	flag.BoolVar(&relativePaths, "relative", false, "Print paths relative to their root")
 	flag.BoolVar(&withSize, "with-size", false, "Include the file size (bytes) in the output")
 	flag.IntVar(&maxDepth, "max-depth", -1, "Limit search depth relative to the root (-1 for unlimited)")
@@ -123,7 +125,8 @@ func main() {
 	}
 
 	var start time.Time
-	if verbose && showTime {
+	measure := timer || (verbose && showTime)
+	if measure {
 		start = time.Now()
 	}
 
@@ -153,10 +156,18 @@ func main() {
 		fmt.Println(stats.FilesMatched)
 	}
 
-	if verbose && showTime {
-		elapsed := time.Since(start)
-		fmt.Fprintf(os.Stderr, "Scanned %d files across %d roots (%d matches) in %s\n",
-			stats.FilesScanned, stats.RootsScanned, stats.FilesMatched, elapsed.Round(time.Millisecond))
+	if measure {
+		elapsed := time.Since(start).Round(time.Millisecond)
+		if timer {
+			fmt.Fprintf(os.Stderr, "finder: completed in %s\n", elapsed)
+		}
+		if verbose && showTime {
+			fmt.Fprintf(os.Stderr, "Scanned %d files across %d roots (%d matches) in %s\n",
+				stats.FilesScanned, stats.RootsScanned, stats.FilesMatched, elapsed)
+		} else if verbose && !countOnly {
+			fmt.Fprintf(os.Stderr, "Matched %d file(s) (scanned %d) in %s\n",
+				stats.FilesMatched, stats.FilesScanned, elapsed)
+		}
 	} else if verbose && !countOnly {
 		fmt.Fprintf(os.Stderr, "Matched %d file(s) (scanned %d)\n", stats.FilesMatched, stats.FilesScanned)
 	}

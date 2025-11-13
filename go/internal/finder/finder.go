@@ -7,7 +7,12 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
+	"sync"
+	"sync/atomic"
+
+	godirwalk "github.com/karrick/godirwalk"
 
 	"github.com/go-git/go-git/v5/plumbing/format/gitignore"
 	"github.com/rdubar/rogkit/go/internal/util"
@@ -41,6 +46,23 @@ type Stats struct {
 	PatternsUsed  int
 	IncludeFilter int
 	ExcludeFilter int
+}
+
+// FastOptions configures the high-performance walker backed by godirwalk.
+type FastOptions struct {
+	Roots         []string
+	Patterns      []string
+	IgnoreCase    bool
+	IncludeHidden bool
+	MaxDepth      int
+	RespectIgnore bool
+}
+
+// FastResult contains information about a matched entry returned by FastWalk.
+type FastResult struct {
+	Root string
+	Path string
+	Name string
 }
 
 // Walk traverses the configured roots and invokes cb for each file that satisfies the options.
@@ -215,6 +237,247 @@ func Walk(opts Options, cb func(Result) error) (Stats, error) {
 	}
 
 	return stats, nil
+}
+
+// FastWalk traverses roots using github.com/karrick/godirwalk, minimizing metadata
+// lookups to prioritize raw traversal throughput.
+func FastWalk(opts FastOptions, cb func(FastResult) error) (Stats, error) {
+	var stats Stats
+
+	if len(opts.Roots) == 0 {
+		return stats, errors.New("finder: no roots provided")
+	}
+
+	compiledPatterns, err := compilePatterns(opts.Patterns, opts.IgnoreCase)
+	if err != nil {
+		return stats, err
+	}
+	stats.PatternsUsed = len(compiledPatterns)
+
+	var roots []string
+	for _, root := range opts.Roots {
+		if root == "" {
+			continue
+		}
+		clean := filepath.Clean(root)
+		info, err := os.Stat(clean)
+		if err != nil {
+			return stats, fmt.Errorf("finder: unable to stat root %q: %w", root, err)
+		}
+		if !info.IsDir() {
+			return stats, fmt.Errorf("finder: root %q is not a directory", root)
+		}
+		roots = append(roots, clean)
+	}
+
+	if len(roots) == 0 {
+		return stats, errors.New("finder: no valid roots to scan")
+	}
+
+	type dirJob struct {
+		root  string
+		path  string
+		rel   string
+		depth int
+		state ignoreState
+	}
+
+	var (
+		useIgnore    = opts.RespectIgnore
+		hasPatterns  = len(compiledPatterns) > 0
+		limitDepth   = opts.MaxDepth >= 0
+		cancelled    atomic.Bool
+		firstErr     error
+		firstErrOnce sync.Once
+		jobs         = make(chan dirJob, runtime.NumCPU()*2)
+		jobWG        sync.WaitGroup
+		statsMu      sync.Mutex
+		wg           sync.WaitGroup
+	)
+
+	setError := func(err error) {
+		if err == nil {
+			return
+		}
+		firstErrOnce.Do(func() {
+			firstErr = err
+			cancelled.Store(true)
+		})
+	}
+
+	processJob := func(job dirJob, local *Stats) error {
+		state := job.state
+		if useIgnore {
+			extended, err := extendIgnoreState(state, job.root, job.path)
+			if err != nil {
+				return err
+			}
+			state = extended
+		}
+
+		if job.path != job.root {
+			if useIgnore && shouldIgnore(state.matcher, job.root, job.path, true) {
+				return nil
+			}
+			if !opts.IncludeHidden && isHiddenName(filepath.Base(job.path)) {
+				return nil
+			}
+			if util.ShouldSkip(job.path) {
+				return nil
+			}
+		}
+
+		local.Directories++
+		if job.depth == 0 {
+			local.RootsScanned++
+		}
+
+		dirents, err := godirwalk.ReadDirents(job.path, nil)
+		if err != nil {
+			return err
+		}
+
+		for _, de := range dirents {
+			name := de.Name()
+			childPath := filepath.Join(job.path, name)
+
+			if de.IsDir() {
+				childDepth := job.depth + 1
+				if limitDepth && childDepth > opts.MaxDepth {
+					continue
+				}
+				if useIgnore && shouldIgnore(state.matcher, job.root, childPath, true) {
+					continue
+				}
+				if !opts.IncludeHidden && isHiddenName(name) {
+					continue
+				}
+				if util.ShouldSkip(childPath) {
+					continue
+				}
+				if cancelled.Load() {
+					continue
+				}
+				childRel := name
+				if job.rel != "" {
+					childRel = filepath.Join(job.rel, name)
+				}
+				jobWG.Add(1)
+				jobs <- dirJob{
+					root:  job.root,
+					path:  childPath,
+					rel:   childRel,
+					depth: childDepth,
+					state: state,
+				}
+				continue
+			}
+
+			if useIgnore && shouldIgnore(state.matcher, job.root, childPath, false) {
+				continue
+			}
+
+			local.FilesScanned++
+
+			if !opts.IncludeHidden && isHiddenName(name) {
+				continue
+			}
+
+			if util.ShouldSkip(childPath) {
+				continue
+			}
+
+			if hasPatterns {
+				rel := name
+				if job.rel != "" {
+					rel = filepath.Join(job.rel, name)
+				}
+				relNorm := rel
+				absNorm := childPath
+				baseNorm := name
+				if opts.IgnoreCase {
+					relNorm = strings.ToLower(relNorm)
+					baseNorm = strings.ToLower(baseNorm)
+					absNorm = strings.ToLower(absNorm)
+				}
+				if !matchesAny(compiledPatterns, relNorm, baseNorm, absNorm) {
+					continue
+				}
+			}
+
+			local.FilesMatched++
+			if cb != nil {
+				if err := cb(FastResult{
+					Root: job.root,
+					Path: childPath,
+					Name: name,
+				}); err != nil {
+					return err
+				}
+			}
+		}
+
+		return nil
+	}
+
+	if cap(jobs) == 0 {
+		jobs = make(chan dirJob, 1)
+	}
+
+	closeCh := make(chan struct{})
+	go func() {
+		jobWG.Wait()
+		close(jobs)
+		close(closeCh)
+	}()
+
+	workerCount := runtime.NumCPU()
+	if workerCount < 1 {
+		workerCount = 1
+	}
+
+	for i := 0; i < workerCount; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			var local Stats
+			for job := range jobs {
+				if cancelled.Load() {
+					jobWG.Done()
+					continue
+				}
+				if err := processJob(job, &local); err != nil {
+					setError(err)
+				}
+				jobWG.Done()
+				if cancelled.Load() {
+					continue
+				}
+			}
+			statsMu.Lock()
+			stats.RootsScanned += local.RootsScanned
+			stats.Directories += local.Directories
+			stats.FilesScanned += local.FilesScanned
+			stats.FilesMatched += local.FilesMatched
+			statsMu.Unlock()
+		}()
+	}
+
+	for _, root := range roots {
+		jobWG.Add(1)
+		jobs <- dirJob{
+			root:  root,
+			path:  root,
+			rel:   "",
+			depth: 0,
+			state: ignoreState{},
+		}
+	}
+
+	<-closeCh
+	wg.Wait()
+
+	return stats, firstErr
 }
 
 type compiledPattern struct {

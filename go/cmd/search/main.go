@@ -155,7 +155,7 @@ func main() {
 
 	terms := flag.Args()
 	if len(terms) == 0 {
-		fmt.Fprintln(os.Stderr, "error: provide at least one search term\n")
+		fmt.Fprintln(os.Stderr, "error: provide at least one search term")
 		usage()
 		os.Exit(1)
 	}

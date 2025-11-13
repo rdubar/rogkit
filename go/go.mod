@@ -4,7 +4,10 @@ go 1.23.0
 
 toolchain go1.24.5
 
-require github.com/go-git/go-git/v5 v5.16.3
+require (
+	github.com/go-git/go-git/v5 v5.16.3
+	github.com/karrick/godirwalk v1.17.0
+)
 
 require (
 	github.com/go-git/gcfg v1.5.1-0.20230307220236-3a3c6141e376 // indirect
