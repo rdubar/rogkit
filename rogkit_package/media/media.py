@@ -74,6 +74,7 @@ DAEMON_SOCKET_NAME = "media_daemon.sock"
 DAEMON_STARTUP_TIMEOUT_SECONDS = 5.0
 DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
 
+
 def _daemon_socket_path() -> Path:
     CACHE_DIR.mkdir(parents=True, exist_ok=True)
     return CACHE_DIR / DAEMON_SOCKET_NAME
@@ -167,56 +168,7 @@ def format_candidates() -> str:
         lines.append(f"  ⚙︎ [remote] {remote.username}@{remote.host}:{remote.db_path}")
 
     return "\n".join(lines)
-def _sort_key_title(record: Dict[str, Any]) -> str:
-    """Sort cached records alphabetically by title."""
-    return (record.get("title") or "").lower()
 
-
-def _sort_key_year(record: Dict[str, Any]) -> int:
-    """Sort cached records by release year (ascending)."""
-    value = record.get("year")
-    return int(value) if value is not None else 0
-
-
-def _sort_key_added(record: Dict[str, Any]) -> int:
-    """Sort cached records by the time they were added to Plex (descending)."""
-    value = record.get("added_at")
-    return int(value) if value is not None else 0
-
-
-def _record_matches_deep(record: Dict[str, Any], terms: Sequence[str]) -> bool:
-    """Check if a cached record matches a list of search terms."""
-    if not terms:
-        return True
-
-    haystacks = [
-        (record.get("title_low") or ""),
-        (record.get("title") or "").lower(),
-        (record.get("parent_title") or "").lower(),
-        (record.get("grandparent_title") or "").lower(),
-        (record.get("summary") or "").lower(),
-        (record.get("file_path") or "").lower(),
-    ]
-
-    tags_text = record.get("tags_text")
-    if tags_text:
-        haystacks.append(tags_text.lower())
-
-    for term in terms:
-        if not any(term in hay for hay in haystacks):
-            return False
-    return True
-
-
-def _truncate_summary(summary: Optional[str], max_length: int = 140) -> str:
-    """Collapse whitespace and shorten long summaries for CLI output."""
-
-    if not summary:
-        return ""
-    squashed = " ".join(summary.split())
-    if len(squashed) <= max_length:
-        return squashed
-    return f"{squashed[: max_length - 1]}…"
 
 def run_daemon() -> int:
     """Run the media daemon."""
@@ -288,7 +240,13 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     argv_list = list(argv) if argv is not None else sys.argv[1:]
     args = parse_args(argv_list)
 
-    if os.environ.get(DAEMON_ENV_FLAG) != "1" and not args.no_daemon and not args.daemon and not args.stop_daemon:
+    daemon_env = os.environ.get(DAEMON_ENV_FLAG) == "1"
+    should_forward = not daemon_env and not args.no_daemon and not args.daemon and not args.stop_daemon
+
+    if should_forward and (args.update or args.update_plex):
+        print("Updating media database and cache... please wait.", flush=True)
+
+    if should_forward:
         forwarded_exit = _forward_to_daemon(argv_list)
         if forwarded_exit is not None:
             return forwarded_exit
@@ -318,6 +276,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     remote = load_remote_config()
 
     if args.update or args.update_plex:
+        print("Updating Plex database and cache...")
         if not remote:
             print(
                 "Remote configuration not found. Add a [plex_remote] section to your rogkit config.",

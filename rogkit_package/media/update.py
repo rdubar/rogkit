@@ -18,6 +18,7 @@ from .helpers import RemoteConfig, human_size
 def _ssh_client(remote: RemoteConfig):
     """Yield an SSH client connected to the remote Plex host."""
     try:
+        print("Importing paramiko")
         import paramiko  # type: ignore[import]  # pylint: disable=import-outside-toplevel
     except ImportError as exc:  # pragma: no cover - environment-specific
         raise RuntimeError(
@@ -143,7 +144,7 @@ def _copy_remote_file(sftp, remote_path: Path, local_path: Path) -> None:
             os.unlink(tmp_name)
 
 
-def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
+def sync_remote_db(remote: RemoteConfig, *, prefer_rsync: bool = False, verbose: bool = True) -> Path:
     """Sync the remote Plex database to the local cache."""
     sync_start = perf_counter()
     if verbose:
@@ -189,8 +190,9 @@ def sync_remote_db(remote: RemoteConfig, *, verbose: bool = True) -> Path:
 
             cached_state = _read_cached_state(remote.cache_path)
             if cached_state != remote_state or not remote.cache_path.exists():
-                if not _copy_remote_file_rsync(remote, remote.db_path, remote.cache_path):
-                    _copy_remote_file(sftp, remote.db_path, remote.cache_path)
+                if not prefer_rsync or not _copy_remote_file_rsync(remote, remote.db_path, remote.cache_path):
+                    if prefer_rsync:
+                        _copy_remote_file(sftp, remote.db_path, remote.cache_path)
                 _write_cached_state(remote.cache_path, *remote_state)
                 performed_transfer = True
 

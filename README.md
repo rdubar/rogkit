@@ -145,7 +145,7 @@ After building, use the Go versions directly:
 ```bash
 replacer --find TODO --path /some/project
 replacer --find TODO --replace DONE --write --confirm --path /some/project
-search --path /some/project TODO "bar baz"
+search --path /some/project TODO "bar baz" --limit 10
 ishtime --time 1115
 ```
 
@@ -245,7 +245,7 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `renamer` | Batch rename files with patterns | - |
 | `replacer` | Find and replace text in files | - |
 | `files` | Advanced file searching | - |
-| `search` | Go multi-term content search | - |
+| `search` | Go multicore content search | - |
 | `dirs` | Directory analysis and statistics | - |
 | `empties` | Find empty files and directories | - |
 | `hidden` | Discover hidden files | - |

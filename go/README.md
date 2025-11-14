@@ -17,3 +17,20 @@ This directory contains the Go-based command-line utilities that support the rog
 Use it when you need the fastest possible scan across very large trees, and be aware that behavior may change as we continue to tune performance.
 
 
+### search
+
+`search` is a multicore content searcher that builds on the `finder` traversal engine. It scans files with a worker pool (defaulting to `runtime.NumCPU` workers) and short-circuits once an optional match limit is reached. Key features:
+
+- Smart-case matching (or explicit `--ignore-case` / `--case-sensitive`)
+- Streaming file reads with boundary-safe substring checks (no `io.ReadAll`)
+- Support for include/exclude extensions, path filters, hidden files, depth limits, and ignore files
+- Optional `--count`, `--limit`, `--with-size`, `--relative`, and timing/statistics via `--verbose --time`
+- Graceful error reporting with `--show-errors`
+
+Example:
+
+```bash
+search --path ~/projects --filter '*.go' "panic" "TODO"
+```
+
+
