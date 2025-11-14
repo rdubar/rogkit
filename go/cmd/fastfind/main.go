@@ -4,6 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -12,119 +13,181 @@ import (
 
 type multiValue []string
 
-func (m *multiValue) String() string {
-	if m == nil {
-		return ""
-	}
-	return strings.Join(*m, ",")
-}
-
-func (m *multiValue) Set(value string) error {
-	*m = append(*m, value)
+func (m *multiValue) String() string { return strings.Join(*m, ",") }
+func (m *multiValue) Set(v string) error {
+	*m = append(*m, v)
 	return nil
 }
 
 func usage() {
-	fmt.Fprintf(os.Stderr, `Usage: fastfind [options]
+	fmt.Fprintf(os.Stderr, `Usage: fastfind [options] <pattern>
 
-Traverse directories using an optimized godirwalk-based searcher.
+Find files and directories whose path or name matches <pattern>.
 
 Examples:
-  fastfind --search '*.go'
-  fastfind --path ~/projects --timer
+  fastfind tmp
+  fastfind -p ~/projects src
+  fastfind -e go -e md fastfind
+  fastfind -H -n ".swp"
 
 Options:
 `)
 	flag.PrintDefaults()
 }
 
+// fastfind is an experimental alias around finder.FastWalk. Prefer `finder`
+// for stable behaviour; use this binary to trial alternate defaults or
+// scripting hooks without affecting the primary tool.
 func main() {
+	flag.CommandLine = flag.NewFlagSet(os.Args[0], flag.ExitOnError)
 	flag.Usage = usage
 
 	var roots multiValue
-	var searches multiValue
+	var patterns multiValue
 
 	var (
-		countOnly     bool
 		ignoreCase    bool
+		caseSensitive bool
 		includeHidden bool
-		timer         bool
-		verbose       bool
+		respectIgnore = true
+		relativePaths bool
 		maxDepth      int
-		noIgnore      bool
+		verbose       bool
+		timer         bool
+		countOnly     bool
 	)
 
 	flag.Var(&roots, "path", "Root directory to search (repeatable)")
 	flag.Var(&roots, "p", "Shorthand for --path")
-	flag.Var(&searches, "search", "Pattern to match (glob or substring, repeatable)")
-	flag.Var(&searches, "s", "Shorthand for --search")
-	flag.BoolVar(&countOnly, "count", false, "Only print the total number of matches")
-	flag.BoolVar(&countOnly, "c", false, "Shorthand for --count")
-	flag.BoolVar(&ignoreCase, "ignore-case", false, "Perform case-insensitive matching")
+
+	flag.Var(&patterns, "search", "Pattern to match (glob or substring, repeatable)")
+	flag.Var(&patterns, "s", "Shorthand for --search")
+
+	flag.BoolVar(&ignoreCase, "ignore-case", false, "Force case-insensitive matching")
 	flag.BoolVar(&ignoreCase, "i", false, "Shorthand for --ignore-case")
-	flag.BoolVar(&includeHidden, "include-hidden", false, "Include hidden files and directories")
-	flag.BoolVar(&includeHidden, "hidden", false, "Shorthand for --include-hidden")
-	flag.BoolVar(&timer, "timer", false, "Report how long the search took")
+	flag.BoolVar(&caseSensitive, "case-sensitive", false, "Force case-sensitive matching (overrides -i)")
+
+	flag.BoolVar(&includeHidden, "hidden", false, "Include hidden files and directories")
+	flag.BoolVar(&includeHidden, "H", false, "Shorthand for --hidden")
+
+	flag.BoolVar(&respectIgnore, "respect-ignore", true, "Respect default ignore directories (.git, node_modules, etc)")
+	flag.BoolVar(&respectIgnore, "I", true, "Shorthand for --respect-ignore")
+	// convenience: --no-ignore
+	noIgnore := flag.Bool("no-ignore", false, "Do not respect default ignore directories")
+	flag.BoolVar(noIgnore, "n", false, "Shorthand for --no-ignore")
+
+	flag.BoolVar(&relativePaths, "relative", false, "Print paths relative to their root")
+	flag.BoolVar(&relativePaths, "r", false, "Shorthand for --relative")
+
+	flag.IntVar(&maxDepth, "max-depth", -1, "Limit search depth relative to the root (-1 for unlimited)")
+	flag.IntVar(&maxDepth, "d", -1, "Shorthand for --max-depth")
+
 	flag.BoolVar(&verbose, "verbose", false, "Print summary information")
 	flag.BoolVar(&verbose, "v", false, "Shorthand for --verbose")
-	flag.IntVar(&maxDepth, "max-depth", -1, "Limit search depth relative to the root (-1 for unlimited)")
-	flag.BoolVar(&noIgnore, "no-ignore", false, "Include files ignored by .gitignore/.fdignore/.ignore files")
+
+	flag.BoolVar(&timer, "timer", false, "Report how long the search took")
+	flag.BoolVar(&timer, "t", false, "Shorthand for --timer")
+
+	flag.BoolVar(&countOnly, "count", false, "Only print the total number of matches")
+	flag.BoolVar(&countOnly, "c", false, "Shorthand for --count")
 
 	flag.Parse()
 
-	args := flag.Args()
-	if len(searches) == 0 && len(args) > 0 {
-		searches = append(searches, args[0])
-		args = args[1:]
+	if *noIgnore {
+		respectIgnore = false
 	}
 
-	for _, arg := range args {
-		if arg == "" {
-			continue
+	args := flag.Args()
+	if len(patterns) == 0 && len(args) > 0 {
+		for _, arg := range args {
+			if arg != "" {
+				patterns = append(patterns, arg)
+			}
 		}
-		roots = append(roots, arg)
+	}
+
+	if len(patterns) == 0 {
+		fmt.Fprintln(os.Stderr, "error: provide at least one search pattern")
+		usage()
+		os.Exit(1)
 	}
 
 	if len(roots) == 0 {
-		roots = append(roots, ".")
+		roots = multiValue{"."}
 	}
+
+	ignorePathsCase := resolveIgnoreCase(patterns, ignoreCase, caseSensitive)
+
+	start := time.Now()
 
 	opts := finder.FastOptions{
 		Roots:         roots,
-		Patterns:      searches,
-		IgnoreCase:    ignoreCase,
+		Patterns:      patterns,
+		IgnoreCase:    ignorePathsCase,
 		IncludeHidden: includeHidden,
 		MaxDepth:      maxDepth,
-		RespectIgnore: !noIgnore,
+		RespectIgnore: respectIgnore,
 	}
 
-	var start time.Time
-	if timer || verbose {
-		start = time.Now()
-	}
+	var matches int64
 
 	stats, err := finder.FastWalk(opts, func(res finder.FastResult) error {
+		matches++
+
 		if countOnly {
 			return nil
 		}
-		fmt.Println(res.Path)
+
+		path := res.Path
+		if relativePaths {
+			if rel, err := filepath.Rel(res.Root, res.Path); err == nil {
+				path = rel
+			}
+		}
+		fmt.Println(path)
 		return nil
 	})
+
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "fastfind: %v\n", err)
 		os.Exit(1)
 	}
 
 	if countOnly {
-		fmt.Println(stats.FilesMatched)
+		fmt.Println(matches)
 	}
 
+	elapsed := time.Since(start)
 	if timer {
-		fmt.Fprintf(os.Stderr, "fastfind: completed in %s\n", time.Since(start))
+		fmt.Fprintf(os.Stderr, "fastfind: completed in %s\n", elapsed.Round(time.Millisecond))
 	}
 
 	if verbose {
-		fmt.Fprintf(os.Stderr, "fastfind: scanned %d files across %d roots (%d matches)\n",
-			stats.FilesScanned, stats.RootsScanned, stats.FilesMatched)
+		fmt.Fprintf(os.Stderr, "Scanned %d roots, %d dirs, %d files, %d matches in %s\n",
+			stats.RootsScanned, stats.Directories, stats.FilesScanned, matches, elapsed.Round(time.Millisecond))
 	}
+}
+
+func resolveIgnoreCase(patterns []string, ignoreCase bool, caseSensitive bool) bool {
+	if caseSensitive {
+		return false
+	}
+	if ignoreCase {
+		return true
+	}
+	return smartCase(patterns)
+}
+
+func smartCase(patterns []string) bool {
+	if len(patterns) == 0 {
+		return false
+	}
+	for _, p := range patterns {
+		for _, r := range p {
+			if 'A' <= r && r <= 'Z' {
+				return false
+			}
+		}
+	}
+	return true
 }

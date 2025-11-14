@@ -43,6 +43,9 @@ Options:
 	flag.PrintDefaults()
 }
 
+// finder is the canonical filesystem searcher: it balances feature completeness
+// (ignore files, hidden-file support, include/exclude extensions, smart casing)
+// with predictable depth-first traversal. Use it for day-to-day searches.
 func main() {
 	flag.Usage = usage
 
