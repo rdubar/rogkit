@@ -1,8 +1,8 @@
 """
-System cleanup utility for macOS and Raspberry Pi.
+System cleaner utility for macOS and Raspberry Pi.
 
 Scans and removes temporary/cache files across common directories with
-three cleanup levels: safe (caches), moderate (+ trash), aggressive (+ npm, logs).
+three cleaner levels: safe (caches), moderate (+ trash), aggressive (+ npm, logs).
 """
 import os
 import argparse
@@ -13,11 +13,11 @@ from pathlib import Path
 """
 Clean up script for macOS and Raspberry Pi
 This script scans for temporary and cache files in common directories
-and allows the user to delete them based on a specified cleanup level.
-It supports three levels of cleanup:
-1. Level 1: Safe cleanup (e.g., cache directories)
-2. Level 2: Moderate cleanup (e.g., Downloads, Trash)
-3. Level 3: Aggressive cleanup (e.g., npm cache, thumbnails, logs
+and allows the user to delete them based on a specified cleaner level.
+It supports three levels of cleaner:
+1. Level 1: Safe cleaner (e.g., cache directories)
+2. Level 2: Moderate cleaner (e.g., Downloads, Trash)
+3. Level 3: Aggressive cleaner (e.g., npm cache, thumbnails, logs
 """
 
 
@@ -30,7 +30,7 @@ def sizeof_fmt(num, suffix="B"):
     return f"{num:.1f}P{suffix}"
 
 def collect_paths(level):
-    """Collect cleanup paths based on specified level (1-3) and platform."""
+    """Collect cleaner paths based on specified level (1-3) and platform."""
     system = platform.system()
     home = Path.home()
 
@@ -108,18 +108,20 @@ def delete_files(file_list):
             continue
 
 def main():
-    """CLI entry point for system cleanup utility."""
-    parser = argparse.ArgumentParser(description="Cleanup Script for macOS and Pi")
+    """CLI entry point for system cleaner utility."""
+    parser = argparse.ArgumentParser(description="cleaner Script for macOS and Pi")
     parser.add_argument('--level', type=int, choices=[1, 2, 3], default=1,
-                        help="Level of cleanup: 1 (safe), 2 (moderate), 3 (aggressive)")
+                        help="Level of cleaner: 1 (safe), 2 (moderate), 3 (aggressive)")
     parser.add_argument('--confirm', action='store_true',
                         help="Actually delete files. Without this, it does a dry-run.")
     parser.add_argument('-v', '--verbose', action='store_true',
                     help="Enable verbose output for debugging purposes")
 
     args = parser.parse_args()
+    
+    print("Rog's Experimental Disk Cleaner")
 
-    print(f"Scanning with cleanup level {args.level}...")
+    print(f"Scanning with cleaner level {args.level}...")
     paths = collect_paths(args.level)
     files, total_size, summary = scan_and_report(paths, verbose=args.verbose)
 

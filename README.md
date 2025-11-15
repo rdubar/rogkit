@@ -251,7 +251,7 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `hidden` | Discover hidden files | - |
 | `large` | Find large files and directories | - |
 | `clean` | Clean translation files | - |
-| `cleanup` | Experimental disk cleanup | - |
+| `cleaner` | Experimental disk cleaner | - |
 | `purge` | Bulk file deletion | - |
 
 ### 🖼️ Image & Document Processing

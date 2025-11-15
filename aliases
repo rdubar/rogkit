@@ -93,7 +93,7 @@ alias large='$ROGKIT_PYTHON -m rogkit_package.bin.large "$@"'
 
 # File cleaning
 alias clean='$ROGKIT_PYTHON -m rogkit_package.bin.clean "$@"'
-alias cleanup='$ROGKIT_PYTHON -m rogkit_package.bin.cleanup "$@"'
+alias cleaner='$ROGKIT_PYTHON -m rogkit_package.bin.cleaner "$@"'
 alias purge='$ROGKIT_PYTHON -m rogkit_package.bin.purge "$@"'
 
 # ------------------------------------------------------------------------------
