@@ -18,13 +18,23 @@ from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import requests  # type: ignore
 
-from rogkit_package.archived.media.media_records import common_schema
-from rogkit_package.archived.media.media_settings import tmdb_data_file
 from rogkit_package.bin.tomlr import load_rogkit_toml
 from rogkit_package.media.extra_sources.cache import (
     EXTRAS_CACHE_PATH,
     write_extras_cache,
 )
+from rogkit_package.archived.media.media_records import common_schema
+from rogkit_package.settings import data_dir
+
+
+DATA_DIR = Path(data_dir)
+DEFAULT_CSV_PATH = DATA_DIR / "media.csv"
+DEFAULT_TMDB_PICKLE = DATA_DIR / "tmdb_cache.pkl"
+
+
+def ensure_data_dir() -> None:
+    """Ensure the shared media data directory exists."""
+    DATA_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def get_api_key():
@@ -37,8 +47,9 @@ class DataList:
     """TMDb data cache manager for movie records with pickle persistence."""
 
     def __init__(self):
-        self.records = {}
-        self.data_file = tmdb_data_file
+        ensure_data_dir()
+        self.records: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        self.data_file = DEFAULT_TMDB_PICKLE
         self.api_key = get_api_key()
 
     def lookup_record(self, title: str, year: Optional[int] = None):
@@ -96,16 +107,17 @@ class DataList:
 
     def load_from_file(self):
         """Load cached movie records from pickle file."""
-        if os.path.exists(self.data_file):
-            with open(self.data_file, "rb") as f:
+        if self.data_file.exists():
+            with self.data_file.open("rb") as f:
                 self.records = pickle.load(f)
                 print(f"Loaded {len(self.records)} titles from {self.data_file}")
         else:
-            print(f"Data file {self.data_file} not found")
+            print(f"No existing TMDb cache found at {self.data_file}. Starting fresh.")
 
     def save_to_file(self):
         """Save movie records to pickle file."""
-        with open(self.data_file, "wb") as f:
+        ensure_data_dir()
+        with self.data_file.open("wb") as f:
             pickle.dump(self.records, f)
             print(f"Saved {len(self.records)} titles to {self.data_file}")
 
@@ -184,12 +196,12 @@ class DataList:
     def delete_record(self, title, year=None):
         """Remove movie record from cache."""
         key = (str(title), str(year))
-        if key in self.records.keys():
-            del self.records[key]
-            print(f"Deleted {title} ({year})")
-            self.save_to_file()
-        else:
+        if key not in self.records:
             print(f"No record found for {title} ({year})")
+            return
+        del self.records[key]
+        print(f"Deleted {title} ({year})")
+        self.save_to_file()
 
     def dump_records(self):
         """Pretty-print all cached movie records."""
@@ -375,8 +387,8 @@ def main():
     parser.add_argument(
         "--csv",
         nargs="?",
-        const="media.csv",
-        help="Process titles from CSV (default: media.csv)",
+        const=str(DEFAULT_CSV_PATH),
+        help=f"Process titles from CSV (default: {DEFAULT_CSV_PATH})",
     )
     parser.add_argument(
         "--output",

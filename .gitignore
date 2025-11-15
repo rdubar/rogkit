@@ -12,6 +12,7 @@
 
 # Project data artifacts
 rogkit_package/data/*
+archived
 
 # Go build artifacts
 go/bin/

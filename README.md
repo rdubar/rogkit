@@ -228,7 +228,7 @@ root_directory = "/absolute/path/to/project/root"
 #### Media Workflow
 
 1. **Refresh the Plex snapshot:** `media --update` uses rsync with compression to pull the live database (skipping the download entirely if it has not changed) and automatically merges any extras JSON cache into the search cache. Use `media --update-plex` if you only want the raw Plex snapshot without merging extras (SSH settings come from `config.toml`).
-2. **Regenerate TMDb extras from CSV:** `tmdb --csv rogkit_package/deprecated/media/media.csv` (defaults to `media.csv` if omitted). Use `--refresh` to force new lookups.
+2. **Regenerate TMDb extras from CSV:** `tmdb --csv data/media.csv` (defaults to `data/media.csv` if omitted). Use `--refresh` to force new lookups.
 3. **Merge external catalogues manually (optional):** `integrate` writes the extras JSON into `plex_search_cache.sqlite3`, deduping on `(source, source_id)`, then rebuilds the pickle cache (already handled by `media --update`).
 4. **Search instantly:** `media` for recents, `media "<title>"`, `media "<title>" --deep`, `media "<title>" -z`, or append `--stats` to any of them for totals.
 5. **Restart the daemon after updates:** If you keep the media daemon running in the background (e.g., via `media --daemon`), restart it after upgrading the CLI—use `media --stop-daemon` followed by `media --daemon`—so new flags like `--people` are recognized.
@@ -416,7 +416,7 @@ from rogkit_package.bin.strike import strikethru
 from rogkit_package.bin.plural import plural
 
 print(randomcase("hello world"))  # "HeLLo WoRLd"
-print(strikethru("deprecated"))   # "d̶e̶p̶r̶e̶c̶a̶t̶e̶d̶"
+print(strikethru("obsolete"))     # "o̶b̶s̶o̶l̶e̶t̶e̶"
 print(plural("person"))           # "people"
 
 # Number formatting
@@ -437,12 +437,26 @@ from rogkit_package.bin.tomlr import load_rogkit_toml
 config = load_rogkit_toml()
 plex_url = config.get('plex', {}).get('plex_server_url')
 
-# Plex media library
-from rogkit_package.deprecated.media.plex_library import PlexLibrary
-library = PlexLibrary()
-results = library.search("inception", fuzzy=90)
-for movie in results:
-    print(f"{movie.title} ({movie.year}) - {movie.resolution}")
+# Plex media cache helpers
+from argparse import Namespace
+from rogkit_package.media.helpers import detect_db_path
+from rogkit_package.media.search import format_pretty_row, run_pretty_search
+
+db_path = detect_db_path()
+if db_path:
+    rows, total = run_pretty_search(
+        db_path,
+        ["inception"],
+        limit=5,
+        sort="title",
+        reverse=False,
+        deep=False,
+    )
+    print(f"{total} match(es) cached.")
+    for row in rows:
+        print(format_pretty_row(row, Namespace(length=80, info=False, path=False)))
+else:
+    print("Plex database not detected. Run `media --list-paths` for help.")
 ```
 
 ---
@@ -509,7 +523,7 @@ uv export -o requirements.txt
 pd --update
 
 # 2. Rebuild external catalogue metadata from CSV sources
-tmdb --csv rogkit_package/media/media.csv
+tmdb --csv data/media.csv
 # (Add --refresh to force new TMDb lookups)
 
 # 3. Merge extras into the fast cache
@@ -569,12 +583,6 @@ bignum 1234567890          # 1,234,567,890
 bytes 1234567890           # 1.23 GB
 ```
 
-
-## 🕰️ Legacy Media Suite
-
-The original CSV/SQLite `media` CLI remains available under `rogkit_package.deprecated`.
-Use it only if you need behaviours that have not yet been ported to the daemon-backed `pd`
-workflow.
 
 ### Commands
 
