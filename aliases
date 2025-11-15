@@ -66,9 +66,9 @@ alias media_play='$ROGKIT_PYTHON -m rogkit_package.bin.media_play "$@"'
 alias play='$ROGKIT_PYTHON -m rogkit_package.bin.media_play "$@"'
 
 # Media processing
-alias shrink='$ROGKIT_PYTHON -m rogkit_package.deprecated.media.shrink "$@"'
-alias tmdb='$ROGKIT_PYTHON -m rogkit_package.deprecated.media.tmdb "$@"'
-alias tkm='$ROGKIT_PYTHON -m rogkit_package.deprecated.media.media_tk "$@"'
+alias shrink='$ROGKIT_PYTHON -m rogkit_package.bin.shrink "$@"'
+alias tmdb='$ROGKIT_PYTHON -m rogkit_package.media.tmdb "$@"'
+alias tkm='$ROGKIT_PYTHON -m rogkit_package.media.media_tk "$@"'
 
 # ------------------------------------------------------------------------------
 # File System Operations
