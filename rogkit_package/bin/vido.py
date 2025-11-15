@@ -161,8 +161,8 @@ def get_movies(search, config):
     
 def update_yt_dlp(path=None):
     """Update yt_dlp package in virtualenv."""
-    # get path for ~/opt/rogkit
-    path = os.path.expanduser(path or "~/opt/rogkit")
+    # get path for ~/dev/rogkit  # TODO: use settings
+    path = os.path.expanduser(path or "~/dev/rogkit")
     try:
         os.chdir(path)
     except FileNotFoundError:

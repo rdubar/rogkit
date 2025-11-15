@@ -4,13 +4,13 @@
 # ==============================================================================
 # Professional utility toolkit for system administration, media management,
 # and productivity tools. Source this file in your shell configuration:
-#   source ~/opt/rogkit/aliases
+#   source ~/dev/rogkit/aliases
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
 # Environment Configuration
 # ------------------------------------------------------------------------------
-INSTALL=~/opt
+INSTALL=~/dev
 ROGKIT="$INSTALL/rogkit"
 ROGKIT_VENV="$ROGKIT/.venv"
 ROGKIT_PYTHON="$ROGKIT_VENV/bin/python"

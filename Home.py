@@ -29,13 +29,13 @@ Use the **sidebar** (← left) to navigate between different tools and utilities
 To start the Streamlit interface from the command line:
 
 ```bash
-cd ~/opt/rogkit
+cd ~/dev/rogkit
 streamlit run Home.py
 ```
 
 Or use the shortcut (if using the rogkit aliases):
 ```bash
-cd ~/opt/rogkit
+cd ~/dev/rogkit
 streamlit run Home.py
 ```
 

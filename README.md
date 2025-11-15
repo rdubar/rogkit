@@ -35,7 +35,7 @@ A collection of 85+ Python (and some Go) utilities for developers and system adm
 
 ```bash
 # Set up the installation directory
-INSTALL=~/opt
+INSTALL=~/dev
 mkdir -p "$INSTALL"
 cd "$INSTALL"
 
@@ -97,7 +97,7 @@ Add to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 # RogKit Integration
-INSTALL=~/opt
+INSTALL=~/dev
 ROGKIT="$INSTALL/rogkit"
 ROGKIT_BIN="$ROGKIT/rogkit_package/bin"
 ROGKIT_GO="$ROGKIT/go"
@@ -132,7 +132,7 @@ RogKit ships several performance-sensitive tools as Go binaries (`replacer`, `se
 ### Build All Go Commands
 
 ```bash
-cd ~/opt/rogkit
+cd ~/dev/rogkit
 ./scripts/build_go.sh
 ```
 
@@ -378,7 +378,7 @@ Launch the interactive web interface:
 
 ```bash
 # From within the rogkit directory
-cd ~/opt/rogkit
+cd ~/dev/rogkit
 
 # Option 1: Using system Streamlit (if installed globally)
 streamlit run Home.py
