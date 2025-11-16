@@ -1,19 +1,17 @@
 #!/usr/bin/env python3
 """
-TMDb (The Movie Database) API integration for movie metadata.
+Build TMDb-powered extras JSON for the media cache.
 
-Fetches movie details (cast, crew, synopsis, ratings, poster/backdrop images)
-and caches results to pickle file for offline access.
+Given a CSV of titles, this script looks up each entry at TMDb, caches the raw
+payloads locally, and writes a compact extras JSON file that
+`rogkit_package.media.extra_sources.integrate` can merge into the Plex cache.
 """
 
 import argparse
 import csv
-import os
 import pickle
-import warnings
 from datetime import datetime, UTC
 from pathlib import Path
-from pprint import pprint
 from typing import Any, Dict, Iterable, List, Optional, Tuple
 
 import requests  # type: ignore
@@ -23,7 +21,6 @@ from rogkit_package.media.extra_sources.cache import (
     EXTRAS_CACHE_PATH,
     write_extras_cache,
 )
-from rogkit_package.archived.media.media_records import common_schema
 from rogkit_package.settings import data_dir
 
 
@@ -193,63 +190,6 @@ class DataList:
         print(f"Failed TMDB detail fetch for movie ID {movie_id}")
         return None
 
-    def delete_record(self, title, year=None):
-        """Remove movie record from cache."""
-        key = (str(title), str(year))
-        if key not in self.records:
-            print(f"No record found for {title} ({year})")
-            return
-        del self.records[key]
-        print(f"Deleted {title} ({year})")
-        self.save_to_file()
-
-    def dump_records(self):
-        """Pretty-print all cached movie records."""
-        pprint(self.records)
-
-    def list_records(self):
-        """List all cached movie titles and years."""
-        for key in sorted(self.records.keys()):
-            print(f"{key[0]} ({key[1]})")
-
-    def get_media_record(self, title, year=None):
-        """Get movie record in common schema format for database insertion."""
-        tmdb_info = self.get_movie_details(title, year)
-        if not tmdb_info:
-            return None
-        record = {}
-        for key in common_schema.keys():
-            record[key] = tmdb_info.get(key)
-        record["duration"] = int(tmdb_info.get("runtime") * 60 * 1000)
-        record["summary"] = tmdb_info.get("overview")
-        record["rating"] = int(tmdb_info.get("vote_average"))
-        record["year"] = int(tmdb_info.get("release_date")[:4])
-        record["thumb"] = (
-            f"https://image.tmdb.org/t/p/original{tmdb_info.get('poster_path')}"
-        )
-        record["art"] = (
-            f"https://image.tmdb.org/t/p/original{tmdb_info.get('backdrop_path')}"
-        )
-        record["genres"] = ", ".join(
-            genre.get("name") for genre in tmdb_info.get("genres", [])
-        )
-        record["actors"] = ", ".join(
-            actor.get("name")
-            for actor in tmdb_info.get("credits", {}).get("cast", [])
-        )
-        record["directors"] = ", ".join(
-            director.get("name")
-            for director in tmdb_info.get("credits", {}).get("crew", [])
-            if director.get("job") == "Director"
-        )
-        record["writers"] = ", ".join(
-            writer.get("name")
-            for writer in tmdb_info.get("credits", {}).get("crew", [])
-            if writer.get("job") == "Writer"
-        )
-        return record
-
-
 def process_csv_file(
     data_list: DataList,
     csv_path: Path,
@@ -377,118 +317,74 @@ def build_extra_record(
 
 
 def main():
-    """CLI entry point for TMDb data management."""
-    parser = argparse.ArgumentParser(description="Get movie details from TMDb")
-    parser.add_argument("search_terms", nargs="*", help="Search terms for movies")
-    parser.add_argument("-l", "--list", action="store_true", help="List titles")
-    parser.add_argument("-d", "--dump", action="store_true", help="Dump title data")
-    parser.add_argument("--delete", action="store_true", help="Delete title data")
-    parser.add_argument("--reset", action="store_true", help="Reset data file")
+    """CLI entry point for building extras JSON from TMDb."""
+    parser = argparse.ArgumentParser(
+        description="Fetch TMDb metadata for a CSV of titles and write extras JSON for integrate."
+    )
     parser.add_argument(
         "--csv",
-        nargs="?",
-        const=str(DEFAULT_CSV_PATH),
-        help=f"Process titles from CSV (default: {DEFAULT_CSV_PATH})",
+        default=str(DEFAULT_CSV_PATH),
+        help=f"Path to the titles CSV (default: {DEFAULT_CSV_PATH})",
     )
     parser.add_argument(
         "--output",
-        help="Path to extras cache JSON (default: extras_tmdb.json)",
+        default=str(EXTRAS_CACHE_PATH),
+        help=f"Destination for the extras JSON (default: {EXTRAS_CACHE_PATH})",
     )
     parser.add_argument(
         "--provider",
         default="csv",
-        help="Source label for CSV imported titles",
+        help="Provider label stored with each extras record (default: %(default)s).",
     )
     parser.add_argument(
-        "--dry-run", action="store_true", help="Preview results without writing cache"
+        "--dry-run",
+        action="store_true",
+        help="Fetch metadata and show a summary without writing the extras file.",
     )
     parser.add_argument(
         "--refresh",
         action="store_true",
-        help="Force refresh of TMDb data when processing CSV",
+        help="Force new TMDb lookups even if a title is already cached.",
     )
     parser.add_argument(
-        "--verbose", action="store_true", help="Verbose logging for CSV processing"
+        "--verbose",
+        action="store_true",
+        help="Print per-title progress while processing the CSV.",
     )
     args = parser.parse_args()
-
-    warnings.simplefilter("default", DeprecationWarning)
 
     data_list = DataList()
     data_list.load_from_file()
 
-    # Emit deprecation warnings for legacy commands
-    def warn_legacy(flag: str) -> None:
-        warnings.warn(
-            f"Option {flag} is deprecated and will be removed in a future release.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
+    csv_path = Path(args.csv)
+    output_path = Path(args.output)
 
-    if args.reset:
-        warn_legacy("--reset")
-    if args.list:
-        warn_legacy("--list")
-    if args.dump:
-        warn_legacy("--dump")
-    if args.delete:
-        warn_legacy("--delete")
-    if args.search_terms:
-        warn_legacy("positional search arguments")
+    extras, new_fetches = process_csv_file(
+        data_list,
+        csv_path,
+        provider=args.provider,
+        verbose=args.verbose,
+        force=args.refresh,
+    )
 
-    if args.reset:
-        data_list.records = {}
+    if new_fetches:
         data_list.save_to_file()
-        print(f"Reset data file {data_list.data_file}")
+
+    total = len(extras)
+    print(
+        f"Prepared {total} extras record(s) from {csv_path} "
+        f"with {new_fetches} TMDb fetch(es)."
+    )
+
+    if not extras:
         return
-    elif args.list:
-        data_list.list_records()
-    elif args.csv:
-        csv_path = Path(args.csv)
-        output_path = Path(args.output) if args.output else EXTRAS_CACHE_PATH
-        extras, added = process_csv_file(
-            data_list,
-            csv_path,
-            provider=args.provider,
-            verbose=args.verbose,
-            force=args.refresh,
-        )
-        if added:
-            data_list.save_to_file()
-        if not extras:
-            print("No records generated from CSV.")
-            return
-        if args.dry_run:
-            print(f"Prepared {len(extras)} records (dry run, not written).")
-        else:
-            path = write_extras_cache(extras, output_path)
-            print(f"Wrote {len(extras)} records to {path}")
-    elif args.dump:
-        data_list.dump_records()
-    elif args.delete:
-        search = " ".join(args.search_terms)
-        title, year = (
-            (search[:-5].strip(), int(search[-4:]))
-            if search[-4:].isdigit()
-            else (search, None)
-        )
-        print(f"Deleting {title} {year}")
-        data_list.delete_record(title, year=year)
-    elif args.search_terms:
-        search = " ".join(args.search_terms)
-        title, year = (
-            (search[:-5].strip(), int(search[-4:]))
-            if search[-4:].isdigit()
-            else (search, None)
-        )
-        print(f"Searching for {title} {year}")
-        record, added = data_list.ensure_record(
-            title, year=year, verbose=True, force=args.refresh
-        )
-        if record and added:
-            data_list.save_to_file()
-    else:
-        print("No search terms provided")
+
+    if args.dry_run:
+        print("Dry run: extras JSON was not written.")
+        return
+
+    path = write_extras_cache(extras, output_path)
+    print(f"Wrote {total} record(s) to {path}")
 
 
 if __name__ == "__main__":

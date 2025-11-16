@@ -13,6 +13,8 @@ import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
+from rogkit_package.bin.seconds import time_ago_in_words
+
 CACHE_DIR = Path.home() / ".cache" / "rogkit" / "plex_db"
 CACHE_PICKLE_PATH = CACHE_DIR / "plex_search_cache.pkl"
 CACHE_SQLITE_PATH = CACHE_DIR / "plex_search_cache.sqlite3"
@@ -267,7 +269,7 @@ def load_cached_records(db_path: Path) -> List[Dict[str, Any]]:
 
 
 def _format_cache_age(seconds: Optional[float]) -> str:
-    """Return a human-readable clock string for cache age."""
+    """Return a human-readable clock string for cache age. -- Currently unused."""
 
     if seconds is None:
         return "unknown"
@@ -280,10 +282,10 @@ def _format_cache_age(seconds: Optional[float]) -> str:
 def describe_cache_state(total_items: int, cache_age_seconds: Optional[float]) -> str:
     """Return the banner text describing the cache state."""
 
-    age_str = _format_cache_age(cache_age_seconds)
+    age_str = time_ago_in_words(cache_age_seconds)
     return (
         "Rog's Fast Media Tool\n"
-        f"Library of {total_items:,} items last updated {age_str} ago."
+        f"Library of {total_items:,} items last updated {age_str}."
     )
 
 
