@@ -300,6 +300,13 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `catyears` | Cat age to human years | - | - |
 | `generations` | Calculate genealogical generations | `gen` | - |
 | `bmi_calc` | BMI calculator with progression | `bmi` | - |
+| `multical` | Show date across multiple calendars | - | `from rogkit_package.bin.multical import main` |
+
+#### Multi-calendar conversions
+
+- Requires the `convertdate` dependency (installed automatically when you `uv sync`).
+- Run directly with uv: `uv run python rogkit_package/bin/multical.py 2024-11-16`
+- Omit the date to default to today; output includes Julian, Hebrew, Islamic (tabular and Umm al-Qura when available), Persian, Bahá'í, Indian Civil, and Mayan Long Count.
 
 ### 💻 System Information & Utilities
 

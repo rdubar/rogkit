@@ -141,6 +141,7 @@ alias rounder='$ROGKIT_PYTHON -m rogkit_package.bin.rounder "$@"'
 # Time conversions
 alias seconds='$ROGKIT_PYTHON -m rogkit_package.bin.seconds "$@"'
 alias tim='$ROGKIT_PYTHON -m rogkit_package.bin.time_check "$@"'
+alias multical='$ROGKIT_PYTHON -m rogkit_package.bin.multical "$@"'
 
 # Age & generation calculators
 alias catyears='$ROGKIT_PYTHON -m rogkit_package.bin.catyears "$@"'
