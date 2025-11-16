@@ -116,13 +116,15 @@ def detect_db_path() -> Optional[Path]:
 
 def human_size(num_bytes: int) -> str:
     """Return a human-friendly representation of a byte size."""
-    if num_bytes < 1024:
-        return f"{num_bytes}B"
+    if num_bytes <= 0:
+        return "0B"
 
-    units = ["KB", "MB", "GB", "TB"]
     size = float(num_bytes)
+    units = ["B", "KB", "MB", "GB", "TB", "PB"]
     for unit in units:
         if size < 1024 or unit == units[-1]:
+            if unit == "B":
+                return f"{int(size)}{unit}"
             return f"{size:.1f}{unit}"
         size /= 1024
     return f"{num_bytes}B"

@@ -189,12 +189,23 @@ def sync_remote_db(remote: RemoteConfig, *, prefer_rsync: bool = False, verbose:
                 ) from exc
 
             cached_state = _read_cached_state(remote.cache_path)
-            if cached_state != remote_state or not remote.cache_path.exists():
-                if not prefer_rsync or not _copy_remote_file_rsync(remote, remote.db_path, remote.cache_path):
-                    if prefer_rsync:
-                        _copy_remote_file(sftp, remote.db_path, remote.cache_path)
-                _write_cached_state(remote.cache_path, *remote_state)
-                performed_transfer = True
+            local_state = _local_file_state(remote.cache_path)
+            needs_copy = (
+                cached_state != remote_state
+                or local_state != remote_state
+                or not remote.cache_path.exists()
+            )
+            if needs_copy:
+                copied = False
+                if prefer_rsync:
+                    copied = _copy_remote_file_rsync(remote, remote.db_path, remote.cache_path)
+                if not copied:
+                    _copy_remote_file(sftp, remote.db_path, remote.cache_path)
+                    copied = True
+                if copied:
+                    os.utime(remote.cache_path, (remote_state[1], remote_state[1]))
+                    _write_cached_state(remote.cache_path, *remote_state)
+                    performed_transfer = True
 
             for suffix in ("-wal", "-shm"):
                 remote_sidecar = Path(str(remote.db_path) + suffix)
