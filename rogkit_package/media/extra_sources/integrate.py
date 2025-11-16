@@ -7,7 +7,7 @@ import json
 import sqlite3
 from datetime import datetime, UTC
 from pathlib import Path
-from typing import Optional
+from typing import Any, Optional
 
 from rogkit_package.media.media_cache import CACHE_SQLITE_PATH, write_cache_pickle
 from .cache import EXTRAS_CACHE_PATH, load_extras_cache
@@ -21,6 +21,86 @@ REQUIRED_EXTRA_COLUMNS = {
 }
 
 LEGACY_SOURCE_LABELS = ("tmdb_csv", "csv")
+
+RESOLUTION_FIELD_CANDIDATES = (
+    "resolution",
+    "Resolution",
+    "video_resolution",
+    "VideoResolution",
+    "videoResolution",
+    "quality",
+    "Quality",
+)
+
+_RESOLUTION_TOKEN_DIMENSIONS = [
+    ("4320", (7680, 4320)),
+    ("8k", (7680, 4320)),
+    ("2160", (3840, 2160)),
+    ("4k", (3840, 2160)),
+    ("uhd", (3840, 2160)),
+    ("1440", (2560, 1440)),
+    ("qhd", (2560, 1440)),
+    ("2k", (2048, 1080)),
+    ("1080", (1920, 1080)),
+    ("fullhd", (1920, 1080)),
+    ("fhd", (1920, 1080)),
+    ("hdready", (1280, 720)),
+    ("720", (1280, 720)),
+    ("hd", (1920, 1080)),
+    ("480", (720, 480)),
+    ("sd", (720, 480)),
+]
+
+
+def _normalize_resolution_label(value: str) -> str:
+    """Compact a resolution label to alphanumeric lowercase characters."""
+
+    return "".join(ch.lower() for ch in value if ch.isalnum())
+
+
+def _dimensions_from_resolution_label(value: str) -> tuple[Optional[int], Optional[int]]:
+    """Resolve width/height from a free-form resolution label."""
+
+    normalized = _normalize_resolution_label(value)
+    for token, dims in _RESOLUTION_TOKEN_DIMENSIONS:
+        if token in normalized:
+            return dims
+    return None, None
+
+
+def _extract_dimensions(
+    record: dict[str, Any], csv_payload: Optional[dict[str, Any]]
+) -> tuple[Optional[int], Optional[int]]:
+    """Return width/height, falling back to resolution labels in the CSV payload."""
+
+    width = record.get("width")
+    height = record.get("height")
+    try:
+        width_int = int(width) if width not in (None, "") else None
+        height_int = int(height) if height not in (None, "") else None
+    except (TypeError, ValueError):
+        width_int = None
+        height_int = None
+
+    if width_int and height_int:
+        return width_int, height_int
+
+    resolution_label = record.get("resolution") or record.get("video_resolution")
+    if not resolution_label and isinstance(csv_payload, dict):
+        for key in RESOLUTION_FIELD_CANDIDATES:
+            value = csv_payload.get(key)
+            if value:
+                resolution_label = value
+                break
+
+    if resolution_label:
+        resolved_width, resolved_height = _dimensions_from_resolution_label(
+            str(resolution_label)
+        )
+        if resolved_width and resolved_height:
+            return resolved_width, resolved_height
+
+    return None, None
 
 
 def _ensure_extra_columns(conn: sqlite3.Connection) -> None:
@@ -106,6 +186,10 @@ def merge_extras_into_cache(
             csv_payload = record.get("csv", {})
             file_path = csv_payload.get("file_path") if isinstance(csv_payload, dict) else None
             disk = csv_payload.get("disk") if isinstance(csv_payload, dict) else None
+            width, height = _extract_dimensions(record, csv_payload if isinstance(csv_payload, dict) else None)
+            if width and height:
+                record["width"] = width
+                record["height"] = height
             source_id = str(record.get("tmdb_id") or record.get("id") or f"{title}_{year}")
             created_at = record.get("created_at") or datetime.now(UTC).isoformat()
             updated_at = record.get("updated_at") or created_at
@@ -144,8 +228,8 @@ def merge_extras_into_cache(
                 "added_at": None,
                 "duration_ms": duration_ms,
                 "duration_meta": duration_ms,
-                "width": None,
-                "height": None,
+                "width": width,
+                "height": height,
                 "size_bytes": None,
                 "file_path": file_path,
                 "disk": disk,
