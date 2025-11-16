@@ -5,6 +5,7 @@ from __future__ import annotations
 import contextlib
 import json
 import os
+import sys
 import socket
 import subprocess
 import threading
@@ -56,7 +57,9 @@ def send_daemon_message(
         with sock.makefile("r", encoding="utf-8") as response_stream:
             response_line = response_stream.readline()
         if not response_line:
-            raise RuntimeError("Daemon closed connection without response")
+            print(f"Daemon closed connection without response: {response_line} - try running again.")
+            sys.exit(1)
+            # raise RuntimeError("Daemon closed connection without response")
         return json.loads(response_line)
     finally:
         sock.close()

@@ -104,6 +104,11 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         help="Refresh the Plex database snapshot without merging extras.",
     )
     parser.add_argument(
+        "--rsync",
+        action="store_true",
+        help="Prefer rsync for remote Plex database transfers when available.",
+    )
+    parser.add_argument(
         "--show-path",
         action="store_true",
         help="Print the detected Plex database path and exit.",

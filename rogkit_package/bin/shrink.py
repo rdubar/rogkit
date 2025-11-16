@@ -73,15 +73,17 @@ def ensure_tool_available(tool: str) -> bool:
     return shutil.which(tool) is not None
 
 
-def probe_video_metadata(video_path: Path) -> Tuple[Optional[float], Optional[int], Optional[int]]:
+def probe_video_metadata(
+    video_path: Path,
+) -> Tuple[Optional[float], Optional[int], Optional[int], Optional[str]]:
     """
     Use ffprobe to extract duration and bitrates.
 
     Returns:
-        duration_seconds, overall_bitrate_bps, video_bitrate_bps
+        duration_seconds, overall_bitrate_bps, video_bitrate_bps, video_codec_name
     """
     if not ensure_tool_available("ffprobe"):
-        return None, None, None
+        return None, None, None, None
 
     cmd = [
         "ffprobe",
@@ -90,7 +92,7 @@ def probe_video_metadata(video_path: Path) -> Tuple[Optional[float], Optional[in
         "-print_format",
         "json",
         "-show_entries",
-        "format=duration,bit_rate,size:stream=codec_type,bit_rate",
+        "format=duration,bit_rate,size:stream=codec_type,bit_rate,codec_name",
         str(video_path),
     ]
     try:
@@ -101,16 +103,17 @@ def probe_video_metadata(video_path: Path) -> Tuple[Optional[float], Optional[in
             check=True,
         )
     except (subprocess.CalledProcessError, FileNotFoundError):
-        return None, None, None
+        return None, None, None, None
 
     try:
         data = json.loads(proc.stdout)
     except json.JSONDecodeError:
-        return None, None, None
+        return None, None, None, None
 
     duration: Optional[float] = None
     format_bitrate: Optional[int] = None
     video_bitrate: Optional[int] = None
+    video_codec: Optional[str] = None
 
     fmt = data.get("format", {})
     if "duration" in fmt:
@@ -125,14 +128,18 @@ def probe_video_metadata(video_path: Path) -> Tuple[Optional[float], Optional[in
             format_bitrate = None
 
     for stream in data.get("streams", []):
-        if stream.get("codec_type") == "video" and "bit_rate" in stream:
-            try:
-                video_bitrate = int(stream["bit_rate"])
-            except (TypeError, ValueError):
-                video_bitrate = None
+        if stream.get("codec_type") == "video":
+            if "bit_rate" in stream:
+                try:
+                    video_bitrate = int(stream["bit_rate"])
+                except (TypeError, ValueError):
+                    video_bitrate = None
+            codec_name = stream.get("codec_name")
+            if isinstance(codec_name, str) and codec_name:
+                video_codec = codec_name
             break
 
-    return duration, format_bitrate, video_bitrate
+    return duration, format_bitrate, video_bitrate, video_codec
 
 
 def estimate_target_size(
@@ -239,13 +246,15 @@ def perform_shrink(args: argparse.Namespace) -> None:
         print("Error: ffmpeg is not available on PATH. Install it first.", file=sys.stderr)
         sys.exit(1)
 
-    duration, overall_bitrate, video_bitrate = probe_video_metadata(source)
+    duration, overall_bitrate, video_bitrate, video_codec = probe_video_metadata(source)
     source_size = source.stat().st_size
 
     print(f"Source: {source}")
     print(f"Size  : {human_size(source_size)}")
     if duration:
         print(f"Duration: {duration / 60:.2f} minutes")
+    if video_codec:
+        print(f"Video codec: {video_codec}")
 
     estimated_size = estimate_target_size(
         duration,

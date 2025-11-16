@@ -288,7 +288,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         current_step = 1
         try:
             print(f"[Step {current_step}/{total_steps}] Refreshing Plex snapshot...", flush=True)
-            synced_db_path = sync_remote_db(remote, verbose=True)
+            synced_db_path = sync_remote_db(remote, prefer_rsync=args.rsync, verbose=True)
             current_step += 1
             print(f"[Step {current_step}/{total_steps}] Rebuilding fast media cache...", flush=True)
             build_cache_table(synced_db_path)
@@ -325,7 +325,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             print("No local Plex database found; attempting to pull from remote host...")
             pull_start = perf_counter()
             try:
-                synced_db_path = sync_remote_db(remote, verbose=True)
+                synced_db_path = sync_remote_db(remote, prefer_rsync=args.rsync, verbose=True)
                 duration = perf_counter() - pull_start
                 build_cache_table(synced_db_path)
                 db_path = synced_db_path

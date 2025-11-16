@@ -58,6 +58,7 @@ def build_media_cli_args(
     use_daemon: bool,
     update: bool,
     update_plex: bool,
+    rsync: bool,
     list_paths: bool,
     show_path: bool,
 ) -> List[str]:
@@ -69,6 +70,8 @@ def build_media_cli_args(
         args.append("--update")
     if update_plex:
         args.append("--update-plex")
+    if rsync:
+        args.append("--rsync")
     if list_paths:
         args.append("--list-paths")
     if show_path:
@@ -120,6 +123,7 @@ def run_cli_mode(args: argparse.Namespace) -> int:
         use_daemon=args.use_daemon,
         update=args.update,
         update_plex=args.update_plex,
+        rsync=args.rsync,
         list_paths=args.list_paths,
         show_path=args.show_path,
     )
@@ -503,6 +507,11 @@ def parse_args(argv: Optional[Sequence[str]] = None) -> argparse.Namespace:
         "--update-plex",
         action="store_true",
         help="Run media --update-plex before displaying results.",
+    )
+    parser.add_argument(
+        "--rsync",
+        action="store_true",
+        help="Prefer rsync for remote Plex database transfers.",
     )
     parser.add_argument(
         "--list-paths",
