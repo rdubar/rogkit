@@ -161,6 +161,7 @@ alias space='$ROGKIT_PYTHON -m rogkit_package.bin.space "$@"'
 alias mapper='$ROGKIT_PYTHON -m rogkit_package.bin.mapper "$@"'
 
 alias syscheck='$ROGKIT_PYTHON -m rogkit_package.bin.syscheck "$@"'
+alias sys='$ROGKIT_PYTHON -m rogkit_package.bin.syscheck "$@"'
 alias sysinfo='$ROGKIT_PYTHON -m rogkit_package.bin.sysinfo "$@"'
 alias system='python -m rogkit_package.bin.system "$@"'
 alias pyinfo='$ROGKIT_PYTHON -m rogkit_package.bin.pyinfo "$@"'
