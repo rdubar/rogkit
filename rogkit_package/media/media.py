@@ -34,6 +34,7 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 
+from rogkit_package.bin.seconds import convert_seconds
 from .extra_sources.integrate import merge_extras_into_cache
 from .parse_args import parse_args
 from .media_cache import (
@@ -454,7 +455,8 @@ def main_timer():
     start_time = perf_counter()
     exit_code = main()
     elapsed_time = perf_counter() - start_time
-    print(f"Operation completed in {elapsed_time:.4f} seconds.")
+    time_str = convert_seconds(elapsed_time)
+    print(f"Operation completed in {time_str}.")
     return exit_code
 
 if __name__ == "__main__":

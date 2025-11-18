@@ -29,7 +29,6 @@ Usage:
 
 import os
 import sys
-import subprocess
 import tempfile
 import argparse
 import time
@@ -159,28 +158,57 @@ def get_movies(search, config):
     process_lines(lines, config)
     print(Fore.CYAN + f"Completed task in {showtime(time.perf_counter() - clock)}.")
     
-def update_yt_dlp(path=None):
-    """Update yt_dlp package in virtualenv."""
-    # get path for ~/dev/rogkit  # TODO: use settings
-    path = os.path.expanduser(path or "~/dev/rogkit")
+def update_yt_dlp():
+    """Report whether a newer yt_dlp exists and how to upgrade (no installs)."""
+    from importlib import metadata
+    import json
+    import urllib.request
+
+    current_version = "unknown"
     try:
-        os.chdir(path)
-    except FileNotFoundError:
-        sys.exit(f"Error: {path} not found")
+        current_version = metadata.version("yt_dlp")
+    except metadata.PackageNotFoundError:
+        print(Fore.MAGENTA + "yt_dlp is not currently installed in this environment.")
+    except Exception as e:
+        print(Fore.MAGENTA + f"Could not determine installed yt_dlp version: {e}")
 
-    pip_bin = os.path.join(path, "venv", "bin", "pip")
-    if not os.path.exists(pip_bin):
-        sys.exit("Error: virtualenv not found at venv/bin/activate")
-
-    req = os.path.join(path, "requirements.txt")
-    if os.path.exists(req):
-        subprocess.run(["grep", "yt", req], check=False)
-
+    latest_version = None
     try:
-        subprocess.run([pip_bin, "install", "--upgrade", "yt_dlp"], check=True)
-        print("yt_dlp upgraded successfully.")
-    except subprocess.CalledProcessError:
-        sys.exit("Error: pip upgrade failed")
+        with urllib.request.urlopen("https://pypi.org/pypi/yt-dlp/json", timeout=5) as resp:
+            data = json.load(resp)
+            latest_version = data["info"]["version"]
+    except Exception as e:
+        print(Fore.MAGENTA + f"Unable to check PyPI for the latest yt_dlp release: {e}")
+        print(Fore.CYAN + "You can manually check with `uv pip index versions yt-dlp` or visit https://pypi.org/project/yt-dlp/.")
+        return
+
+    print(Fore.CYAN + f"Installed yt_dlp version: {current_version}")
+    print(Fore.CYAN + f"Latest    yt_dlp version: {latest_version}")
+
+    def parse_version(v):
+        try:
+            from packaging.version import Version
+            return Version(v)
+        except Exception:
+            return None
+
+    parsed_installed = parse_version(current_version)
+    parsed_latest = parse_version(latest_version)
+
+    needs_upgrade = False
+    if parsed_installed and parsed_latest:
+        needs_upgrade = parsed_latest > parsed_installed
+    elif current_version != "unknown" and latest_version:
+        needs_upgrade = current_version != latest_version
+
+    if needs_upgrade:
+        print(Fore.YELLOW + f"Update available: {current_version} -> {latest_version}")
+        print(Fore.CYAN + "Upgrade steps (uv-managed project):")
+        print("  uv add -U yt-dlp")
+        print("  uv export -o requirements.txt")
+        print("  uv sync --all-extras")
+    else:
+        print(Fore.GREEN + "yt_dlp is up to date.")
 
 def main():
     """CLI entry point for video downloader."""
@@ -192,9 +220,16 @@ def main():
         default=default_config,
         help=f"Path to config file (default: {default_config})"
     )
-    parser.add_argument("--update", "-u", action="store_true", help="Update yt_dlp to the latest version")
+    parser.add_argument(
+        "--update", "-u",
+        action="store_true",
+        help="Check for a newer yt_dlp and show how to upgrade (no install)"
+    )
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     args = parser.parse_args()
+    
+    if args.update:
+        update_yt_dlp()
 
     # Expand ~ to full path
     args.config = os.path.expanduser(args.config)
@@ -226,9 +261,6 @@ def main():
         search = args.search
     else:
         search = input(Fore.CYAN + "Enter URL, filename or search term: ")
-        
-    if args.update:
-        update_yt_dlp()
 
     if args.debug:
         get_movies(search, config)
