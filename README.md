@@ -350,6 +350,7 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 |---------|-------------|---------|---------------|
 | `pw` | Secure password generator | - | `from pw import PasswordGenerator` |
 | `fakes` | Generate fake data (names, emails, etc.) | - | `from fakes import fake_data` |
+| `vpner` | Start/Stop/See VPN status | - |
 
 ### 🎮 Entertainment & Games
 

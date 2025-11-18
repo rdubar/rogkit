@@ -169,6 +169,8 @@ alias pyinfo='$ROGKIT_PYTHON -m rogkit_package.bin.pyinfo "$@"'
 
 alias speeder='$ROGKIT_PYTHON -m rogkit_package.bin.speeder "$@"'
 
+alias vpner='$ROGKIT_PYTHON -m rogkit_package.bin.vpner "$@"'
+
 # ------------------------------------------------------------------------------
 # Container & Remote Management
 # ------------------------------------------------------------------------------
