@@ -11,12 +11,24 @@ MacBook Pro (M3)	2.7.18	        x86_64 (Intel)	        Rosetta (Emulated)	2,749,
 Raspberry Pi 5	    3.13.0	        aarch64 (Arm64)	        Native	            2,081,838
 """
 from __future__ import print_function
-import sys
+import argparse
+import math
 import platform
 import subprocess
-import argparse
+import sys
 import time
-import math
+
+try:
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    console = Console()
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover - optional dependency
+    console = None
+    RICH_AVAILABLE = False
 
 
 def get_arch_cmd():
@@ -33,35 +45,81 @@ def get_arch_cmd():
 def main():
     """CLI entry point for Python system information tool."""
     args = parse_args()
-    print("="*40)
-    print("  Python System Information Report")
-    print("="*40)
-    print("Python Version      :", platform.python_version())
-    print("Python Executable   :", sys.executable)
-    print("Implementation      :", platform.python_implementation())
-    print("Operating System    :", platform.system(), platform.release())
-    print("Platform            :", sys.platform)
-    print("Machine             :", platform.machine())
-    print("Processor           :", platform.processor())
-    arch_bits, arch_link = platform.architecture()
-    print("Platform Architecture:", arch_bits, "-", arch_link)
-    arch_cmd = get_arch_cmd()
-    print("System Architecture via 'arch':", arch_cmd)
-    if arch_cmd == 'i386':
-        friendly_arch = "Intel 32-bit (possibly under Rosetta 2)"
-    elif arch_cmd == 'x86_64':
-        friendly_arch = "Intel 64-bit"
-    elif arch_cmd == 'arm64':
-        friendly_arch = "Apple Silicon (ARM 64-bit)"
-    else:
-        friendly_arch = "Unknown Architecture"
-    print("Human-Friendly Architecture:", friendly_arch)
-    print("="*40)
+    info_rows = gather_system_info()
+    render_info(info_rows)
 
     if args.bench:
+        iterations, elapsed, accumulator = run_benchmark(args.bench_seconds)
+        render_benchmark(iterations, elapsed, accumulator)
+
+
+def gather_system_info():
+    """Collect system info rows."""
+    arch_bits, arch_link = platform.architecture()
+    arch_cmd = get_arch_cmd()
+    friendly_arch = {
+        "i386": "Intel 32-bit (possibly under Rosetta 2)",
+        "x86_64": "Intel 64-bit",
+        "arm64": "Apple Silicon (ARM 64-bit)",
+    }.get(arch_cmd, "Unknown Architecture")
+    return [
+        ("Python Version", platform.python_version()),
+        ("Executable", sys.executable),
+        ("Implementation", platform.python_implementation()),
+        ("Compiler", platform.python_compiler()),
+        ("Operating System", f"{platform.system()} {platform.release()}"),
+        ("Platform", sys.platform),
+        ("Machine", platform.machine()),
+        ("Processor", platform.processor()),
+        ("Platform Architecture", f"{arch_bits} ({arch_link})"),
+        ("System Architecture", arch_cmd),
+        ("Human-Friendly Architecture", friendly_arch),
+    ]
+
+
+def render_info(rows):
+    """Render system info either via Rich or plain text."""
+    if not RICH_AVAILABLE:
+        print("=" * 40)
+        print("Python System Information Report")
+        print("=" * 40)
+        for label, value in rows:
+            print(f"{label:25}: {value}")
+        print("=" * 40)
+        return
+
+    header = Text("Python System Information", style="bold cyan")
+    console.print(Panel.fit(header, border_style="cyan"))
+    table = Table(show_header=False, box=None, pad_edge=False, padding=(0, 1))
+    table.add_column(justify="right", style="bold magenta")
+    table.add_column(style="white", overflow="fold")
+    for label, value in rows:
+        table.add_row(f"{label}:", str(value))
+    console.print(Panel.fit(table, border_style="blue"))
+
+
+def render_benchmark(iterations, elapsed, accumulator):
+    """Render benchmark results."""
+    iters_per_sec = iterations / elapsed if elapsed > 0 else 0
+    rows = [
+        ("Duration", f"{elapsed:.3f} s"),
+        ("Iterations", f"{iterations:,}"),
+        ("Accumulated result", f"{accumulator:.6f}"),
+        ("Approx iters/sec", f"{iters_per_sec:,.0f}"),
+    ]
+    if not RICH_AVAILABLE:
         print("Simple CPU Benchmark")
-        print("-"*40)
-        run_benchmark(args.bench_seconds)
+        print("-" * 40)
+        for label, value in rows:
+            print(f"{label:20}: {value}")
+        return
+
+    table = Table(show_header=False, box=None, pad_edge=False)
+    table.add_column(justify="right", style="bold yellow")
+    table.add_column(style="white")
+    for label, value in rows:
+        table.add_row(f"{label}:", value)
+    console.print(Panel.fit(table, title="CPU Benchmark", border_style="green"))
 
 
 def parse_args():
@@ -113,11 +171,6 @@ def run_benchmark(duration_seconds):
             elapsed = now - start_time
             break
 
-    # Report
-    print("Benchmark duration   : {0:.3f} s".format(elapsed))
-    print("Iterations           : {0}".format(iterations))
-    print("Accumulated result   : {0:.6f}".format(accumulator))
-    print("Approx iters/sec     : {0:.0f}".format(iterations / elapsed if elapsed > 0 else 0))
     return iterations, elapsed, accumulator
 
 if __name__ == "__main__":
