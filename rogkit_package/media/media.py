@@ -37,6 +37,7 @@ from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
 
 from rich import box
 from rich.console import Console
+from rich.theme import Theme
 from rich.table import Table
 
 from rogkit_package.bin.seconds import convert_seconds
@@ -80,7 +81,19 @@ DAEMON_SOCKET_NAME = "media_daemon.sock"
 DAEMON_STARTUP_TIMEOUT_SECONDS = 5.0
 DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
 
-console = Console()
+console = Console(
+    theme=Theme(
+        {
+            "cyan": "#66d9ef",
+            "bright_cyan": "#66d9ef",
+            "magenta": "#ff80bf",
+            "green": "#4ecdc4",
+            "yellow": "#f4d35e",
+            "red": "#ff6b6b",
+            "white": "#f8f8f2",
+        }
+    )
+)
 
 
 def _render_media_rows(
