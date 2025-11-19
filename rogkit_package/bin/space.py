@@ -8,11 +8,12 @@ import argparse
 import os
 
 from rich.console import Console
+from rich.theme import Theme
 from rich.table import Table
 
 from .bytes import byte_size
 
-console = Console()
+console = Console(theme=Theme({"magenta": "bold #ff80bf", "green": "#4ecdc4", "yellow": "#f4d35e", "red": "#ff6b6b"}))
 
 
 def get_space_info(path):

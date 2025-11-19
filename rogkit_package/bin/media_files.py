@@ -53,16 +53,21 @@ class MediaFile:
         """Return the standardized title for matching."""
         return standardize_title(self.title)
     
-    def size_str(self):
+    def size_str(self, simple=False):
         """Return GB, MB, KB, or bytes with color coding"""
-        return byte_size(self.filesize, unit="GB")
-        # if self.filesize >= 1_000_000_000:
-        #     return f"{Fore.RED}{self.filesize / 1_000_000_000:.2f} GB{Style.RESET_ALL}"
-        # elif self.filesize >= 1_000_000:
-        #     return f"{Fore.YELLOW}{self.filesize / 1_000_000:.2f} MB{Style.RESET_ALL}"
-        # elif self.filesize >= 1_000:
-        #     return f"{Fore.CYAN}{self.filesize / 1_000:.2f} KB{Style.RESET_ALL}"
-        # return f"{Fore.GREEN}{self.filesize} bytes{Style.RESET_ALL}"
+# The above code snippet is attempting to call a function `byte_size` with the `filesize` as an
+# argument and specifying the unit as "GB". However, the code is incomplete as it is missing the
+# definition of the `byte_size` function and the actual value of `filesize`.
+        if simple:
+            return byte_size(self.filesize, unit="GB")
+        # else, return with color coding
+        if self.filesize >= 1_000_000_000:
+            return f"{Fore.RED}{self.filesize / 1_000_000_000:.2f} GB{Style.RESET_ALL}"
+        elif self.filesize >= 1_000_000:
+            return f"{Fore.YELLOW}{self.filesize / 1_000_000:.2f} MB{Style.RESET_ALL}"
+        elif self.filesize >= 1_000:
+            return f"{Fore.CYAN}{self.filesize / 1_000:.2f} KB{Style.RESET_ALL}"
+        return f"{Fore.GREEN}{self.filesize} bytes{Style.RESET_ALL}"
 
 @dataclass
 class MediaFolder:
