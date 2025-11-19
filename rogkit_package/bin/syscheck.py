@@ -250,12 +250,7 @@ def render_report(data: dict) -> None:
     console.print(Panel.fit(header, border_style="cyan", padding=(1, 2)))
     console.print()
 
-    metrics = Table(
-        title="System Metrics",
-        header_style="bold blue",
-        box=box.SIMPLE_HEAVY,
-        expand=False,
-    )
+    metrics = Table(header_style="bold blue", box=box.SIMPLE_HEAVY, expand=False)
     metrics.add_column("Metric", style="bold")
     metrics.add_column("Value", style="white")
 

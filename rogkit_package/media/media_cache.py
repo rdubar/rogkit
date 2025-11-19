@@ -285,7 +285,7 @@ def describe_cache_state(total_items: int, cache_age_seconds: Optional[float]) -
     age_str = time_ago_in_words(cache_age_seconds)
     return (
         "Rog's Fast Media Tool\n"
-        f"Library of {total_items:,} items last updated {age_str}."
+        f"Library of [bold cyan]{total_items:,}[/] items last updated {age_str}."
     )
 
 

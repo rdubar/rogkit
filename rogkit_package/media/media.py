@@ -83,14 +83,11 @@ DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
 console = Console()
 
 
-def _render_media_rows(rows: Sequence[Any], args: argparse.Namespace, heading: str) -> None:
+def _render_media_rows(
+    rows: Sequence[Any], args: argparse.Namespace, heading: Optional[str] = None
+) -> None:
     """Render media rows using a Rich table for clarity."""
-    table = Table(
-        title=heading,
-        header_style="bold blue",
-        box=box.SIMPLE_HEAVY,
-        expand=False,
-    )
+    table = Table(header_style="bold blue", box=box.SIMPLE_HEAVY, expand=False, show_header=False)
     table.add_column("Source", style="bright_cyan", no_wrap=True)
     table.add_column("Size", style="magenta", justify="right", no_wrap=True)
     table.add_column("Res", style="green", justify="center", no_wrap=True)
@@ -111,6 +108,8 @@ def _render_media_rows(rows: Sequence[Any], args: argparse.Namespace, heading: s
         if args.path and fields["path"]:
             table.add_row("", "", "", "", f"[dim]{fields['path']}")
 
+    if heading:
+        console.print(heading)
     console.print(table)
 
 
@@ -388,7 +387,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     ensure_cache_table(db_path)
 
     total_items, cache_age = get_cache_metadata(db_path)
-    print(describe_cache_state(total_items, cache_age))
+    console.print(describe_cache_state(total_items, cache_age))
 
     if not args.query and not args.search:
         rows, _ = run_pretty_search(
@@ -406,7 +405,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             heading = f"Showing all {len(rows)} items added"
         else:
             heading = f"Showing last {min(len(rows), args.number)} items added"
-        _render_media_rows(rows, args, heading)
+        console.print(heading)
+        _render_media_rows(rows, args)
         if args.stats:
             console.print(format_stats(rows))
         return 0
@@ -465,7 +465,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         else:
             heading = f"Showing {len(visible_rows)} {match_label}"
         heading_text = f"{heading}{mode_label} for {' '.join(args.search)!r}"
-        _render_media_rows(visible_rows, args, heading_text)
+        console.print(heading_text)
+        _render_media_rows(visible_rows, args)
         if not args.zed and not args.all and total_count is not None and total > len(visible_rows):
             console.print(f"...and {total - len(visible_rows)} more results. Use -z to show all.")
         if args.stats:
