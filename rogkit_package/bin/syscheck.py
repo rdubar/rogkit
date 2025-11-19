@@ -4,15 +4,23 @@ System reboot advisor and resource management utility.
 Analyzes system metrics (uptime, load, memory, swap) to calculate a reboot score
 and provide recommendations. Can optionally free system resources on Linux/macOS.
 """
-import os
-import re
-import platform
-import subprocess
-import psutil
-from datetime import timedelta
 import argparse
-import shutil
 import json
+import os
+import platform
+import re
+import shutil
+import subprocess
+from datetime import timedelta
+
+import psutil
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+from rich.text import Text
+
+console = Console()
 
 
 def get_platform():
@@ -187,32 +195,112 @@ def free_system_resources(platform_type):
         if platform_type in ["pi", "linux"]:
             # If using zramswap, restart the service instead of generic swapoff
             if os.path.exists("/etc/default/zramswap"):
-                print("Detected zram. Restarting zramswap service...")
+                console.print("Detected zram. Restarting zramswap service...", style="yellow")
                 subprocess.run(["sudo", "systemctl", "restart", "zramswap.service"], check=True)
-                print("ZRAM swap cleared.")
+                console.print("ZRAM swap cleared.", style="green")
             else:
-                print("Clearing standard swap...")
+                console.print("Clearing standard swap...", style="yellow")
                 subprocess.run(["sudo", "swapoff", "-a"], check=True)
                 subprocess.run(["sudo", "swapon", "-a"], check=True)
-                print("Swap reset complete.")
+                console.print("Swap reset complete.", style="green")
 
-            print("Dropping disk caches...")
+            console.print("Dropping disk caches...", style="yellow")
             subprocess.run(["sudo", "sync"])
             subprocess.run(["sudo", "sysctl", "-w", "vm.drop_caches=3"], check=True)
-            print("Disk caches cleared.")
+            console.print("Disk caches cleared.", style="green")
 
         elif platform_type == "mac":
-            print("macOS manages swap dynamically. Attempting to purge inactive memory...")
+            console.print(
+                "macOS manages swap dynamically. Attempting to purge inactive memory...", style="yellow"
+            )
             purge_path = shutil.which("purge")
             if purge_path:
                 subprocess.run(["sudo", purge_path], check=True)
-                print("Memory purge requested.")
+                console.print("Memory purge requested.", style="green")
             else:
-                print("The 'purge' command is not available. Try installing Xcode CLI tools.")
+                console.print("The 'purge' command is not available. Try installing Xcode CLI tools.", style="red")
         else:
-            print("Freeing resources is not supported on this platform.")
+            console.print("Freeing resources is not supported on this platform.", style="red")
     except Exception as e:
-        print(f"Error while freeing resources: {e}")
+        console.print(f"[red]Error while freeing resources:[/] {e}")
+
+
+def _verdict_style(score: int) -> str:
+    if score < 30:
+        return "green"
+    if score < 70:
+        return "yellow"
+    return "red"
+
+
+def render_report(data: dict) -> None:
+    """Pretty-print the system report using Rich."""
+    score = data["score"]
+    verdict_text = data["verdict"]
+    style = _verdict_style(score)
+
+    header = Table.grid(expand=True, padding=(0, 1))
+    header.add_column(justify="left", ratio=3)
+    header.add_column(justify="right")
+    header.add_row(
+        Text("Rog's System Reboot Advisor", style="bold cyan"),
+        Text(f"Score: {score}%", style=f"bold {style}"),
+    )
+
+    console.print(Panel.fit(header, border_style="cyan", padding=(1, 2)))
+    console.print()
+
+    metrics = Table(
+        title="System Metrics",
+        header_style="bold blue",
+        box=box.SIMPLE_HEAVY,
+        expand=False,
+    )
+    metrics.add_column("Metric", style="bold")
+    metrics.add_column("Value", style="white")
+
+    metrics.add_row("Platform", data["platform"].capitalize())
+    metrics.add_row("Uptime", str(timedelta(seconds=int(data["uptime_seconds"]))))
+    load = data["load"]
+    metrics.add_row("Load (1/5/15)", f"{load['1']:.2f} / {load['5']:.2f} / {load['15']:.2f}")
+
+    mem = data["memory"]
+    metrics.add_row(
+        "Memory",
+        f"{format_memory(mem['used_mem'])} used / {format_memory(mem['total_mem'])} total",
+    )
+    metrics.add_row(
+        "Swap",
+        f"{format_memory(mem['used_swap'])} used / {format_memory(mem['total_swap'])} total",
+    )
+    mp = data.get("memory_pressure_free_pct")
+    if mp is not None:
+        metrics.add_row("Memory pressure (free)", f"{mp}%")
+
+    last_boot_info = data.get("last_boot")
+    if last_boot_info:
+        metrics.add_row("Last Boot", last_boot_info)
+
+    console.print(metrics)
+
+    subtitle = (
+        "Smooth sailing" if score < 30 else "Monitor performance" if score < 70 else "Restart recommended"
+    )
+    verdict_panel = Panel(
+        Text(verdict_text, style=f"bold {style}"),
+        title="Verdict",
+        border_style=style,
+        subtitle=subtitle,
+        width=max(len(verdict_text), len(subtitle)) + 10,
+    )
+    console.print(verdict_panel)
+
+    if score < 30:
+        console.print("[green]Your system is running smoothly. No need for a reboot![/]")
+    elif score < 70:
+        console.print("[yellow]System under some load. Reboot if you notice sluggishness.[/]")
+    else:
+        console.print("[red]System likely needs a reboot soon for best performance.[/]")
 
 def main():
     """CLI entry point for system reboot advisor."""
@@ -222,7 +310,7 @@ def main():
     parser.add_argument("--json", action="store_true", help="Output JSON for automation")
     args = parser.parse_args()
 
-    print("Rog's System Reboot Advisor")
+    console.print("[bold cyan]Rog's System Reboot Advisor[/bold cyan]")
 
     platform_type = get_platform()
     if platform_type == "unknown":
@@ -231,9 +319,9 @@ def main():
 
     if args.free:
         if not args.confirm:
-            print("Dry run: --free requested. Re-run with --confirm to execute freeing actions.")
+            console.print("Dry run: --free requested. Re-run with --confirm to execute freeing actions.", style="yellow")
         else:
-            print("\nAttempting to free memory and swap...\n")
+            console.print("\nAttempting to free memory and swap...\n", style="yellow")
             free_system_resources(platform_type)
 
     # Get system info
@@ -257,31 +345,10 @@ def main():
     }
 
     if args.json:
-        print(json.dumps(data, indent=2))
+        console.print(json.dumps(data, indent=2))
         return
 
-    # Format and display system info
-    print("\n--- System Reboot Advisor ---")
-    print(f"Platform: {platform_type.capitalize()}")
-    print(f"Uptime: {timedelta(seconds=int(uptime_seconds))}")
-    print(f"Load Averages (1, 5, 15 min): {load_avg[0]:.2f}, {load_avg[1]:.2f}, {load_avg[2]:.2f}")
-    print(f"Memory: {format_memory(memory_info['used_mem'])} used / {format_memory(memory_info['total_mem'])} total")
-    print(f"Swap: {format_memory(memory_info['used_swap'])} used / {format_memory(memory_info['total_swap'])} total")
-    if mem_pressure_pct is not None:
-        print(f"Memory pressure free %: {mem_pressure_pct}%")
-    lb = data.get("last_boot")
-    if lb:
-        print(lb)
-    print(f"Reboot Need: {reboot_need}%")
-    print(f"Verdict: {data['verdict']}")
-
-    # Fun message
-    if reboot_need < 30:
-        print("Your system is running smoothly. No need for a reboot!")
-    elif reboot_need < 70:
-        print("Your system is under some load. Consider a reboot if performance is sluggish.")
-    else:
-        print("Your system might need a reboot soon. Performance could improve!")
+    render_report(data)
 
 if __name__ == "__main__":
     main()

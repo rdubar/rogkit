@@ -120,8 +120,8 @@ def _compose_title(row: sqlite3.Row) -> str:
     return title
 
 
-def format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
-    """Format a row of media data into a pretty string."""
+def get_row_display_fields(row: sqlite3.Row, args: argparse.Namespace) -> Dict[str, str]:
+    """Compute formatted display fields for a media row."""
     title = _compose_title(row)
     if len(title) > args.length:
         title_display = title[: args.length - 1] + "…"
@@ -142,16 +142,32 @@ def format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
     else:
         source_label = source_value
 
+    summary = _truncate_summary(row["summary"])
+    return {
+        "source": source_label,
+        "size": size_str or "",
+        "resolution": resolution or "",
+        "duration": duration_str or "",
+        "title": title_display,
+        "summary": summary,
+        "path": path or "",
+    }
+
+
+def format_pretty_row(row: sqlite3.Row, args: argparse.Namespace) -> str:
+    """Format a row of media data into a pretty string."""
+    fields = get_row_display_fields(row, args)
+
     lines = [
-        f"{source_label:<7}  {size_str:>9}  {resolution:>5}  {duration_str}  {title_display}"
+        f"{fields['source']:<7}  {fields['size']:>9}  {fields['resolution']:>5}  {fields['duration']}  {fields['title']}"
     ]
 
     if args.info:
-        summary = _truncate_summary(row["summary"])
+        summary = fields["summary"]
         if summary:
             lines.append(f"  {summary}")
-    if args.path and path:
-        lines.append(f"  {path}")
+    if args.path and fields["path"]:
+        lines.append(f"  {fields['path']}")
 
     return "\n".join(lines)
 

@@ -7,8 +7,15 @@ weather conditions (temperature, humidity, precipitation). Uses Open-Meteo
 API for weather data and supports location detection/geocoding.
 """
 import argparse
-import requests
 from datetime import datetime
+
+import requests
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
+console = Console()
 
 # -------------------------
 # Location helpers
@@ -62,25 +69,69 @@ def find_nearest_hour_index(weather):
 # Logic
 # -------------------------
 
-def decide_washing(weather):
-    """Analyze weather data and provide drying verdict with emoji."""
+def analyze_drying_weather(weather):
+    """Analyze weather data and provide drying verdict plus metrics."""
     current = weather["current_weather"]
     now_index = find_nearest_hour_index(weather)
 
     temp = current["temperature"]
     humidity = weather["hourly"]["relative_humidity_2m"][now_index]
-    next_hours_rain = weather["hourly"]["precipitation_probability"][now_index:now_index+3]
-
+    next_hours_rain = weather["hourly"]["precipitation_probability"][now_index : now_index + 3]
     rain_risk = max(next_hours_rain)
 
     if rain_risk > 50:
-        return f"☔ Nope! {rain_risk}% chance of rain soon — unless you like soggy socks."
+        verdict = f"☔ Nope! {rain_risk}% chance of rain soon — unless you like soggy socks."
+        style = "red"
     elif humidity > 85:
-        return f"💨 Meh. {humidity}% humidity means it’ll take ages… maybe just use the radiator."
+        verdict = f"💨 Meh. {humidity}% humidity means it’ll take ages… maybe just use the radiator."
+        style = "yellow"
     elif temp < 12:
-        return f"🥶 It’s only {temp}°C. Your clothes will be colder than your heart — skip it."
+        verdict = f"🥶 It’s only {temp}°C. Your clothes will be colder than your heart — skip it."
+        style = "yellow"
     else:
-        return f"🌞 Go for it! {temp}°C and {humidity}% humidity, looks decent for drying."
+        verdict = f"🌞 Go for it! {temp}°C and {humidity}% humidity, looks decent for drying."
+        style = "green"
+
+    return {
+        "temperature": temp,
+        "humidity": humidity,
+        "rain_risk": rain_risk,
+        "wind": current.get("windspeed"),
+        "verdict": verdict,
+        "style": style,
+        "time": current["time"],
+    }
+
+
+def render_report(place, analysis):
+    """Render a colorful drying advisory."""
+    metrics = Table(
+        title=f"Weather snapshot for {place}",
+        header_style="bold blue",
+        box=box.SIMPLE_HEAVY,
+        expand=False,
+    )
+    metrics.add_column("Metric", style="cyan", no_wrap=True)
+    metrics.add_column("Value", style="white")
+
+    metrics.add_row("Temperature", f"{analysis['temperature']}°C")
+    metrics.add_row("Humidity", f"{analysis['humidity']}%")
+    metrics.add_row("Rain risk (next 3h)", f"{analysis['rain_risk']}%")
+    wind = analysis.get("wind")
+    if wind is not None:
+        metrics.add_row("Wind", f"{wind} km/h")
+    metrics.add_row("Updated", analysis["time"].replace("T", " "))
+
+    console.print(metrics)
+    console.print()
+    console.print(
+        Panel.fit(
+            analysis["verdict"],
+            title="Drying verdict",
+            border_style=analysis["style"],
+            padding=(1, 2),
+        )
+    )
 
 # -------------------------
 # CLI
@@ -105,32 +156,32 @@ def main():
     elif args.location:
         try:
             lat, lon, place = geocode_location(args.location)
-            print(f"📍 Location set to: {place}")
+            console.print(f"📍 Location set to: {place}", style="cyan")
         except Exception as e:
-            print(f"Unable to geocode location: {e}")
+            console.print(f"[red]Unable to geocode location:[/] {e}")
     elif args.coords:
         lat_str, lon_str = args.coords.split(",")
         lat, lon = float(lat_str), float(lon_str)
         place = f"coords: {lat}, {lon}"
-        print(f"📍 Location set to coordinates: {place}")
+        console.print(f"📍 Location set to coordinates: {place}", style="cyan")
         
     if not lat:  # Try to auto-detect location
         try:
             lat, lon, place = get_location()
-            print(f"📍 Location auto-set to: {place}")
+            console.print(f"📍 Location auto-set to: {place}", style="cyan")
         except Exception as e:
-            print(f"Unable to detect location: {e}")
+            console.print(f"[red]Unable to detect location:[/] {e}")
             
     if not lat:
         lat, lon, place = default_location
-        print(f"📍 Falling back to default location: {place}")
+        console.print(f"📍 Falling back to default location: {place}", style="yellow")
         
     try:
         weather = get_weather(lat, lon)
-        verdict = decide_washing(weather)
-        print(verdict)
+        analysis = analyze_drying_weather(weather)
+        render_report(place, analysis)
     except Exception as e:
-        print(f"Unable to fetch weather: {e}")
+        console.print(f"[red]Unable to fetch weather:[/] {e}")
 
 
 if __name__ == "__main__":

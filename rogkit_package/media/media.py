@@ -23,6 +23,7 @@ Examples:
 
 from __future__ import annotations
 
+import argparse
 import contextlib
 import io
 import os
@@ -33,6 +34,10 @@ import sys
 from pathlib import Path
 from time import perf_counter
 from typing import Any, Dict, Iterable, Optional, Sequence, Tuple
+
+from rich import box
+from rich.console import Console
+from rich.table import Table
 
 from rogkit_package.bin.seconds import convert_seconds
 from .extra_sources.integrate import merge_extras_into_cache
@@ -63,8 +68,8 @@ from .helpers import (
     open_database,
 )
 from .search import (
-    format_pretty_row,
     format_stats,
+    get_row_display_fields,
     run_people_search,
     run_pretty_search,
 )
@@ -74,6 +79,39 @@ DAEMON_ENV_FLAG = "PLEX_DB_DAEMON_ACTIVE"
 DAEMON_SOCKET_NAME = "media_daemon.sock"
 DAEMON_STARTUP_TIMEOUT_SECONDS = 5.0
 DAEMON_REQUEST_TIMEOUT_SECONDS = 30.0
+
+console = Console()
+
+
+def _render_media_rows(rows: Sequence[Any], args: argparse.Namespace, heading: str) -> None:
+    """Render media rows using a Rich table for clarity."""
+    table = Table(
+        title=heading,
+        header_style="bold blue",
+        box=box.SIMPLE_HEAVY,
+        expand=False,
+    )
+    table.add_column("Source", style="bright_cyan", no_wrap=True)
+    table.add_column("Size", style="magenta", justify="right", no_wrap=True)
+    table.add_column("Res", style="green", justify="center", no_wrap=True)
+    table.add_column("Time", style="yellow", no_wrap=True)
+    table.add_column("Title", style="white")
+
+    for row in rows:
+        fields = get_row_display_fields(row, args)
+        table.add_row(
+            fields["source"],
+            fields["size"] or "-",
+            fields["resolution"],
+            fields["duration"],
+            fields["title"].rstrip(),
+        )
+        if args.info and fields["summary"]:
+            table.add_row("", "", "", "", f"[dim]{fields['summary']}")
+        if args.path and fields["path"]:
+            table.add_row("", "", "", "", f"[dim]{fields['path']}")
+
+    console.print(table)
 
 
 def _daemon_socket_path() -> Path:
@@ -242,6 +280,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     args = parse_args(argv_list)
 
     daemon_env = os.environ.get(DAEMON_ENV_FLAG) == "1"
+    global console
+    console = Console(force_terminal=True if daemon_env else None)
     should_forward = not daemon_env and not args.no_daemon and not args.daemon and not args.stop_daemon
 
     if should_forward and (args.update or args.update_plex):
@@ -363,13 +403,12 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             print("No media found in the Plex database.")
             return 0
         if args.all:
-            print(f"Showing all {len(rows)} items added:")
+            heading = f"Showing all {len(rows)} items added"
         else:
-            print(f"Showing last {min(len(rows), args.number)} items added:")
-        for row in rows:
-            print(format_pretty_row(row, args))
+            heading = f"Showing last {min(len(rows), args.number)} items added"
+        _render_media_rows(rows, args, heading)
         if args.stats:
-            print(format_stats(rows))
+            console.print(format_stats(rows))
         return 0
 
 
@@ -425,14 +464,12 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             heading = f"Showing {len(visible_rows)} of {total} {match_label}"
         else:
             heading = f"Showing {len(visible_rows)} {match_label}"
-        print(f"{heading}{mode_label} for {' '.join(args.search)!r}:")
-
-        for row in visible_rows:
-            print(format_pretty_row(row, args))
+        heading_text = f"{heading}{mode_label} for {' '.join(args.search)!r}"
+        _render_media_rows(visible_rows, args, heading_text)
         if not args.zed and not args.all and total_count is not None and total > len(visible_rows):
-            print(f"...and {total - len(visible_rows)} more results. Use -z to show all.")
+            console.print(f"...and {total - len(visible_rows)} more results. Use -z to show all.")
         if args.stats:
-            print(format_stats(visible_rows))
+            console.print(format_stats(visible_rows))
         return 0
 
     if not args.query:
