@@ -249,38 +249,31 @@ def render_report(data: dict) -> None:
 
     console.print(Panel.fit(header, border_style="cyan", padding=(1, 2)))
 
-    metrics = Table(
-        header_style="bold blue",
-        box=box.SIMPLE_HEAVY,
-        expand=False,
-        show_header=False,
-    )
-    metrics.add_column("Metric", style="bold")
-    metrics.add_column("Value", style="white")
-
-    metrics.add_row("Platform", data["platform"].capitalize())
-    metrics.add_row("Uptime", str(timedelta(seconds=int(data["uptime_seconds"]))))
-    load = data["load"]
-    metrics.add_row("Load (1/5/15)", f"{load['1']:.2f} / {load['5']:.2f} / {load['15']:.2f}")
-
-    mem = data["memory"]
-    metrics.add_row(
-        "Memory",
-        f"{format_memory(mem['used_mem'])} used / {format_memory(mem['total_mem'])} total",
-    )
-    metrics.add_row(
-        "Swap",
-        f"{format_memory(mem['used_swap'])} used / {format_memory(mem['total_swap'])} total",
-    )
+    metrics_data = [
+        ("Platform", data["platform"].capitalize()),
+        ("Uptime", str(timedelta(seconds=int(data["uptime_seconds"])))),
+        (
+            "Load (1/5/15)",
+            f"{data['load']['1']:.2f} / {data['load']['5']:.2f} / {data['load']['15']:.2f}",
+        ),
+        (
+            "Memory",
+            f"{format_memory(data['memory']['used_mem'])} used / {format_memory(data['memory']['total_mem'])} total",
+        ),
+        (
+            "Swap",
+            f"{format_memory(data['memory']['used_swap'])} used / {format_memory(data['memory']['total_swap'])} total",
+        ),
+    ]
     mp = data.get("memory_pressure_free_pct")
     if mp is not None:
-        metrics.add_row("Memory pressure (free)", f"{mp}%")
-
+        metrics_data.append(("Memory pressure (free)", f"{mp}%"))
     last_boot_info = data.get("last_boot")
     if last_boot_info:
-        metrics.add_row("Last Boot", last_boot_info)
+        metrics_data.append(("Last Boot", last_boot_info))
 
-    console.print(metrics)
+    for label, value in metrics_data:
+        console.print(Text.assemble((f"{label:<20}", "bold blue"), (value, "white")))
 
     subtitle = (
         "Smooth sailing" if score < 30 else "Monitor performance" if score < 70 else "Restart recommended"
