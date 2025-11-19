@@ -7,7 +7,7 @@ name = "rogkit"
 version = "0.1.0"
 description = "Rog's personal utility toolbox (media, files, system, and more)."
 readme = "README.md"
-requires-python = ">=3.10"
+requires-python = ">=3.14"
 license = { text = "MIT" }
 authors = [ { name = "Roger D", email ="rdubar@gmail.com" } ]
 dependencies = [
@@ -21,7 +21,6 @@ dependencies = [
   "geopy",
   "matplotlib",
   "numpy",
-  "open-interpreter",
   "openai",
   "pandas",
   "paramiko",
@@ -93,7 +92,6 @@ cli = [
   "requests-html",
   "faker",
   "convertdate",
-  "open-interpreter",
   "wikipedia",
 ]
 dev = [
@@ -120,4 +118,3 @@ ignore = [
     "W291",  # trailing-whitespace
     "W293",  # blank-line-with-whitespace
 ]
-

@@ -65,4 +65,4 @@ with col1:
 with col2:
     st.metric("📂 Categories", "15")
 with col3:
-    st.metric("🐍 Python Version", "3.13")
+    st.metric("🐍 Python Version", "3.14")

@@ -340,9 +340,12 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 |---------|-------------|---------|
 | `nose` | Nosetests for Odoo/OpenERP | - |
 | `venv` | Virtual environment setup | - |
-| `inter` | Run Open Interpreter | - |
+| `inter` | Run Open Interpreter *(suspended – awaiting `tiktoken` Py3.14 support)* | - |
 | `fuzzy` | Fuzzy search utility | - |
 | `rogstream` | Launch Streamlit dashboard using rogkit venv | - |
+
+> **Suspended:** `inter` currently ships as a stub because `open-interpreter` →
+> `tiktoken` only supports up to Python 3.13. Re-enable once CPython 3.14 wheels exist.
 
 ### 🔐 Security & Utilities
 
