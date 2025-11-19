@@ -19,10 +19,18 @@ def hms_string(seconds):
     return f"{hours:02}:{minutes:02}:{seconds:02}"
 
 
-def convert_seconds(seconds, long_format=False, show_seconds=True, no_commas=False, bignums=False, minimum=2):
+def convert_seconds(
+    seconds,
+    long_format=False,
+    show_seconds=True,
+    no_commas=False,
+    bignums=False,
+    minimum=2,
+):
     """Convert seconds into a readable format, with options for long format and showing seconds."""
     if seconds < minimum:
-        return f"{seconds:4f} seconds"
+        result = f"{seconds:4f}"
+        return f"{result} seconds" if show_seconds else result
 
     seconds = abs(int(seconds))
 

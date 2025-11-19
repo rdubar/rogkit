@@ -248,9 +248,13 @@ def render_report(data: dict) -> None:
     )
 
     console.print(Panel.fit(header, border_style="cyan", padding=(1, 2)))
-    console.print()
 
-    metrics = Table(header_style="bold blue", box=box.SIMPLE_HEAVY, expand=False)
+    metrics = Table(
+        header_style="bold blue",
+        box=box.SIMPLE_HEAVY,
+        expand=False,
+        show_header=False,
+    )
     metrics.add_column("Metric", style="bold")
     metrics.add_column("Value", style="white")
 
@@ -290,6 +294,7 @@ def render_report(data: dict) -> None:
     )
     console.print(verdict_panel)
 
+    console.print()
     if score < 30:
         console.print("[green]Your system is running smoothly. No need for a reboot![/]")
     elif score < 70:
