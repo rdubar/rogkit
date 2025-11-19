@@ -10,8 +10,16 @@ import secrets
 import string
 import math
 from dataclasses import dataclass
+
+from rich import box
+from rich.console import Console
+from rich.panel import Panel
+from rich.table import Table
+
 from .bignum import bignum, seconds_time
 from .clipboard import copy_to_clipboard
+
+console = Console()
 
 
 @dataclass
@@ -62,8 +70,8 @@ class PasswordGenerator:
         try:
             self.password = ''.join(secrets.choice(self.alphabet) for _ in range(self.length))
         except Exception as e:
-            print(f"Error generating password: {e}")
-            exit(1)
+            console.print(f"[bold red]Error generating password:[/] {e}")
+            raise SystemExit(1)
 
     def generate_and_store_password(self):
         """
@@ -73,11 +81,11 @@ class PasswordGenerator:
             The generated password string
         """
         if self.length < 1:
-            print("Password length must be greater than 0.")
-            exit(1)
+            console.print("[bold red]Password length must be greater than 0.[/]")
+            raise SystemExit(1)
         if self.length > self.max_length:
-            print(f"Maximum password length is {self.max_length}.")
-            exit(1)
+            console.print(f"[bold red]Maximum password length is {self.max_length}.[/]")
+            raise SystemExit(1)
         while True:
             self.generate_password()
             if self.check:
@@ -97,7 +105,9 @@ class PasswordGenerator:
             True if password contains lowercase, uppercase, digit, and punctuation
         """
         if minimum_length and self.length < minimum_length:
-            print(f"Password length must be at least {minimum_length} characters for unique character checks.")
+            console.print(
+                f"[yellow]Password length must be at least {minimum_length} characters for unique character checks.[/]"
+            )
             return True
         if not any(c in self.password for c in string.ascii_lowercase):
             return False
@@ -148,9 +158,10 @@ class PasswordGenerator:
     def copy_to_clipboard(self):
         """Copy generated password to system clipboard."""
         if self.password is not None:
-            copy_to_clipboard(self.password)
+            copy_to_clipboard(self.password, verbose=False)
+            console.print("[green]Password copied to clipboard.[/]")
         else:
-            print("No password generated to copy.")
+            console.print("[yellow]No password generated to copy.[/]")
 
     def display_password_info(self, guesses_per_second, size_limit=500):
         """
@@ -161,22 +172,40 @@ class PasswordGenerator:
             size_limit: Skip calculations for passwords longer than this
         """
         try:
-            if self.password is not None:   
-                print(self.password)
+            if self.password is not None:
+                console.print(
+                    Panel.fit(
+                        f"[bold yellow]{self.password}[/]",
+                        title="Generated Password",
+                        border_style="green",
+                    )
+                )
                 if self.info:
-                    print(f'Length: {bignum(self.length)}')
+                    table = Table(show_header=False, box=box.MINIMAL_DOUBLE_HEAD)
+                    table.add_column("Metric", style="cyan")
+                    table.add_column("Value", style="bold white")
+                    table.add_row("Length", str(bignum(self.length)))
                     if self.length >= size_limit:
-                        print(f'Password length of {self.length} is too large to calculate combinations.')
+                        table.add_row(
+                            "Combinations",
+                            f"[yellow]Password length of {self.length} too large to calculate.[/]",
+                        )
                     else:
-                        print(f'Combinations: {bignum(self.calculate_combinations())}')
-                        print(f"Estimated max time to crack: {self.estimate_crack_time(guesses_per_second) or 'instant'}")
-                        print(f'Assumes {bignum(guesses_per_second)} guesses per second.')
+                        table.add_row("Combinations", str(bignum(self.calculate_combinations())))
+                        table.add_row(
+                            "Crack time",
+                            self.estimate_crack_time(guesses_per_second) or "instant",
+                        )
+                        table.add_row("Assumes", f"{bignum(guesses_per_second)} guesses/sec")
+                    console.print(table)
                     if self.check:
-                        print("Password contains special, numeric, lower and upper case characters.")
+                        console.print(
+                            "[green]✔ Password includes lower, upper, digit, and punctuation characters.[/]"
+                        )
             else:
-                print("No password generated.")
+                console.print("[yellow]No password generated.[/]")
         except Exception as e:
-            print(f"Error displaying password info: {e}")
+            console.print(f"[bold red]Error displaying password info:[/] {e}")
 
 def main():
     """CLI entry point for password generator."""

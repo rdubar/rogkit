@@ -47,6 +47,7 @@ dependencies = [
   "tqdm",
   "wikipedia",
   "yt-dlp",
+  "rich",
 ]
 
 [project.optional-dependencies]

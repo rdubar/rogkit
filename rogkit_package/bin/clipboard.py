@@ -33,7 +33,8 @@ def copy_to_clipboard(text, verbose=True):
     
     try:
         pyclip.copy(text)
-        print("✓ Copied to clipboard.")
+        if verbose:
+            print("✓ Copied to clipboard.")
     except Exception as e:
         if verbose:
             print(f"Error copying to clipboard: {e}")
