@@ -316,7 +316,6 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `space` | Disk space usage | - | - |
 | `mapper` | Create map from CSV addresses | - | - |
 | `syscheck` | System health check | - | - |
-| `sysinfo` | Detailed system information | - | - |
 | `system` | System utilities | - | - |
 | `pyinfo` | Python environment info | - | - |
 | `speeder` | Python benchmark across versions | - | - |
