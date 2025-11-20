@@ -11,7 +11,8 @@ from datetime import datetime
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
-from colorama import Fore, Style  # type: ignore
+from builtins import print as builtin_print
+
 try:
     import paramiko  # type: ignore
 except ImportError as import_error:  # pragma: no cover - optional dependency
@@ -19,6 +20,18 @@ except ImportError as import_error:  # pragma: no cover - optional dependency
     _PARAMIKO_IMPORT_ERROR = import_error
 else:
     _PARAMIKO_IMPORT_ERROR = None
+
+try:  # optional rich formatting
+    from rich.console import Console
+    from rich.table import Table
+    from rich.text import Text
+
+    console = Console()
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover
+    console = None
+    RICH_AVAILABLE = False
+
 from .seconds import time_ago_in_words
 from .bytes import byte_size
 from .media_scan import get_media_info
@@ -33,6 +46,28 @@ ARCHIVE_FILE = DATA_DIR / "media_files_cache_archive.json"
 MIN_FILE_SIZE_MB = 150  # Minimum file size to consider as a valid replacement
 
 MEDIA_TYPES = { 'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mpg', 'mpeg', 'm4v', '3gp', 'vob', 'ts', 'divx', 'xvid' }
+
+
+def _rich_print(*args, style: str | None = None, **kwargs):
+    sep = kwargs.pop("sep", " ")
+    end = kwargs.pop("end", "\n")
+    if RICH_AVAILABLE:
+        message = sep.join(str(arg) for arg in args)
+        console.print(Text(message, style=style) if style else message, end=end)
+    else:
+        builtin_print(*args, sep=sep, end=end, **kwargs)
+
+
+print = _rich_print
+
+
+def _build_table(title: str, headers: List[str]):
+    if not RICH_AVAILABLE:
+        return None
+    table = Table(title=title, box=None, show_header=True, header_style="bold cyan")
+    for header in headers:
+        table.add_column(header)
+    return table
 
 
 @dataclass
@@ -62,12 +97,16 @@ class MediaFile:
             return byte_size(self.filesize, unit="GB")
         # else, return with color coding
         if self.filesize >= 1_000_000_000:
-            return f"{Fore.RED}{self.filesize / 1_000_000_000:.2f} GB{Style.RESET_ALL}"
+            value = f"{self.filesize / 1_000_000_000:.2f} GB"
+            return f"[red]{value}[/red]" if RICH_AVAILABLE else value
         elif self.filesize >= 1_000_000:
-            return f"{Fore.YELLOW}{self.filesize / 1_000_000:.2f} MB{Style.RESET_ALL}"
+            value = f"{self.filesize / 1_000_000:.2f} MB"
+            return f"[yellow]{value}[/yellow]" if RICH_AVAILABLE else value
         elif self.filesize >= 1_000:
-            return f"{Fore.CYAN}{self.filesize / 1_000:.2f} KB{Style.RESET_ALL}"
-        return f"{Fore.GREEN}{self.filesize} bytes{Style.RESET_ALL}"
+            value = f"{self.filesize / 1_000:.2f} KB"
+            return f"[cyan]{value}[/cyan]" if RICH_AVAILABLE else value
+        value = f"{self.filesize} bytes"
+        return f"[green]{value}[/green]" if RICH_AVAILABLE else value
 
 @dataclass
 class MediaFolder:
@@ -319,12 +358,20 @@ def display_duplicates(duplicates: dict):
         print("No duplicate titles found.")
         return
 
-    print("\n==== Duplicate Media Titles ====")
-    for title, disk_sizes in duplicates.items():
-        print(f"\n{Fore.CYAN}{title}{Style.RESET_ALL}:")
-        for disk, size in disk_sizes.items():
-            size_str = byte_size(size, unit="GB")  # Convert size to human-readable format
-            print(f"  - {disk}: {Fore.YELLOW}{size_str}{Style.RESET_ALL}")
+    headers = ["Title", "Disk", "Size"]
+    table = _build_table("Duplicate Media Titles", headers)
+    if table:
+        for title, disk_sizes in duplicates.items():
+            for disk, size in disk_sizes.items():
+                table.add_row(title, disk, byte_size(size, unit="GB"))
+        console.print(table)
+    else:
+        print("\n==== Duplicate Media Titles ====")
+        for title, disk_sizes in duplicates.items():
+            print(f"\n{title}:")
+            for disk, size in disk_sizes.items():
+                size_str = byte_size(size, unit="GB")
+                print(f"  - {disk}: {size_str}")
         
 
 def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
@@ -434,13 +481,29 @@ def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_00
     size_str = byte_size(min_folder_size, unit="GB")
     description = f"{len(big_folders):,} of {len(media_folders):,} folders have a total size > {total_str} and more than one file > {size_str}."
     print(description)
-    
-    # Print detailed information for matching folders
-    for folder, large_files in big_folders:
-        print(folder)
-        for file in large_files:
-            print(f"  {file}")
-        print()
+    table = _build_table("Folders with multiple large files", ["Folder", "Disk", "Location", "Total Size", "Files > threshold"])
+
+    if table:
+        for folder, large_files in big_folders:
+            table.add_row(
+                folder.foldername,
+                folder.disk,
+                folder.location,
+                byte_size(folder.total_size(), unit="GB"),
+                str(len(large_files)),
+            )
+        console.print(table)
+        for folder, large_files in big_folders:
+            console.print(Text(str(folder), style="bold"))
+            for file in large_files:
+                console.print(f"  {file}")
+            console.print()
+    else:
+        for folder, large_files in big_folders:
+            print(folder)
+            for file in large_files:
+                print(f"  {file}")
+            print()
     
     if len(big_folders) == 0:
         print("No folders found matching the criteria.")
@@ -475,16 +538,29 @@ def show_extras(media_files: List[MediaFile]):
     # Display the results
     print(f"Total extra folders: {len(folders)}")
 
-    # Print counts for collated folders
-    for folder, count in collate_counts.items():
-        print(f"{folder}: {count}")
-    print()
+    if RICH_AVAILABLE:
+        table = Table(title="Extra Folder Counts", box=None, show_header=True, header_style="bold cyan")
+        table.add_column("Category")
+        table.add_column("Count", justify="right")
+        for folder, count in sorted(collate_counts.items()):
+            table.add_row(folder, str(count))
+        console.print(table)
+    else:
+        for folder, count in collate_counts.items():
+            print(f"{folder}: {count}")
+        print()
 
-    # Print all folders that don't belong to the collate categories
-    for folder in folders:
-        last_dir = folder.split('/')[-1]
-        if last_dir not in collate:
-            print(folder)
+    extras = [folder for folder in folders if folder.split('/')[-1] not in collate]
+    if extras:
+        if RICH_AVAILABLE:
+            table = Table(title="Other Extra Folders", box=None, show_header=False, pad_edge=False)
+            table.add_column("Folder")
+            for folder in sorted(extras):
+                table.add_row(folder)
+            console.print(table)
+        else:
+            for folder in extras:
+                print(folder)
                 
 def process_exact_matches(exact_matches: List[str], media_files: List[MediaFile]) -> List[str]:
     """

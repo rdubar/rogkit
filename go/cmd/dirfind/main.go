@@ -1,5 +1,7 @@
 package main
 
+// dirfind is an experimental directory locator built with fd + Go + fuzzy ranking.
+
 import (
 	"encoding/json"
 	"fmt"
