@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 """
-DEPRECATED: Use the Go utility instead.
-
-File path search utility with optional media metadata display.
+Full-path search utility with optional media metadata display.
 
 Searches the configured media/library folders (from rogkit config `[media].paths`)
-or directories supplied via `--path`. All supplied text tokens must appear in the
-file path. Use `--media` to display video resolution + codec via ffmpeg.
+or directories supplied via `--path`. Every supplied text token must appear
+somewhere in the full path (folders + filename). Use `--media` to display video
+resolution + codec via ffmpeg.
 """
 
 import argparse
@@ -21,6 +20,20 @@ import ffmpeg  # type: ignore
 
 from .bytes import byte_size
 from .tomlr import get_config_value
+
+try:  # Rich is optional; fall back to plain text when missing
+    from rich.console import Console
+    from rich.panel import Panel
+    from rich.table import Table
+    from rich.text import Text
+
+    console = Console()
+    console_err = Console(stderr=True)
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover
+    console = None
+    console_err = None
+    RICH_AVAILABLE = False
 
 
 def media_info(filepath: Path, verbose: bool = False) -> str:
@@ -47,6 +60,35 @@ def media_info(filepath: Path, verbose: bool = False) -> str:
     return error if verbose else ""
 
 
+def _print_message(message: str, *, style: str | None = None, stderr: bool = False) -> None:
+    if RICH_AVAILABLE:
+        text = Text(message, style=style) if style else message
+        (console_err if stderr else console).print(text)
+    else:
+        target = sys.stderr if stderr else sys.stdout
+        print(message, file=target)
+
+
+def _render_paths_table(rows: List[tuple[str, str, str]], show_media: bool, to_show: int) -> None:
+    if RICH_AVAILABLE:
+        table = Table(box=None, pad_edge=False)
+        table.add_column("Size", justify="right", style="cyan")
+        table.add_column("Path", style="white")
+        if show_media:
+            table.add_column("Media", style="magenta")
+        for size, path, media in rows[:to_show]:
+            columns = [size, path]
+            if show_media:
+                columns.append(media)
+            table.add_row(*columns)
+        console.print(table)
+    else:
+        for size, path, media in rows[:to_show]:
+            print(f"{size:>10}  {path}")
+            if show_media and media:
+                print(f"{'':>12}{media}")
+
+
 @dataclass
 class SearchReport:
     """Encapsulates file search results and metadata."""
@@ -61,32 +103,40 @@ class SearchReport:
         """Display search results with file size and optional media info."""
         to_show = len(self.results) if show_all else min(number, len(self.results))
         matches = "match" if len(self.results) == 1 else "matches"
-        print(
+        summary = (
             f"Found {len(self.results):,} {matches} in "
             f"{self.total_files_searched:,} files across {len(self.folders)} root(s) "
             f"in {self.search_time:.2f} seconds."
         )
+        if RICH_AVAILABLE:
+            console.print(Panel(summary, border_style="cyan"))
+        else:
+            print(summary)
 
-        for result in self.results[:to_show]:
+        rows: List[tuple[str, str, str]] = []
+        for result in self.results:
             try:
                 size = byte_size(result.stat().st_size)
             except OSError:
                 size = "N/A"
-            print(f"{size:>10}  {result}")
+            media_details = ""
             if show_media:
                 info = media_info(result)
                 if info:
-                    print(f"{'':>12}{info}")
+                    media_details = info
+            rows.append((size, str(result), media_details))
+
+        _render_paths_table(rows, show_media, to_show)
 
         if len(self.results) > to_show:
-            print("...and more")
+            _print_message("...and more", style="dim")
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments for file search."""
     parser = argparse.ArgumentParser(
         description=(
-            "Search configured media/library folders for file paths containing all "
+            "Search configured media/library folders for full paths containing all "
             "supplied text tokens. Paths default to the rogkit config `[media].paths` "
             "list and can be overridden with `--path` (repeatable)."
         ),
@@ -95,7 +145,7 @@ def parse_args() -> argparse.Namespace:
             "  [media]\n"
             "  paths = [\"~/Media\", \"/mnt/storage/TV\"]\n"
             "Override at runtime:\n"
-            "  files thriller --path /srv/library --path ~/Downloads"
+            "  paths thriller --path /srv/library --path ~/Downloads"
         ),
     )
     parser.add_argument(
@@ -199,9 +249,9 @@ def ensure_valid_roots(roots: List[Path], include_home: bool) -> List[Path]:
     valid = [path for path in roots if path.exists()]
     missing = sorted(set(roots) - set(valid))
     if missing:
-        print("Skipping missing paths:")
+        _print_message("Skipping missing paths:", style="yellow")
         for path in missing:
-            print(f"  {path}")
+            _print_message(f"  - {path}", style="yellow")
 
     if include_home:
         home = Path.home()
@@ -225,17 +275,17 @@ def main() -> None:
     try:
         roots = ensure_valid_roots(roots, include_home=args.user)
     except RuntimeError as err:
-        print(err)
+        _print_message(str(err), style="bold red", stderr=True)
         return
 
     source_label = "rogkit config [media].paths" if from_config and not args.paths else "command line override"
-    print(f"Searching roots ({source_label}):")
+    _print_message(f"Searching roots ({source_label}):", style="bold blue")
     for root in roots:
-        print(f"  {root}")
+        _print_message(f"  - {root}")
 
-    print(f"Looking for file paths containing all of: {', '.join(tokens)}")
+    _print_message(f"Looking for full paths containing all of: {', '.join(tokens)}")
     if args.media:
-        print("Media metadata (resolution/codec) will be displayed for video files.")
+        _print_message("Media metadata (resolution/codec) will be displayed for video files.", style="magenta")
 
     report = find_files(roots, tokens)
     report.display_files(number=args.number, show_all=args.all, show_media=args.media)
@@ -243,4 +293,3 @@ def main() -> None:
 
 if __name__ == "__main__":
     main()
-#!/usr/bin/env python3

@@ -81,7 +81,9 @@ alias bac='$ROGKIT_PYTHON -m rogkit_package.bin.backup "$@"'
 alias collate='$ROGKIT_PYTHON -m rogkit_package.bin.collate "$@"'
 alias delete='$ROGKIT_PYTHON -m rogkit_package.bin.delete "$@"'
 alias del='$ROGKIT_PYTHON -m rogkit_package.bin.delete "$@"'
-alias pfiles='$ROGKIT_PYTHON -m rogkit_package.bin.files "$@"'  #replaced by Go utility
+alias paths='$ROGKIT_PYTHON -m rogkit_package.bin.paths "$@"'
+alias ppaths='$ROGKIT_PYTHON -m rogkit_package.bin.paths "$@"'
+alias pfiles='$ROGKIT_PYTHON -m rogkit_package.bin.paths "$@"'  # legacy alias for renamed utility
 alias renamer='$ROGKIT_PYTHON -m rogkit_package.bin.renamer "$@"'
 alias preplacer='$ROGKIT_PYTHON -m rogkit_package.bin.replacer "$@"'  # replaced by Go Utility
 

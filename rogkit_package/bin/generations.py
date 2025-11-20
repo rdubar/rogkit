@@ -7,6 +7,16 @@ with each generation going back in time.
 import argparse
 from .bignum import bignum
 
+try:  # optional fancy output
+    from rich.console import Console
+    from rich.table import Table
+
+    console = Console()
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover
+    console = None
+    RICH_AVAILABLE = False
+
 
 def calculate_dna_shared(generations):
     """Calculate the percentage of DNA shared with each generation back."""
@@ -41,11 +51,40 @@ def main():
     percentages = calculate_dna_shared(generations)
 
     # Print the results
-    print("Gen".ljust(5) + "Years".ljust(10) + "% DNA".ljust(10) + "Relationship".ljust(25)+ "Ancestors".ljust(20))
+    rows = []
     for i, percentage in enumerate(percentages, start=1):
-        years = i * args.years  
+        years = i * args.years
         number_of_ancestors = bignum(2 ** i)
-        print(f"{str(i).ljust(5)}{str(years).ljust(10)}{str(f'{percentage:.03f}').ljust(10)}{parent_name(i).ljust(25)}{str(f'{number_of_ancestors}').ljust(20)}")
+        rows.append(
+            (
+                str(i),
+                str(years),
+                f"{percentage:.03f}",
+                parent_name(i),
+                str(number_of_ancestors),
+            )
+        )
+
+    if RICH_AVAILABLE:
+        table = Table(box=None, pad_edge=False)
+        table.add_column("Gen", justify="right", style="bold cyan")
+        table.add_column("Years", justify="right")
+        table.add_column("% DNA", justify="right", style="magenta")
+        table.add_column("Relationship", style="green")
+        table.add_column("Ancestors", justify="right", style="yellow")
+        for row in rows:
+            table.add_row(*row)
+        console.print(table)
+    else:
+        print("Gen".ljust(5) + "Years".ljust(10) + "% DNA".ljust(10) + "Relationship".ljust(25) + "Ancestors".ljust(20))
+        for row in rows:
+            print(
+                f"{row[0].ljust(5)}"
+                f"{row[1].ljust(10)}"
+                f"{row[2].ljust(10)}"
+                f"{row[3].ljust(25)}"
+                f"{row[4].ljust(20)}"
+            )
 
 if __name__ == "__main__":
     main()

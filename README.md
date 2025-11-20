@@ -258,7 +258,7 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `delete` | Safe file deletion with confirmation | `del` |
 | `renamer` | Batch rename files with patterns | - |
 | `replacer` | Find and replace text in files | - |
-| `files` | Advanced file searching | - |
+| `paths` | Full-path search with optional media metadata | `paths`, `ppaths` |
 | `search` | Go multicore content search | - |
 | `dirs` | Directory analysis and statistics | - |
 | `empties` | Find empty files and directories | - |
