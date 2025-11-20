@@ -1,21 +1,22 @@
 """
 File and folder backup utility with compression.
 
-Reads backup settings from the rogkit TOML configuration (`[backup]`) and
-creates timestamped, compressed tar.gz archives of the configured source
-folders. Exclusion patterns are configurable via TOML as well.
+Reads whitelist entries from `~/.config/rogkit/backup.txt` (one file/folder
+per line) and creates timestamped, compressed tar.gz archives of those
+paths. Backup destinations and exclusion overrides still live in the rogkit
+TOML configuration (`[backup]`).
 
-Configuration example for `~/.config/rogkit/config.toml`:
+Example `backup.txt`:
+
+    ~/.zshrc
+    ~/.config/rogkit
+    ~/dev
+    ~/bin
+
+`config.toml` still provides destinations and optional overrides:
 
     [backup]
-    backup_from = [
-      "~/Projects",
-      "~/Documents",
-    ]
-    backup_to = [
-      "/mnt/backups",
-      "~/Archive/Backups",
-    ]
+    backup_to = ["/mnt/backups", "~/Archive/Backups"]
     file_excludes = [".DS_Store", "*.pyc"]
     folder_excludes = ["__pycache__", "/tmp"]
 """
@@ -29,6 +30,7 @@ import subprocess
 import tempfile
 from dataclasses import dataclass
 from datetime import datetime
+from fnmatch import fnmatch
 from pathlib import Path
 from textwrap import dedent
 from time import perf_counter
@@ -39,6 +41,7 @@ from .seconds import convert_seconds
 from .tomlr import load_rogkit_toml
 
 USER_HOME = Path.home()
+BACKUP_INCLUDE_PATH = Path.home() / ".config" / "rogkit" / "backup.txt"
 
 DEFAULT_FILE_EXCLUDES = [
     '.DS_Store', '.docker', '.exe', '.git', '.idea', '.ipynb_checkpoints', '.log', '.mp3',
@@ -53,19 +56,20 @@ DEFAULT_FOLDER_EXCLUDES = [
 
 CONFIG_HELP = dedent(
     """
-    Configure backup paths in ~/.config/rogkit/config.toml:
+    Configure the whitelist in ~/.config/rogkit/backup.txt (one path per line):
+
+        ~/.zshrc
+        ~/.config/rogkit
+        ~/dev
+        ~/bin
+
+    Backup destinations are still read from ~/.config/rogkit/config.toml:
 
         [backup]
-        backup_from = [
-          "~/Projects",
-          "~/Documents",
-        ]
-        backup_to = [
-          "/mnt/backups",
-        ]
-        # Optional:
+        backup_to = ["/mnt/backups", "~/Archive/Backups"]
+        # Optional overrides:
         # file_excludes = [".DS_Store", "*.pyc"]
-        # folder_excludes = ["__pycache__"]
+        # folder_excludes = ["__pycache__", "node_modules"]
     """
 ).strip()
 
@@ -93,23 +97,46 @@ def _normalize_path(path: str) -> str:
     return os.path.abspath(expanded)
 
 
+def _load_whitelist(path: Path = BACKUP_INCLUDE_PATH) -> List[str]:
+    try:
+        contents = path.read_text(encoding='utf-8')
+    except FileNotFoundError:
+        return []
+
+    entries: List[str] = []
+    for raw_line in contents.splitlines():
+        line = raw_line.strip()
+        if not line or line.startswith('#'):
+            continue
+        entries.append(_normalize_path(line))
+    return entries
+
+
 def load_backup_settings() -> BackupSettings:
     """Load backup settings from rogkit TOML configuration."""
     config = load_rogkit_toml()
     backup_config = config.get("backup", {})
 
-    sources = _as_list(backup_config.get("backup_from"))
-    destinations = _as_list(backup_config.get("backup_to"))
+    whitelist = _load_whitelist()
+    if not whitelist:
+        whitelist = [_normalize_path(path) for path in _as_list(backup_config.get("backup_from"))]
 
-    file_excludes = _as_list(backup_config.get("file_excludes")) or list(DEFAULT_FILE_EXCLUDES)
-    folder_excludes = _as_list(backup_config.get("folder_excludes")) or list(DEFAULT_FOLDER_EXCLUDES)
+    destinations = [_normalize_path(path) for path in _as_list(backup_config.get("backup_to"))]
 
-    normalized_sources = [_normalize_path(path) for path in sources]
-    normalized_destinations = [_normalize_path(path) for path in destinations]
+    file_excludes_raw = backup_config.get("file_excludes")
+    folder_excludes_raw = backup_config.get("folder_excludes")
+
+    file_excludes = _as_list(file_excludes_raw)
+    folder_excludes = _as_list(folder_excludes_raw)
+
+    if file_excludes_raw is None:
+        file_excludes = list(DEFAULT_FILE_EXCLUDES)
+    if folder_excludes_raw is None:
+        folder_excludes = list(DEFAULT_FOLDER_EXCLUDES)
 
     return BackupSettings(
-        sources=normalized_sources,
-        destinations=normalized_destinations,
+        sources=whitelist,
+        destinations=destinations,
         file_excludes=file_excludes,
         folder_excludes=folder_excludes,
     )
@@ -130,7 +157,19 @@ def _resolve_existing_directories(paths: Iterable[str], *, create: bool = False)
 
 
 def _matches_any(value: str, patterns: Iterable[str]) -> bool:
-    return any(pattern and pattern in value for pattern in patterns)
+    norm_value = value.replace('\\', '/')
+    basename = os.path.basename(value.rstrip(os.sep))
+    for pattern in patterns:
+        if not pattern:
+            continue
+        normalized_pattern = pattern.replace('\\', '/')
+        if fnmatch(norm_value, normalized_pattern):
+            return True
+        if fnmatch(basename, normalized_pattern):
+            return True
+        if normalized_pattern in norm_value:
+            return True
+    return False
 
 
 def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
@@ -151,11 +190,26 @@ def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
         print(CONFIG_HELP)
         return 1
 
-    valid_sources = [path for path in settings.sources if os.path.isdir(path)]
-    if not valid_sources:
-        print("None of the configured backup sources exist:")
-        for path in settings.sources:
+    ordered_sources = list(dict.fromkeys(settings.sources))
+    source_files: List[str] = []
+    source_folders: List[str] = []
+    missing_sources: List[str] = []
+
+    for path in ordered_sources:
+        if os.path.isfile(path):
+            source_files.append(path)
+        elif os.path.isdir(path):
+            source_folders.append(path)
+        else:
+            missing_sources.append(path)
+
+    if missing_sources:
+        print("Skipped paths that do not exist:")
+        for path in missing_sources:
             print(f"  - {path}")
+
+    if not source_files and not source_folders:
+        print("No valid whitelist entries were found. Configure ~/.config/rogkit/backup.txt.")
         print(CONFIG_HELP)
         return 1
 
@@ -166,7 +220,18 @@ def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
     primary_archive_path = valid_destinations[0]
     backup_file_path = os.path.join(primary_archive_path, backup_filename)
 
-    print(f"Backing up folders: {valid_sources}")
+    if source_folders:
+        print("Backing up folders:")
+        for path in source_folders:
+            print(f"  - {path}")
+    else:
+        print("No folder entries in whitelist.")
+
+    if source_files:
+        print("Backing up files:")
+        for path in source_files:
+            print(f"  - {path}")
+
     print(f"Primary backup destination: {backup_file_path}")
 
     file_count = 0
@@ -174,16 +239,33 @@ def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
     skipped_count = 0
 
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as file_list:
-        for folder in valid_sources:
-            for root, _, files in os.walk(folder):
-                if _matches_any(root, settings.folder_excludes):
-                    skipped_count += len(files)
-                    continue
+        for file_path in source_files:
+            if _matches_any(file_path, settings.file_excludes):
+                skipped_count += 1
+                continue
+            if not os.path.isfile(file_path):
+                skipped_count += 1
+                continue
+            file_list.write(file_path + '\n')
+            file_count += 1
+            try:
+                total_file_size += os.path.getsize(file_path)
+            except (FileNotFoundError, PermissionError):
+                skipped_count += 1
+
+        for folder in source_folders:
+            if _matches_any(folder, settings.folder_excludes):
+                continue
+            for root, dirs, files in os.walk(folder):
+                dirs[:] = [
+                    directory for directory in dirs
+                    if not _matches_any(os.path.join(root, directory), settings.folder_excludes)
+                ]
                 for file_name in files:
-                    if _matches_any(file_name, settings.file_excludes):
+                    file_path = os.path.join(root, file_name)
+                    if _matches_any(file_path, settings.file_excludes) or _matches_any(file_name, settings.file_excludes):
                         skipped_count += 1
                         continue
-                    file_path = os.path.join(root, file_name)
                     file_list.write(file_path + '\n')
                     file_count += 1
                     try:
