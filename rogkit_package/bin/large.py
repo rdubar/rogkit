@@ -13,7 +13,7 @@ import paramiko  # type: ignore[import]
 from .bytes import byte_size
 from .tomlr import load_rogkit_toml
 
-DEFAULT_MEDIA_CONFIG = {
+DEFAULT_MEDIA_CONFIG = {  # TODO : move to rogkit_package.config
     "remote_host": "192.168.0.50",
     "remote_user": "rog",
     "remote_password": "",

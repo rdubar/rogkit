@@ -21,6 +21,40 @@ from typing import Iterable, List, Optional, Sequence
 from ..bin.fuzzy import MatchResult, find_candidates
 from .tomlr import get_config_value
 
+try:  # optional rich formatting
+    from rich.console import Console
+    from rich.table import Table
+    from rich.text import Text
+
+    console = Console()
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover
+    console = None
+    RICH_AVAILABLE = False
+
+
+def _print_message(message: str, *, style: str | None = None) -> None:
+    if RICH_AVAILABLE:
+        console.print(Text(message, style=style) if style else message)
+    else:
+        print(message)
+
+
+def _render_paths(title: str, paths: Sequence[Path]) -> None:
+    if not paths:
+        return
+    if RICH_AVAILABLE:
+        table = Table(title=title, box=None, show_header=False, pad_edge=False)
+        table.add_column("#", justify="right", style="dim")
+        table.add_column("Path", style="white")
+        for idx, path in enumerate(paths, start=1):
+            table.add_row(str(idx), str(path))
+        console.print(table)
+    else:
+        print(title)
+        for path in paths:
+            print(f"  - {path}")
+
 
 def run_command(command: str):
     """Execute a shell command and return its output and error."""
@@ -38,14 +72,16 @@ def find_files(directory: Path, patterns: Sequence[str]):
 def clean_files(file_list: Iterable[Path], script_path: Path):
     """Run the external cleaning script on each file in the list."""
     if not script_path.exists():
-        print(f"⚠️  Script path {script_path} does not exist. Exiting.")
+        _print_message(f"Script path {script_path} does not exist. Exiting.", style="bold red")
         return
     for path in file_list:
-        print(f'Running translation_clean.sh on {path}')
+        _print_message(f'Cleaning {path}', style="cyan")
         command = f'{script_path} {path}'
         output, error = run_command(command)
         if error:
-            print(f"Error: {error}")
+            _print_message(f"Error: {error}", style="bold red")
+        elif output.strip():
+            _print_message(output.strip(), style="dim")
 
 def _filter_with_fuzzy(files: Sequence[Path], root_directory: Path, needle: str) -> List[Path]:
     """Filter files by matching fuzzy directories against the needle."""
@@ -59,9 +95,8 @@ def _filter_with_fuzzy(files: Sequence[Path], root_directory: Path, needle: str)
         # Fall back to simple substring matching if fuzzy search fails
         needle_lower = needle.lower()
         filtered = [file for file in files if needle_lower in str(file).lower()]
-        print(f"After substring search filter '{needle}': {len(filtered)} files (from {before_filter})")
-        for file in filtered:
-            print(f"  {file}")
+        _print_message(f"After substring search filter '{needle}': {len(filtered)} files (from {before_filter})", style="bold yellow")
+        _render_paths("Substring matches", filtered)
         return filtered
 
     filtered_files: List[Path] = []
@@ -76,19 +111,18 @@ def _filter_with_fuzzy(files: Sequence[Path], root_directory: Path, needle: str)
             except ValueError:
                 continue
 
-    print(f"After fuzzy search filter '{needle}': {len(filtered_files)} files (from {before_filter})")
-    for file in filtered_files:
-        print(f"  {file}")
+    _print_message(f"After fuzzy search filter '{needle}': {len(filtered_files)} files (from {before_filter})", style="bold green")
+    _render_paths("Fuzzy matches", filtered_files)
     return filtered_files
 
 def main():
     """CLI entry point for translation file cleaner."""
-    print("Translation Clean Script")
+    _print_message("Translation Clean Script", style="bold blue")
     
     script_path_value = get_config_value("clean", "script_path")
     script_path = Path(script_path_value).expanduser() if script_path_value else None
     if not script_path or not script_path.is_file():
-        print(f"Script path not found at {script_path_value}. Exiting.")
+        _print_message(f"Script path not found at {script_path_value}. Exiting.", style="bold red")
         return
 
     default_minutes = 10
@@ -103,7 +137,7 @@ def main():
     args = parser.parse_args()
 
     if not root_directory.is_dir():
-        print(f"Root directory {root_directory} does not exist. Exiting.")
+        _print_message(f"Root directory {root_directory} does not exist. Exiting.", style="bold red")
         return
     
     matched_file: Optional[Path] = None
@@ -117,37 +151,48 @@ def main():
                 matched_file = test_path
             
     if matched_file:
-        print(f"Directly cleaning specified file: {matched_file}")
+        _print_message(f"Directly cleaning specified file: {matched_file}", style="bold green")
         clean_files([matched_file], script_path)
         return
 
     if not args.search:
         # just show help
         parser.print_help()
+        _print_message("Provide a search term (or file path) to select translations to clean.", style="yellow")
         return
         
-    print(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
+    _print_message(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
     all_files = list(find_files(root_directory, desired_filenames))
     total_files = len(all_files)
 
     if args.all:
         files_to_clean = all_files
-        print(f"Searching ALL {total_files:,} files.")
+        _print_message(f"Searching ALL {total_files:,} files.", style="bold yellow")
     else:
         time_limit = time.time() - (args.minutes * 60)
         files_to_clean = [file for file in all_files if file.stat().st_mtime > time_limit]
-        print(f"Found {len(files_to_clean)} of {total_files:,} files modified within the last {args.minutes} minutes. (Use --all to match all files).")
+        _print_message(
+            f"Found {len(files_to_clean)} of {total_files:,} files modified within the last {args.minutes} minutes. "
+            "(Use --all to match all files)."
+        )
 
     # Warn if no files selected
     if not files_to_clean:
-        print(f"⚠️  No files found to clean. Tip: use --all to clean/search across all files.")
+        _print_message("No files found to clean. Tip: use --all to clean/search across all files.", style="bold yellow")
 
     # Filter by search string if provided
     if args.search:
         files_to_clean = _filter_with_fuzzy(files_to_clean, root_directory, args.search)
 
+    if files_to_clean:
+        preview_limit = 20
+        preview = files_to_clean if len(files_to_clean) <= preview_limit else files_to_clean[:preview_limit]
+        _render_paths("Files selected for cleaning", preview)
+        if len(files_to_clean) > preview_limit:
+            _print_message(f"...and {len(files_to_clean) - preview_limit} more files.", style="dim")
+
     if not args.confirm:
-        print("Test run only. No files were modified. Use --confirm to proceed.")
+        _print_message("Test run only. No files were modified. Use --confirm to proceed.", style="bold yellow")
         return
 
     clean_files(files_to_clean, script_path)
