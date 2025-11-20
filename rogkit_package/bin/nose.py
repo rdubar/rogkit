@@ -13,6 +13,49 @@ from typing import Iterable
 from ..bin.fuzzy import MatchResult, find_candidates
 from ..bin.tomlr import load_rogkit_toml
 
+try:  # optional rich formatting
+    from rich.console import Console
+    from rich.table import Table
+    from rich.text import Text
+
+    console = Console()
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover
+    console = None
+    RICH_AVAILABLE = False
+
+
+def _print(message: str, *, style: str | None = None) -> None:
+    if RICH_AVAILABLE:
+        console.print(Text(message, style=style) if style else message)
+    else:
+        print(message)
+
+
+def _render_settings(root: Path, command: str, addons: Iterable[str]) -> None:
+    if RICH_AVAILABLE:
+        table = Table(title="Active Settings", box=None, show_header=False, pad_edge=False)
+        table.add_column("Key", style="bold cyan")
+        table.add_column("Value", style="white")
+        table.add_row("root", str(root))
+        table.add_row("command", command)
+        table.add_row("addons", ", ".join(addons))
+        console.print(table)
+    else:
+        print("Loaded settings:")
+        print(f"  root: {root}")
+        print(f"  command: {command}")
+        print(f"  addons: {', '.join(addons)}")
+
+
+CONFIG_HELP = (
+    "Configure ~/.config/rogkit/config.toml:\n"
+    "[openerp.nose]\n"
+    'root = "/path/to/openerp"\n'
+    'command = "bin/nosetests_odoo -- -v --with-timer --logging-clear-handlers"\n'
+    'addons = ["addons", "ext_addons"]'
+)
+
 
 def load_settings():
     """
@@ -29,32 +72,18 @@ def load_settings():
     section = config.get("openerp", {}).get("nose", {})
 
     root = section.get("root")
-    if not root:
-        raise RuntimeError("Missing `openerp.nose.root` in rogkit config.")
-
     command = section.get(
         "command",
         "bin/nosetests_odoo -- -v --with-timer --logging-clear-handlers",
     )
     addons = section.get("addons", ["addons", "ext_addons"])
 
-    return Path(root).expanduser(), command, addons
+    return (
+        Path(root).expanduser() if root else None,
+        command if command else None,
+        addons if addons else None,
+    )
 
-def main():
-    """CLI entry point for Odoo nosetests wrapper."""
-    parser = argparse.ArgumentParser(description='Run nosetests for the specified folder in the openerp-addons directory.')
-    parser.add_argument('folder', help='The folder or addon name to run tests on.')
-    args = parser.parse_args()
-
-    root, command, addons = load_settings()
-
-    folder_path = get_full_folder_path(root, addons, args.folder)
-    if folder_path:
-        run_tests(root, command, folder_path)
-    else:
-        print(f'Error: The specified folder or addon "{args.folder}" does not exist.')
-        parser.print_help()
-        exit(1)
 
 def get_full_folder_path(root: Path, addons: Iterable[str], target: str):
     """Determine the full path of the folder to run tests on."""
@@ -91,8 +120,53 @@ def _collect_candidate_paths(search_roots: Iterable[Path], target: str):
 def run_tests(root: Path, command: str, folder):
     """Executes the nosetest command on the specified folder."""
     full_command = f'cd "{root}" && {command} "{folder}"'
-    print(full_command)
+    _print(full_command, style="bold green")
     subprocess.run(full_command, shell=True)
+    
+def main():
+    """CLI entry point for Odoo nosetests wrapper."""
+    parser = argparse.ArgumentParser(description='Run nosetests for the specified folder in the openerp-addons directory.')
+    parser.add_argument('folder', help='The folder or addon name to run tests on.')
+    parser.add_argument('--path', help='Override openerp root path.')
+    parser.add_argument('--command', help='Override nosetests command.')
+    parser.add_argument('--addons', nargs='*', help='Override addon folders (space separated).')
+    args = parser.parse_args()
+
+    root, command, addons = load_settings()
+
+    if args.path:
+        root = Path(args.path).expanduser()
+    if args.command:
+        command = args.command
+    if args.addons:
+        addons = args.addons
+
+    missing = []
+    if root is None:
+        missing.append("root")
+    if command is None:
+        missing.append("command")
+    if not addons:
+        missing.append("addons")
+
+    if missing:
+        _print("Missing configuration:", style="bold red")
+        for item in missing:
+            _print(f"  - {item}", style="red")
+        _print(CONFIG_HELP, style="yellow")
+        parser.print_help()
+        sys.exit(1)
+
+    assert root is not None and command is not None and addons  # for type checkers
+    _render_settings(root, command, addons)
+
+    folder_path = get_full_folder_path(root, addons, args.folder)
+    if folder_path:
+        run_tests(root, command, folder_path)
+    else:
+        _print(f'Error: The specified folder or addon "{args.folder}" does not exist.', style="bold red")
+        parser.print_help()
+        exit(1)
 
 if __name__ == '__main__':
     main()
