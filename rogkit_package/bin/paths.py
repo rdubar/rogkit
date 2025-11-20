@@ -197,10 +197,10 @@ def normalise_search_terms(raw_terms: Sequence[str]) -> List[str]:
     return [term.lower() for term in raw_terms]
 
 
-def resolve_media_paths(cli_paths: Iterable[str] | None) -> Tuple[List[Path], bool]:
-    """Return search roots from CLI or rogkit config. Bool indicates if config was used."""
+def resolve_media_paths(cli_paths: Iterable[str] | None) -> Tuple[List[Path], str]:
+    """Return search roots and a label describing their source."""
     if cli_paths:
-        return _expand_paths(cli_paths), False
+        return _expand_paths(cli_paths), "command line override"
 
     config_value = get_config_value("media", "paths")
     if isinstance(config_value, str):
@@ -210,7 +210,11 @@ def resolve_media_paths(cli_paths: Iterable[str] | None) -> Tuple[List[Path], bo
     else:
         paths = []
 
-    return paths, True
+    if paths:
+        return paths, "rogkit config [media].paths"
+
+    fallback = [Path.cwd()]
+    return fallback, "current working directory"
 
 
 def _expand_paths(paths: Iterable[str]) -> List[Path]:
@@ -271,14 +275,13 @@ def main() -> None:
     args = parse_args()
     tokens = normalise_search_terms(args.texts)
 
-    roots, from_config = resolve_media_paths(args.paths)
+    roots, source_label = resolve_media_paths(args.paths)
     try:
         roots = ensure_valid_roots(roots, include_home=args.user)
     except RuntimeError as err:
         _print_message(str(err), style="bold red", stderr=True)
         return
 
-    source_label = "rogkit config [media].paths" if from_config and not args.paths else "command line override"
     _print_message(f"Searching roots ({source_label}):", style="bold blue")
     for root in roots:
         _print_message(f"  - {root}")
