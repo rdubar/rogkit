@@ -127,7 +127,7 @@ source ~/.bashrc  # or source ~/.zshrc
 
 ## 🐹 Go Utilities
 
-RogKit ships several performance-sensitive tools as Go binaries (`replacer`, `search`, `ishtime`, etc.). Build them once and they’ll be available on `PATH` via the aliases file.
+RogKit ships several experimental Go binaries for high-speed file/directory operations. Build them once and they’ll be available on `PATH` via the aliases file.
 
 ### Build All Go Commands
 
@@ -140,16 +140,30 @@ The script runs `go install ./cmd/...` with `GOBIN` pointing to `go/bin`, so eve
 
 ### Usage
 
-After building, use the Go versions directly:
+After building, use the Go utilities directly:
 
 ```bash
+dirfind project-name           # Fuzzy dir locating via fd + Go
+fastfind --path ~/code foo     # Parallel content search (ripgrep-like)
+finder --root ~/media "foo"    # Interactive finder with cached results
+ishtime --time 1115            # Quick time difference calculator
 replacer --find TODO --path /some/project
 replacer --find TODO --replace DONE --write --confirm --path /some/project
 search --path /some/project TODO "bar baz" --limit 10
-ishtime --time 1115
 ```
 
 Re-run the build script whenever Go sources change or after pulling updates.
+
+#### Available Go Commands
+
+| Command   | Description |
+|-----------|-------------|
+| `dirfind` | Experimental fuzzy directory locator powered by `fd` and Go. Supports caching, hidden-dir search, and optional subshell launch. |
+| `fastfind` | High-performance content search tailored for large trees. |
+| `finder`  | Helper used by some scripts for cached lookups/interactions. |
+| `ishtime` | “Is it time?” helper to convert hhmm strings to readable deltas. |
+| `replacer` | Mass find/replace utility with confirmation prompts. |
+| `search`  | Multi-term project searcher (ripgrep-style) with batching. |
 
 ---
 
