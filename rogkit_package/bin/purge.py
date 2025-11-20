@@ -12,12 +12,26 @@ Recursively searches for and deletes files that satisfy all of:
 """
 import argparse
 import os
+import sys
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional, Sequence, Set, Tuple
 
 from ..bin.bytes import byte_size
 from ..bin.delete import safe_delete
 from .tomlr import get_config_value
+
+try:  # Optional rich dependency for nicer CLI output
+    from rich.console import Console
+    from rich.table import Table
+    from rich.text import Text
+
+    console = Console()
+    console_err = Console(stderr=True)
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover - optional
+    console = None
+    console_err = None
+    RICH_AVAILABLE = False
 
 
 def _process_text_list(raw_list: str) -> List[str]:
@@ -94,6 +108,38 @@ def _prepare_text_matches(
             deduped.append(normalised)
     return deduped
 
+
+def _print_message(message: str, *, style: Optional[str] = None, stderr: bool = False) -> None:
+    if RICH_AVAILABLE:
+        text = Text(message, style=style) if style else message
+        (console_err if stderr else console).print(text)
+    else:
+        target = sys.stderr if stderr else sys.stdout
+        print(message, file=target)
+
+
+def _render_listing(title: str, items: Sequence[str], item_style: str = "white") -> None:
+    if not items:
+        return
+    if RICH_AVAILABLE:
+        table = Table(
+            title=title,
+            show_header=False,
+            box=None,
+            pad_edge=False,
+            title_style="bold",
+        )
+        table.add_column("#", justify="right", style="dim", no_wrap=True)
+        table.add_column("Value", style=item_style)
+        for idx, item in enumerate(items, start=1):
+            table.add_row(str(idx), item)
+        console.print(table)
+    else:
+        print(title)
+        for item in items:
+            print(f"  - {item}")
+
+
 @dataclass
 class PurgeResults:
     """Encapsulates purge results including files to delete and total files scanned."""
@@ -160,7 +206,8 @@ def search_and_collect_files(
                     elif reason in {"size", "size-unreadable"}:
                         results.skipped_size += 1
     return results
-        
+
+
 def _is_sample_media_file(path):
     """Check if file is a sample media file (not an actual media file)."""
     file = os.path.basename(path)
@@ -171,7 +218,7 @@ def delete_files(file_list):
     for file in file_list:
         # check for media files
         if file.endswith(('.mkv', '.mp4', '.avi', '.srt')) and not _is_sample_media_file(file):
-            print(f"Skipping media file: {file}")
+            _print_message(f"Skipping media file: {file}", style="yellow")
             continue
         safe_delete(file)
 
@@ -255,9 +302,7 @@ def main():
     args = parser.parse_args()
 
     if args.purge_list:
-        print("Base substrings used for purge matching:")
-        for item in BASE_TEXT_MATCHES:
-            print(item)
+        _render_listing("Base substrings used for purge matching", BASE_TEXT_MATCHES)
         return
 
     folder_candidates, from_config = _resolve_target_folders(args.folders)
@@ -266,24 +311,28 @@ def main():
 
     if not folders:
         if from_config:
-            print(
-                "No valid purge folders found in rogkit config. "
-                "Update [purge].folders or supply --folder PATH."
+            _print_message(
+                (
+                    "No valid purge folders found in rogkit config. "
+                    "Update [purge].folders or supply --folder PATH."
+                ),
+                style="bold red",
             )
         else:
-            print(
-                "No purge folders supplied. Provide --folder PATH or configure "
-                "[purge] folders in rogkit config."
+            _print_message(
+                (
+                    "No purge folders supplied. Provide --folder PATH or configure "
+                    "[purge] folders in rogkit config."
+                ),
+                style="bold red",
             )
         return
 
     if missing:
-        print("Skipping missing folders:")
-        for path in missing:
-            print(f"  {path}")
+        _render_listing("Skipping missing folders", missing, item_style="yellow")
 
     source_label = "rogkit config" if from_config else "command line"
-    print(f"Scanning folders from {source_label}: {folders}")
+    _print_message(f"Scanning folders from {source_label}: {folders}", style="bold blue")
 
     text_matches = _prepare_text_matches(
         BASE_TEXT_MATCHES,
@@ -295,7 +344,7 @@ def main():
         extensions.update(_normalise_extensions(args.extra_extensions))
 
     if args.dsstore:
-        print("Including .DS_Store files.")
+        _print_message("Including .DS_Store files.", style="cyan")
         extensions.add(".ds_store")
         text_matches.append(".ds_store")
 
@@ -304,31 +353,65 @@ def main():
     else:
         max_size_bytes = None
 
-    print(
+    _print_message(
         f"Searching {folders} for files to purge "
         f"(extensions={sorted(extensions)}, substrings={len(text_matches)}, "
-        f"max_size={'disabled' if max_size_bytes is None else byte_size(max_size_bytes)})..."
+        f"max_size={'disabled' if max_size_bytes is None else byte_size(max_size_bytes)})...",
+        style="dim",
     )
 
     results = search_and_collect_files(folders, text_matches, extensions, max_size_bytes)
-    print(
+    _print_message(
         f"Found {len(results.files_to_delete):,} files to delete "
-        f"from {results.total_files:,} files scanned."
+        f"from {results.total_files:,} files scanned.",
+        style="bold green",
     )
     if results.skipped_extension:
-        print(f"  Skipped {results.skipped_extension:,} files due to extension filter.")
+        _print_message(
+            f"Skipped {results.skipped_extension:,} files due to extension filter.",
+            style="yellow",
+        )
     if results.skipped_text:
-        print(f"  Skipped {results.skipped_text:,} files due to substring filter.")
+        _print_message(
+            f"Skipped {results.skipped_text:,} files due to substring filter.",
+            style="yellow",
+        )
     if results.skipped_size:
-        print(f"  Skipped {results.skipped_size:,} files due to size filter.")
+        _print_message(
+            f"Skipped {results.skipped_size:,} files due to size filter.",
+            style="yellow",
+        )
 
     if args.confirm:
         delete_files(results.files_to_delete)
     elif results.files_to_delete:
-        print("Files to be deleted (use --confirm to actually delete):")
-        for file in results.files_to_delete:
-            size = os.path.getsize(file)
-            print(f"{byte_size(size):>10}   {file}")
+        if RICH_AVAILABLE:
+            table = Table(
+                title="Files to be deleted (use --confirm to actually delete)",
+                box=None,
+                show_header=True,
+                pad_edge=False,
+                header_style="bold",
+            )
+            table.add_column("Size", justify="right", style="cyan", no_wrap=True)
+            table.add_column("Path", style="white")
+            for file in results.files_to_delete:
+                try:
+                    size = os.path.getsize(file)
+                    size_label = byte_size(size)
+                except OSError:
+                    size_label = "?"
+                table.add_row(size_label, file)
+            console.print(table)
+        else:
+            print("Files to be deleted (use --confirm to actually delete):")
+            for file in results.files_to_delete:
+                try:
+                    size = os.path.getsize(file)
+                    size_label = byte_size(size)
+                except OSError:
+                    size_label = "?"
+                print(f"{size_label:>10}   {file}")
 
 
 if __name__ == "__main__":
