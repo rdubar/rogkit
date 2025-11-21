@@ -3,19 +3,33 @@
 Empty folder and sparse directory finder.
 
 By default scans from the current working directory. Use --directory to override.
-Matched folders are deleted only when --confirm is supplied (otherwise a dry run).
+Outputs matching folders (one per line) for easy piping; use -v for summaries.
 """
 
 import argparse
+import fnmatch
 import os
 import time
 from pathlib import Path
 from typing import List, Tuple
 
-from .delete import safe_delete
+try:  # Optional rich dependency for nicer verbose output
+    from rich.console import Console
+    from rich.table import Table
+    from rich.text import Text
+
+    console = Console()
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover
+    console = None
+    RICH_AVAILABLE = False
 
 
-def find_sparse_folders(directory: Path, file_limit: int) -> Tuple[List[Path], int, int]:
+def _is_ignored(path: Path, ignore_patterns: List[str]) -> bool:
+    return any(path.match(pattern) or fnmatch.fnmatch(path.name, pattern) for pattern in ignore_patterns)
+
+
+def find_sparse_folders(directory: Path, file_limit: int, ignore_patterns: List[str]) -> Tuple[List[Path], int, int]:
     """
     Recursively check directory for folders whose total entries (files + subdirs)
     are less than or equal to file_limit, or which contain only .pyc files.
@@ -28,6 +42,12 @@ def find_sparse_folders(directory: Path, file_limit: int) -> Tuple[List[Path], i
         directory_count += 1
         file_count += len(files)
         current = Path(root)
+
+        # Skip ignored directories and prevent traversal into them
+        dirs[:] = [d for d in dirs if not _is_ignored(Path(root) / d, ignore_patterns)]
+
+        if _is_ignored(current, ignore_patterns):
+            continue
 
         total_entries = len(files) + len(dirs)
         if total_entries <= file_limit:
@@ -43,24 +63,31 @@ def find_sparse_folders(directory: Path, file_limit: int) -> Tuple[List[Path], i
 
 
 def print_summary(folders: List[Path], directory_count: int, file_count: int, file_limit: int, elapsed: float) -> None:
-    """Print summary of matching folders and scan statistics."""
-    if folders:
-        print(f"Found {len(folders)} matching folders (limit <= {file_limit}).")
-        for folder in folders:
-            print(f"  {folder}")
+    """Verbose summary with optional rich table."""
+    if RICH_AVAILABLE:
+        headline = (
+            f"Found {len(folders)} matching folder(s) (entry limit <= {file_limit}) "
+            f"from {file_count:,} files across {directory_count:,} directories "
+            f"in {elapsed:.2f}s."
+        )
+        table = Table(title=headline, box=None, pad_edge=False)
+        table.add_column("#", justify="right", style="dim", no_wrap=True)
+        table.add_column("Folder", style="white")
+        for idx, folder in enumerate(folders, start=1):
+            table.add_row(str(idx), str(folder))
+        console.print(table)
     else:
-        print("No matching directories found.")
+        if folders:
+            print(f"Found {len(folders)} matching folders (limit <= {file_limit}).")
+            for folder in folders:
+                print(f"  {folder}")
+        else:
+            print("No matching directories found.")
 
-    print(
-        f"Checked {file_count:,} files across {directory_count:,} directories "
-        f"in {elapsed:.2f} seconds."
-    )
-
-
-def delete_matches(folders: List[Path], force: bool) -> None:
-    """Delete the supplied folders using safe_delete."""
-    for folder in folders:
-        safe_delete(str(folder), force=force)
+        print(
+            f"Checked {file_count:,} files across {directory_count:,} directories "
+            f"in {elapsed:.2f} seconds."
+        )
 
 
 def main() -> None:
@@ -68,7 +95,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(
         description=(
             "Identify folders with few entries (default: empty) or only .pyc files. "
-            "By default performs a dry run from the current working directory."
+            "Outputs matching folders one per line for piping into other tools."
         )
     )
     parser.add_argument(
@@ -86,26 +113,19 @@ def main() -> None:
         help="Maximum number of entries allowed in a folder before it is flagged.",
     )
     parser.add_argument(
-        "--confirm",
+        "-v",
+        "--verbose",
         action="store_true",
-        help="Delete matching folders. Without this flag the command is read-only.",
+        help="Show summary and table (uses rich when installed).",
     )
     parser.add_argument(
-        "--force",
-        action="store_true",
-        help="Permanently delete matching folders (requires --confirm).",
-    )
-    parser.add_argument(
-        "-r",
-        "--raw",
-        action="store_true",
-        help="Print matching folders only (one per line) for easy piping; suppresses summaries.",
+        "--ignore",
+        action="append",
+        default=[],
+        help="Glob pattern to ignore (can be repeated).",
     )
 
     args = parser.parse_args()
-
-    if args.force and not args.confirm:
-        parser.error("--force requires --confirm")
 
     root = Path(args.directory).expanduser().resolve()
     if not root.exists():
@@ -114,26 +134,15 @@ def main() -> None:
         parser.error(f"Not a directory: {root}")
 
     start = time.time()
-    matches, directory_count, file_count = find_sparse_folders(root, args.number)
+    ignores = [pattern.strip() for pattern in args.ignore if pattern and pattern.strip()]
+    matches, directory_count, file_count = find_sparse_folders(root, args.number, ignores)
     elapsed = time.time() - start
 
-    if not args.raw:
-        print(f"Scanning {root}")
+    if args.verbose:
         print_summary(matches, directory_count, file_count, args.number, elapsed)
 
-    if not matches:
-        return
-
-    if args.raw:
-        for folder in matches:
-            print(folder)
-        if not args.confirm:
-            return
-
-    if args.confirm:
-        delete_matches(matches, force=args.force)
-    else:
-        print("Dry run complete. Re-run with --confirm to delete matching folders.")
+    for folder in matches:
+        print(folder)
 
 
 if __name__ == "__main__":
