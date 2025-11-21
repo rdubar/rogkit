@@ -225,6 +225,11 @@ def main():
     parser.add_argument('-m', '--max_length', type=int, default=1e12, help='Set maximum password length')
     # Additional information
     parser.add_argument('-i', '--info', action='store_true', help='Show information about the password')
+    parser.add_argument(
+        '-r', '--raw',
+        action='store_true',
+        help='Print only the password (no formatting/clipboard) for piping',
+    )
     args = parser.parse_args()
 
     if args.everything:
@@ -246,6 +251,11 @@ def main():
     )
 
     password_generator.generate_and_store_password()
+
+    if args.raw:
+        print(password_generator.password)
+        return
+
     password_generator.display_password_info(args.guesses)
     password_generator.copy_to_clipboard()
 
