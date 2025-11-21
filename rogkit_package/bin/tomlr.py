@@ -95,26 +95,67 @@ def setup_rogkit_toml():
     else:
         print(f"{rogkit_toml_path} already exists.")
 
+def print_toml_error(path: Path, error: Exception):
+    """
+    Print a parse error with line/column context when available.
+    """
+    line_no = getattr(error, "lineno", None) or getattr(error, "line", None)
+    col_no = getattr(error, "col", None) or getattr(error, "colno", None)
+    print(f"Error parsing {path}: {error}", file=sys.stderr)
+
+    try:
+        lines = Path(path).read_text(encoding="utf-8").splitlines()
+    except Exception:
+        return
+
+    if line_no and 1 <= line_no <= len(lines):
+        line_txt = lines[line_no - 1]
+        location = f"line {line_no}"
+        if col_no:
+            location += f", column {col_no}"
+        print(f"  at {location}:", file=sys.stderr)
+        print(f"    {line_txt}", file=sys.stderr)
+        if col_no and col_no > 0:
+            pointer = " " * (col_no - 1)
+            print(f"    {pointer}^", file=sys.stderr)
+
+def load_toml_file(path: Path, exit_on_error: bool = True):
+    """Load TOML file with friendly error messages."""
+    try:
+        return toml.load(path)
+    except toml.TomlDecodeError as e:
+        print_toml_error(path, e)
+    except Exception as e:
+        # toml can occasionally raise unexpected errors for malformed files
+        print_toml_error(path, e)
+
+    if exit_on_error:
+        sys.exit(1)
+    return None
+
+def validate_toml_file(path: Path) -> bool:
+    """Validate a TOML file, printing context on failure."""
+    path = path.expanduser()
+    if not path.exists():
+        print(f"TOML file not found: {path}", file=sys.stderr)
+        return False
+
+    if load_toml_file(path, exit_on_error=False) is None:
+        return False
+
+    print(f"Valid TOML: {path}")
+    return True
+
 def load_rogkit_toml(*args):
     """ Load and return the contents of rogkit toml as a dict. """
     rogkit_toml_path = get_rogkit_toml_path()
     if not os.path.exists(rogkit_toml_path):
         setup_rogkit_toml()
 
-    with open(rogkit_toml_path, 'r', encoding='utf-8') as f:
-        try:
-            data = toml.load(f)
-        except toml.TomlDecodeError as e:
-            print(f"Error parsing {rogkit_toml_path}: {e}", file=sys.stderr)
-            sys.exit(1)
-        except Exception as e:
-            # toml can occasionally raise unexpected errors for malformed files
-            print(f"Error parsing {rogkit_toml_path}: {e}", file=sys.stderr)
-            sys.exit(1)
-        
-        if args:
-            return data[args[0]]
-        return data
+    data = load_toml_file(rogkit_toml_path)
+    if args:
+        return data[args[0]]
+    return data
 
 def make_keys_lowercase(d):
     """ Recursively make all keys in a dict lowercase. """
@@ -168,6 +209,7 @@ def parse_args():
     parser.add_argument("-s", "--show", action="store_true", help="Show current rogkit toml")
     parser.add_argument("-w", "--write", action="store_true", help="Write default rogkit toml to rogkit_sample.toml")
     parser.add_argument("--lowercase", action="store_true", help="Make all keys in the current rogkit toml lowercase")
+    parser.add_argument("-v", "--validate", nargs="?", const="", metavar="PATH", help="Validate rogkit config (default) or a specific TOML file")
     return parser.parse_args()
 
 def main():
@@ -181,6 +223,10 @@ def main():
         setup_rogkit_toml()
     if args.lowercase:
         make_current_rogkit_toml_lowercase()
+    if args.validate is not None:
+        target_path = get_rogkit_toml_path() if args.validate == "" else Path(args.validate)
+        if not validate_toml_file(target_path):
+            sys.exit(1)
     if args.default:
         toml_string = toml.dumps(get_default_toml())
         print(toml_string)
