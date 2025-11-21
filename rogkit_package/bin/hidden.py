@@ -59,6 +59,8 @@ def main():
                         help="Delete all hidden files and folders found in the specified path.")
     parser.add_argument('-v', '--verbose', action='store_true',
                         help="Print detailed output during scanning and deletion.")
+    parser.add_argument('-r', '--raw', action='store_true',
+                        help="Print hidden items only (one per line) for piping; suppresses summaries.")
     
     args = parser.parse_args()
     
@@ -72,13 +74,17 @@ def main():
     hidden_items = find_hidden_items(path_to_scan)
     count = len(hidden_items)
     
-    if hidden_items:
-        print(f"{count:,} Hidden items found in {path_to_scan}:")
-        if args.verbose:
-            for item in hidden_items:
-                print(item)
+    if args.raw:
+        for item in hidden_items:
+            print(item)
     else:
-        print(f"No hidden items found in {path_to_scan}.")
+        if hidden_items:
+            print(f"{count:,} Hidden items found in {path_to_scan}:")
+            if args.verbose:
+                for item in hidden_items:
+                    print(item)
+        else:
+            print(f"No hidden items found in {path_to_scan}.")
         
     if hidden_items and args.delete:
         confirm = input(f"Are you sure you want to delete these {count} items? (y/n): ")

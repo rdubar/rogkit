@@ -95,6 +95,12 @@ def main() -> None:
         action="store_true",
         help="Permanently delete matching folders (requires --confirm).",
     )
+    parser.add_argument(
+        "-r",
+        "--raw",
+        action="store_true",
+        help="Print matching folders only (one per line) for easy piping; suppresses summaries.",
+    )
 
     args = parser.parse_args()
 
@@ -111,11 +117,18 @@ def main() -> None:
     matches, directory_count, file_count = find_sparse_folders(root, args.number)
     elapsed = time.time() - start
 
-    print(f"Scanning {root}")
-    print_summary(matches, directory_count, file_count, args.number, elapsed)
+    if not args.raw:
+        print(f"Scanning {root}")
+        print_summary(matches, directory_count, file_count, args.number, elapsed)
 
     if not matches:
         return
+
+    if args.raw:
+        for folder in matches:
+            print(folder)
+        if not args.confirm:
+            return
 
     if args.confirm:
         delete_matches(matches, force=args.force)
