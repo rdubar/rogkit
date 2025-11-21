@@ -101,17 +101,50 @@ def _render_paths_table(paths: List[Path]) -> None:
             print(f"{size:>10}  {path}{marker}")
 
 
-def _confirm_if_needed(piped_input: bool, auto_yes: bool) -> bool:
+def _prompt_deletion_choices(paths: List[Path], auto_yes: bool, piped_input: bool) -> List[Path] | None:
+    """
+    Return the subset of paths approved for deletion.
+    - When not piped or auto_yes is True, all paths are approved.
+    - When piped, prompt per item with y/yes/no/all. If "all" is chosen, require a follow-up "confirm".
+    """
     if not piped_input or auto_yes:
-        return True
-    prompt = "Type 'confirm' to proceed: "
-    response = _read_from_tty(prompt)
-    if response is None:
-        return False
-    if response.strip().lower() != "confirm":
+        return paths
+
+    approved: List[Path] = []
+    delete_all = False
+
+    for path in paths:
+        if delete_all:
+            approved.append(path)
+            continue
+
+        while True:
+            response = _read_from_tty(f"Delete {path}? [y/n/all]: ")
+            if response is None:
+                return None
+            answer = response.strip().lower()
+            if answer in {"y", "yes"}:
+                approved.append(path)
+                break
+            if answer in {"n", "no", ""}:
+                break
+            if answer == "all":
+                confirm = _read_from_tty("Type 'confirm' to delete all listed items: ")
+                if confirm is None:
+                    return None
+                if confirm.strip().lower() == "confirm":
+                    delete_all = True
+                    approved.append(path)
+                    break
+                _print("All-request canceled. Continuing prompts.", style="yellow")
+                continue
+            _print("Please respond with y, n, or all.", style="yellow")
+
+    if not approved:
         _print("Aborted; nothing changed.", style="yellow")
-        return False
-    return True
+        return None
+
+    return approved
 
 
 def _read_from_tty(prompt: str) -> str | None:
@@ -178,10 +211,11 @@ def main() -> int:
 
     _render_paths_table(paths)
 
-    if not _confirm_if_needed(bool(piped_paths), args.yes):
+    approved_paths = _prompt_deletion_choices(paths, args.yes, bool(piped_paths))
+    if approved_paths is None:
         return 1
 
-    results = [_delete_path(path, args.force) for path in paths]
+    results = [_delete_path(path, args.force) for path in approved_paths]
     return 0 if all(results) else 1
 
 
