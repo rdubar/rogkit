@@ -105,11 +105,34 @@ def _confirm_if_needed(piped_input: bool, auto_yes: bool) -> bool:
     if not piped_input or auto_yes:
         return True
     prompt = "Type 'confirm' to proceed: "
-    response = console.input(prompt) if RICH_AVAILABLE else input(prompt)
+    response = _read_from_tty(prompt)
+    if response is None:
+        return False
     if response.strip().lower() != "confirm":
         _print("Aborted; nothing changed.", style="yellow")
         return False
     return True
+
+
+def _read_from_tty(prompt: str) -> str | None:
+    """Read a line even when stdin was piped; fall back to -y advice."""
+    if sys.stdin.isatty():
+        return console.input(prompt) if RICH_AVAILABLE else input(prompt)
+
+    try:
+        with open("/dev/tty", "r", encoding="utf-8", errors="ignore") as tty:
+            if RICH_AVAILABLE:
+                console.print(prompt, end="")
+            else:
+                print(prompt, end="", flush=True)
+            return tty.readline()
+    except OSError:
+        _print(
+            "No TTY available for confirmation. Re-run with -y to auto-confirm in pipelines.",
+            style="red",
+            stderr=True,
+        )
+        return None
 
 
 def _delete_path(path: Path, force: bool) -> bool:
