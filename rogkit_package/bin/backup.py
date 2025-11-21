@@ -1,12 +1,24 @@
 """
 File and folder backup utility with compression.
 
-Reads whitelist entries from `~/.config/rogkit/backup.txt` (one file/folder
-per line) and creates timestamped, compressed tar.gz archives of those
-paths. Backup destinations and exclusion overrides still live in the rogkit
-TOML configuration (`[backup]`).
+Preferred configuration is per-backup sets in `~/.config/rogkit/config.toml`
+under `[[backup.set]]` entries (each with `name`, `paths`, and `destinations`).
+Legacy whitelist entries from `~/.config/rogkit/backup.txt` are still supported
+as a fallback when no sets are defined.
 
-Example `backup.txt` (feel free to mix files + folders):
+Example per-set config:
+
+    [[backup.set]]
+    name = "DocumentsToNAS"
+    destinations = ["/mnt/nas/backups/docs", "/mnt/external1/docs"]
+    paths = ["~/Documents", "~/Work/Reports", "/etc/hosts"]
+
+    [[backup.set]]
+    name = "MediaArchive"
+    destinations = ["/mnt/nas/media", "/mnt/cloud/media"]
+    paths = ["~/Pictures", "~/Videos"]
+
+Legacy `backup.txt` whitelist (one file/folder per line) also works:
 
     # dotfiles & secrets
     ~/.zshrc
@@ -42,7 +54,7 @@ from fnmatch import fnmatch
 from pathlib import Path
 from textwrap import dedent
 from time import perf_counter
-from typing import Iterable, List
+from typing import Iterable, List, Sequence
 
 from .bytes import byte_size
 from .seconds import convert_seconds
@@ -145,32 +157,39 @@ def _render_backup_listing(location: str, rows: list[tuple[str, str]]) -> None:
 
 CONFIG_HELP = dedent(
     """
-    Configure the whitelist in ~/.config/rogkit/backup.txt (one path per line):
+    Preferred: define per-backup sets in ~/.config/rogkit/config.toml:
 
-        # dotfiles & auth material
-        ~/.zshrc
-        ~/.ssh
-        ~/.gnupg
+        [[backup.set]]
+        name = "DocumentsToNAS"
+        destinations = ["/mnt/nas/backups/docs", "/mnt/external1/docs"]
+        paths = ["~/Documents", "~/Work/Reports", "/etc/hosts"]
 
-        # config & workspaces
-        ~/.config/rogkit
-        ~/.config/vnpner
-        ~/dev
-        ~/bin
+        [[backup.set]]
+        name = "MediaArchive"
+        destinations = ["/mnt/nas/media", "/mnt/cloud/media"]
+        paths = ["~/Pictures", "~/Videos"]
 
-    Backup destinations are still read from ~/.config/rogkit/config.toml:
+    Optional defaults (shared by all sets):
 
         [backup]
         backup_to = ["/mnt/backups", "~/Archive/Backups"]
-        # Optional overrides:
         # file_excludes = [".DS_Store", "*.pyc"]
         # folder_excludes = ["__pycache__", "node_modules"]
+
+    Legacy fallback whitelist in ~/.config/rogkit/backup.txt (one path per line)
+    is still supported when no sets are defined:
+
+        ~/.zshrc
+        ~/.ssh
+        ~/.config/rogkit
+        ~/dev
     """
 ).strip()
 
 
 @dataclass
-class BackupSettings:
+class BackupSet:
+    name: str
     sources: List[str]
     destinations: List[str]
     file_excludes: List[str]
@@ -192,6 +211,11 @@ def _normalize_path(path: str) -> str:
     return os.path.abspath(expanded)
 
 
+def _slugify(value: str) -> str:
+    safe = "".join(ch if ch.isalnum() or ch in ("-", "_") else "_" for ch in value)
+    return safe or "backup"
+
+
 def _load_whitelist(path: Path = BACKUP_INCLUDE_PATH) -> List[str]:
     try:
         contents = path.read_text(encoding='utf-8')
@@ -207,10 +231,50 @@ def _load_whitelist(path: Path = BACKUP_INCLUDE_PATH) -> List[str]:
     return entries
 
 
-def load_backup_settings() -> BackupSettings:
+def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
+    sets_raw = backup_config.get("set") or []
+    if not isinstance(sets_raw, list):
+        return []
+
+    base_file_excludes = _as_list(backup_config.get("file_excludes")) or list(DEFAULT_FILE_EXCLUDES)
+    base_folder_excludes = _as_list(backup_config.get("folder_excludes")) or list(DEFAULT_FOLDER_EXCLUDES)
+    base_destinations = [_normalize_path(path) for path in _as_list(backup_config.get("backup_to"))]
+    base_sources = [_normalize_path(path) for path in _as_list(backup_config.get("backup_from"))]
+
+    backup_sets: List[BackupSet] = []
+    for entry in sets_raw:
+        if not isinstance(entry, dict):
+            continue
+        name = entry.get("name") or "backup"
+        sources_raw = _as_list(entry.get("paths") or entry.get("sources") or base_sources)
+        destinations_raw = _as_list(entry.get("destinations") or base_destinations)
+
+        file_excludes = base_file_excludes + _as_list(entry.get("file_excludes"))
+        folder_excludes = base_folder_excludes + _as_list(entry.get("folder_excludes"))
+
+        sources = [_normalize_path(path) for path in sources_raw]
+        destinations = [_normalize_path(path) for path in destinations_raw]
+
+        backup_sets.append(
+            BackupSet(
+                name=str(name),
+                sources=sources,
+                destinations=destinations,
+                file_excludes=file_excludes,
+                folder_excludes=folder_excludes,
+            )
+        )
+    return backup_sets
+
+
+def load_backup_settings() -> List[BackupSet]:
     """Load backup settings from rogkit TOML configuration."""
     config = load_rogkit_toml()
     backup_config = config.get("backup", {})
+
+    backup_sets = _build_backup_sets_from_config(backup_config)
+    if backup_sets:
+        return backup_sets
 
     whitelist = _load_whitelist()
     if not whitelist:
@@ -229,12 +293,15 @@ def load_backup_settings() -> BackupSettings:
     if folder_excludes_raw is None:
         folder_excludes = list(DEFAULT_FOLDER_EXCLUDES)
 
-    return BackupSettings(
-        sources=whitelist,
-        destinations=destinations,
-        file_excludes=file_excludes,
-        folder_excludes=folder_excludes,
-    )
+    return [
+        BackupSet(
+            name="default",
+            sources=whitelist,
+            destinations=destinations,
+            file_excludes=file_excludes,
+            folder_excludes=folder_excludes,
+        )
+    ]
 
 
 def _resolve_existing_directories(paths: Iterable[str], *, create: bool = False) -> List[str]:
@@ -267,21 +334,21 @@ def _matches_any(value: str, patterns: Iterable[str]) -> bool:
     return False
 
 
-def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
-    """Create a new backup."""
+def create_backup(settings: BackupSet, *, verbose: bool = False) -> int:
+    """Create a new backup for a single set."""
     if not settings.destinations:
-        _print_message("No backup destinations configured.", "bold red")
+        _print_message(f"[{settings.name}] No backup destinations configured.", "bold red")
         print(CONFIG_HELP)
         return 1
 
     if not settings.sources:
-        _print_message("No backup source folders configured.", "bold red")
+        _print_message(f"[{settings.name}] No backup source folders configured.", "bold red")
         print(CONFIG_HELP)
         return 1
 
     valid_destinations = _resolve_existing_directories(settings.destinations, create=True)
     if not valid_destinations:
-        _print_message("No usable backup destinations were found or could be created.", "bold red")
+        _print_message(f"[{settings.name}] No usable backup destinations were found or could be created.", "bold red")
         print(CONFIG_HELP)
         return 1
 
@@ -299,23 +366,26 @@ def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
             missing_sources.append(path)
 
     if missing_sources:
-        _print_message("Skipped paths that do not exist:", "bold yellow")
+        _print_message(f"[{settings.name}] Skipped paths that do not exist:", "bold yellow")
         for path in missing_sources:
             _print_message(f"  - {path}", "yellow")
 
     if not source_files and not source_folders:
-        _print_message("No valid whitelist entries were found. Configure ~/.config/rogkit/backup.txt.", "bold red")
+        _print_message(
+            f"[{settings.name}] No valid whitelist entries were found. Configure ~/.config/rogkit/backup.txt or backup.set entries.",
+            "bold red",
+        )
         print(CONFIG_HELP)
         return 1
 
     start_time = perf_counter()
     current_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
-    backup_filename = f'backup-{current_date}.tar.gz'
+    backup_filename = f'backup-{_slugify(settings.name)}-{current_date}.tar.gz'
 
     primary_archive_path = valid_destinations[0]
     backup_file_path = os.path.join(primary_archive_path, backup_filename)
 
-    _print_rule("Backup Plan")
+    _print_rule(f"Backup Plan: {settings.name}")
     _print_paths("Folders", source_folders, "cyan") if source_folders else _print_message("No folder entries in whitelist.", "yellow")
     if source_files:
         _print_paths("Files", source_files, "magenta")
@@ -368,7 +438,7 @@ def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
 
     elapsed_time = convert_seconds(perf_counter() - start_time)
     _print_message(
-        f"Queued {file_count:,} files for backup ({byte_size(total_file_size)}). "
+        f"[{settings.name}] Queued {file_count:,} files for backup ({byte_size(total_file_size)}). "
         f"Skipped {skipped_count:,}. Elapsed time: {elapsed_time}.",
         "bold",
     )
@@ -380,7 +450,7 @@ def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
             check=True,
         )
     except subprocess.CalledProcessError as exc:
-        _print_message(f"Error while creating archive: {exc}", "bold red")
+        _print_message(f"[{settings.name}] Error while creating archive: {exc}", "bold red")
         os.unlink(temp_backup_path)
         return 1
     finally:
@@ -393,25 +463,25 @@ def create_backup(settings: BackupSettings, *, verbose: bool = False) -> int:
         try:
             os.makedirs(extra_path, exist_ok=True)
             shutil.copy2(backup_file_path, os.path.join(extra_path, backup_filename))
-            _print_message(f"Backup copied to {extra_path}", "green")
+            _print_message(f"[{settings.name}] Backup copied to {extra_path}", "green")
         except OSError as exc:
-            _print_message(f"Error copying backup to {extra_path}: {exc}", "bold red")
+            _print_message(f"[{settings.name}] Error copying backup to {extra_path}: {exc}", "bold red")
 
     total_elapsed = convert_seconds(perf_counter() - start_time)
     archive_size = os.path.getsize(backup_file_path)
     _render_backup_summary(file_count, skipped_count, archive_size, total_elapsed)
-    _print_message(f"Primary backup path: {backup_file_path}", "bold cyan")
+    _print_message(f"[{settings.name}] Primary backup path: {backup_file_path}", "bold cyan")
     return 0
 
 
-def list_backups(settings: BackupSettings) -> int:
-    """List existing backups from all destinations."""
+def list_backups(settings: BackupSet) -> int:
+    """List existing backups from all destinations for a set."""
     if not settings.destinations:
-        _print_message("No backup destinations configured.", "bold red")
+        _print_message(f"[{settings.name}] No backup destinations configured.", "bold red")
         print(CONFIG_HELP)
         return 1
 
-    _print_rule("Available Backups")
+    _print_rule(f"Available Backups: {settings.name}")
     found_any = False
 
     for location in settings.destinations:
@@ -450,20 +520,56 @@ def main() -> int:
     parser.add_argument('-b', '--backup', action='store_true', help='Create a new backup')
     parser.add_argument('-l', '--list', action='store_true', help='List existing backups')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+    parser.add_argument(
+        '--set',
+        dest='sets',
+        action='append',
+        help='Only run/list the named backup set (repeatable)',
+    )
+    parser.add_argument(
+        '--list-sets',
+        action='store_true',
+        help='Show configured backup set names and exit',
+    )
     args = parser.parse_args()
 
-    if not any(vars(args).values()):
+    if not any(value for key, value in vars(args).items() if key != "verbose"):
         parser.print_help()
         return 0
 
-    settings = load_backup_settings()
+    backup_sets = load_backup_settings()
+    if not backup_sets:
+        _print_message("No backup configuration found.", "bold red")
+        print(CONFIG_HELP)
+        return 1
+
+    if args.list_sets:
+        _print_rule("Configured Backup Sets")
+        for idx, setting in enumerate(backup_sets, start=1):
+            _print_message(f"{idx}. {setting.name} ({len(setting.sources)} paths -> {len(setting.destinations)} destinations)")
+        return 0
+
+    selected_sets: Sequence[BackupSet] = backup_sets
+    if args.sets:
+        requested = {name.lower() for name in args.sets}
+        filtered = [item for item in backup_sets if item.name.lower() in requested]
+        missing = requested - {item.name.lower() for item in filtered}
+        if missing:
+            _print_message(f"Unknown backup set(s): {', '.join(sorted(missing))}", "bold red")
+        if not filtered:
+            return 1
+        selected_sets = filtered
+
     exit_code = 0
 
     if args.list:
-        exit_code = list_backups(settings)
+        for setting in selected_sets:
+            list_code = list_backups(setting)
+            exit_code = list_code if list_code else exit_code
     if args.backup:
-        backup_code = create_backup(settings, verbose=args.verbose)
-        exit_code = backup_code if backup_code else exit_code
+        for setting in selected_sets:
+            backup_code = create_backup(setting, verbose=args.verbose)
+            exit_code = backup_code if backup_code else exit_code
 
     return exit_code
 

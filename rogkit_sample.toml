@@ -2,11 +2,37 @@
 # Legacy fallback (still supported by some tools): ~/.rogkit.toml
 
 [backup]
-backup_from = [ "~/",]
 backup_to = [ "~/archive/",]
-# Optional exclusions
+# Optional global exclusions
 # file_excludes = [".DS_Store", "*.pyc"]
 # folder_excludes = ["__pycache__", "/tmp"]
+
+[[backup.set]]
+name = "DocumentsToNAS"
+destinations = [
+    "/mnt/nas/backups/docs",
+    "/mnt/external1/docs"
+]
+paths = [
+    "~/Documents",
+    "~/Work/Reports",
+    "/etc/hosts"
+]
+
+[[backup.set]]
+name = "MediaArchive"
+destinations = [
+    "/mnt/nas/media",
+    "/mnt/cloud/media"
+]
+paths = [
+    "~/Pictures",
+    "~/Videos"
+]
+
+# Legacy fallback (used only if no backup.set entries present):
+# backup_from = [ "~/",]
+# backup_to = [ "~/archive/",]
 
 [clean]
 # path to your translation_clean.sh script
@@ -45,6 +71,5 @@ folders = [
 temp_folder = ""
 download_folder = ""
 default_input_file = ""
-
 
 
