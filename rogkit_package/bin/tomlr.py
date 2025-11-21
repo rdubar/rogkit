@@ -14,36 +14,56 @@ from ..settings import toml_sample_path
 
 
 DEFAULT_ROGKIT_TOML = {
-    "backup" : {
+    "backup": {
         "backup_from": ["~/"],
         "backup_to": ["~/archive/"],
-    },
-    "plex": {"plex_server_url": "", "plex_server_token": ""},
-    "openweather": {"openweather_api_key": ""},
-    "ipinfo": {"ipinfo_api_key": ""},
-    "yout": { "temp_folder" : "", "download_folder" : "", "default_input_file" : "" },
-    "openai": {"openai_api_key": ""},
-    "tmdb": {"tmdb_api_key": "", "tmdb_api_read_access_token": ""},
-    "clean": {"script_path": ""},
-    "purge": {
-        "folders": [
-            "~/Media",
+        "set": [
+            {
+                "name": "DocumentsToNAS",
+                "destinations": [
+                    "/mnt/nas/backups/docs",
+                    "/mnt/external1/docs",
+                ],
+                "paths": [
+                    "~/Documents",
+                    "~/Work/Reports",
+                    "/etc/hosts",
+                ],
+            },
+            {
+                "name": "MediaArchive",
+                "destinations": [
+                    "/mnt/nas/media",
+                    "/mnt/cloud/media",
+                ],
+                "paths": [
+                    "~/Pictures",
+                    "~/Videos",
+                ],
+            },
         ],
     },
+    "clean": {"script_path": ""},
+    "openweather": {"openweather_api_key": ""},
+    "ipinfo": {"ipinfo_api_key": ""},
+    "media": {
+        "remote_host": "192.168.0.50",
+        "remote_user": "rog",
+        "remote_password": "",
+        "remote_folders": ["/mnt/media1/Media/Movies"],
+    },
+    "plex": {"plex_server_url": "", "plex_server_token": ""},
     "spotify": {
         "spotify_client_id": "",
         "spotify_client_secret": "",
         "spotify_redirect_uri": "https://your-app.example.com/callback",
     },
-    "media": {
-        "paths": [
+    "purge": {
+        "folders": [
             "~/Media",
         ],
-        "remote_host": "192.168.0.50",
-        "remote_user": "rog",
-        "remote_password": "",
-        "remote_folder": "/mnt/media1/Media/Movies",
     },
+    "vido": {"temp_folder": "", "download_folder": "", "default_input_file": ""},
 }
 
 def get_config_value(group: str, key: str, verbose: bool = False):
@@ -88,7 +108,7 @@ def setup_rogkit_toml():
         try:
             rogkit_toml_path.parent.mkdir(parents=True, exist_ok=True)
             with open(rogkit_toml_path, 'w', encoding='utf-8') as f:
-                toml.dump(DEFAULT_ROGKIT_TOML, f)
+                toml.dump(get_default_toml(), f)
             print(f"Created {rogkit_toml_path} with default settings.")
         except IOError as e:
             print(f"Error creating {rogkit_toml_path}: {e}", file=sys.stderr)
@@ -178,7 +198,18 @@ def make_current_rogkit_toml_lowercase():
         sys.exit(1)
 
 def get_default_toml():
-    """Return default rogkit TOML configuration dictionary."""
+    """
+    Return default rogkit TOML configuration dictionary.
+
+    Prefer loading the checked-in sample file so defaults stay in sync with
+    docs; fall back to the built-in structure if the sample is unavailable or
+    invalid.
+    """
+    sample_path = Path(toml_sample_path)
+    if sample_path.exists():
+        sample_data = load_toml_file(sample_path, exit_on_error=False)
+        if sample_data:
+            return sample_data
     return DEFAULT_ROGKIT_TOML
 
 
