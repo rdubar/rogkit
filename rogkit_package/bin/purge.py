@@ -8,7 +8,7 @@ when available; otherwise at least one `--folder PATH` must be supplied.
 Recursively searches for and deletes files that satisfy all of:
   • extension whitelist (e.g., .txt, .nfo, .jpg)
   • case-insensitive substring match (no wildcards)
-  • maximum size threshold
+  • maximum size threshold (hard-capped at HARD_SIZE_CAP_BYTES)
 """
 import argparse
 import os
@@ -72,6 +72,9 @@ BASE_EXTENSIONS: Set[str] = {
     ".rtf",
     ".pdf",
 }
+
+# Hard safety cap: no file larger than this will be deleted by purge
+HARD_SIZE_CAP_BYTES = 1 * 1024 * 1024  # 1 MiB hard maximum
 
 
 def _normalise_extensions(extensions: Iterable[str]) -> Set[str]:
@@ -297,7 +300,7 @@ def main():
         "--max-size",
         type=float,
         default=5.0,
-        help="Maximum file size in MiB (<=0 to disable). Default 5.",
+        help="Maximum file size in MiB (<=0 to disable; hard-capped at 1 MiB). Default 5.",
     )
     args = parser.parse_args()
 
@@ -349,14 +352,25 @@ def main():
         text_matches.append(".ds_store")
 
     if args.max_size and args.max_size > 0:
-        max_size_bytes: Optional[int] = int(args.max_size * 1024 * 1024)
+        requested_max_bytes: Optional[int] = int(args.max_size * 1024 * 1024)
     else:
-        max_size_bytes = None
+        requested_max_bytes = None
+
+    # Apply hard cap regardless of user choice to avoid deleting large files.
+    if requested_max_bytes is None:
+        max_size_bytes: Optional[int] = HARD_SIZE_CAP_BYTES
+        max_size_note = "disabled by user -> capped at hard limit"
+    else:
+        max_size_bytes = min(requested_max_bytes, HARD_SIZE_CAP_BYTES)
+        if requested_max_bytes > HARD_SIZE_CAP_BYTES:
+            max_size_note = f"requested {byte_size(requested_max_bytes)} > hard cap"
+        else:
+            max_size_note = "user limit respected"
 
     _print_message(
         f"Searching {folders} for files to purge "
         f"(extensions={sorted(extensions)}, substrings={len(text_matches)}, "
-        f"max_size={'disabled' if max_size_bytes is None else byte_size(max_size_bytes)})...",
+        f"max_size={byte_size(max_size_bytes)} [{max_size_note}])...",
         style="dim",
     )
 
