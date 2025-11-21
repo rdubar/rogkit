@@ -156,6 +156,11 @@ def _delete_path(path: Path, force: bool) -> bool:
         return False
 
 
+def safe_delete(path: str | Path, force: bool = False) -> bool:
+    """Backward-compatible helper for other modules (e.g., empties)."""
+    return _delete_path(Path(path), force)
+
+
 def main() -> int:
     parser = _build_parser()
     args = parser.parse_args()
