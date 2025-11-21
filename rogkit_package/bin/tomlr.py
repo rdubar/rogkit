@@ -107,6 +107,10 @@ def load_rogkit_toml(*args):
         except toml.TomlDecodeError as e:
             print(f"Error parsing {rogkit_toml_path}: {e}", file=sys.stderr)
             sys.exit(1)
+        except Exception as e:
+            # toml can occasionally raise unexpected errors for malformed files
+            print(f"Error parsing {rogkit_toml_path}: {e}", file=sys.stderr)
+            sys.exit(1)
         
         if args:
             return data[args[0]]
