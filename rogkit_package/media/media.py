@@ -103,16 +103,18 @@ def _render_media_rows(
     table = Table(header_style="bold blue", box=box.SIMPLE_HEAVY, expand=False, show_header=False)
     table.add_column("Source", style="bright_cyan", no_wrap=True)
     table.add_column("Size", style="magenta", justify="right", no_wrap=True)
-    table.add_column("Res", style="green", justify="center", no_wrap=True)
+    table.add_column("Res", style="green", justify="right", no_wrap=True, min_width=4, width=4)
     table.add_column("Time", style="yellow", no_wrap=True)
     table.add_column("Title", style="white")
 
     for row in rows:
         fields = get_row_display_fields(row, args)
+        resolution = (fields["resolution"] or "-").strip()
+        resolution = resolution.upper() or "-"
         table.add_row(
             fields["source"],
             fields["size"] or "-",
-            fields["resolution"],
+            resolution,
             fields["duration"],
             fields["title"].rstrip(),
         )
