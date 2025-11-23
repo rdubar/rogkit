@@ -508,8 +508,8 @@ def main_timer():
     start_time = perf_counter()
     exit_code = main()
     elapsed_time = perf_counter() - start_time
-    time_str = convert_seconds(elapsed_time, show_seconds=False)
-    console.print(f"Operation completed in [bold cyan]{time_str}[/] seconds.")
+    time_str = convert_seconds(elapsed_time)
+    console.print(f"Operation completed in [bold cyan]{time_str}[/].")
     return exit_code
 
 if __name__ == "__main__":

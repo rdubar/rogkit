@@ -260,7 +260,7 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `replacer` | Find and replace text in files | - |
 | `paths` | Full-path search with optional media metadata | `paths`, `ppaths` |
 | `search` | Go multicore content search | - |
-| `dirs` | Directory analysis and statistics | - |
+| `dirs` | Directory analysis and stats (experimental) | - |
 | `empties` | Find empty files and directories | - |
 | `hidden` | Discover hidden files | - |
 | `large` | Find large files and directories | - |

@@ -8,11 +8,13 @@ depth limits, and optional inclusion of hidden paths.
 
 import argparse
 import os
+import shutil
+import subprocess
 import sys
 from collections import defaultdict
 from pathlib import Path
 from time import perf_counter
-from typing import DefaultDict, Optional
+from typing import DefaultDict, Optional, List, NamedTuple
 
 from .bytes import byte_size
 
@@ -68,6 +70,12 @@ def parse_args(argv=None):
         action="store_true",
         help="Include hidden files and directories (names beginning with '.').",
     )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Show which engine was used and any fallback reasons.",
+    )
     args = parser.parse_args(argv)
 
     if args.limit <= 0:
@@ -78,8 +86,67 @@ def parse_args(argv=None):
     return args
 
 
-def collect_directory_sizes(root: Path, include_hidden: bool):
-    root = root.resolve()
+class ScanResult(NamedTuple):
+    dir_sizes: DefaultDict[Path, int]
+    total_files: Optional[int]
+    errors: list[str]
+    engine: str
+    details: List[str]
+
+
+def _build_du_command(root: Path, depth: int, include_hidden: bool):
+    du_path = shutil.which("du")
+    if not du_path:
+        return None, "du not available on PATH"
+    if depth == -1:
+        return None, "du fast path skipped: depth=-1 (full recursion) requested"
+
+    cmd = [du_path, "-k"]
+    if sys.platform == "darwin":
+        cmd.extend(["-d", str(depth)])
+        if not include_hidden:
+            cmd.extend(["-I", ".*"])
+    else:
+        cmd.append(f"--max-depth={depth}")
+        if not include_hidden:
+            cmd.append("--exclude=.*")
+    cmd.append(str(root))
+    return cmd, None
+
+
+def _collect_directory_sizes_du(root: Path, depth: int, include_hidden: bool) -> tuple[Optional[ScanResult], Optional[str]]:
+    cmd, skip_reason = _build_du_command(root, depth, include_hidden)
+    if not cmd:
+        return None, skip_reason
+
+    details: List[str] = [f"du command: {' '.join(cmd)}", "file count: n/a (du mode)"]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        reason = f"du failed with exit {result.returncode}: {result.stderr.strip() or 'no stderr'}"
+        return None, reason
+
+    dir_sizes: DefaultDict[Path, int] = defaultdict(int)
+    for line in result.stdout.splitlines():
+        parts = line.split(None, 1)
+        if len(parts) != 2:
+            continue
+        try:
+            size_kib = int(parts[0])
+        except ValueError:
+            continue
+        dir_sizes[Path(parts[1])] = size_kib * 1024
+
+    dir_sizes.setdefault(root, 0)
+    errors = []
+    stderr = result.stderr.strip()
+    if stderr:
+        errors.append(stderr)
+        details.append(f"du stderr: {stderr}")
+
+    return ScanResult(dir_sizes, None, errors, "du", details), None
+
+
+def _collect_directory_sizes_python(root: Path, include_hidden: bool, _depth: int, prior: Optional[str]) -> ScanResult:
     dir_sizes: DefaultDict[Path, int] = defaultdict(int)
     total_files = 0
     errors = []
@@ -107,7 +174,18 @@ def collect_directory_sizes(root: Path, include_hidden: bool):
                 current = current.parent
 
     dir_sizes.setdefault(root, 0)
-    return dir_sizes, total_files, errors
+    details: List[str] = ["engine: python os.walk accumulator"]
+    if prior:
+        details.append(f"fallback reason: {prior}")
+    return ScanResult(dir_sizes, total_files, errors, "python", details)
+
+
+def collect_directory_sizes(root: Path, include_hidden: bool, depth: int) -> ScanResult:
+    root = root.resolve()
+    du_result, du_skip_reason = _collect_directory_sizes_du(root, depth, include_hidden)
+    if du_result:
+        return du_result
+    return _collect_directory_sizes_python(root, include_hidden, depth, du_skip_reason)
 
 
 def prepare_entries(dir_sizes, root: Path, depth: int, search: Optional[str]):
@@ -178,12 +256,12 @@ def _render_results_table(root: Path, entries, total_size: int, limit: int, dept
             print(f"{idx:>4} {byte_size(size):>10} {share:>6.1f}% {display_path}")
 
 
-def _render_summary(dir_sizes_count: int, total_files: int, total_size: int, elapsed: float,
+def _render_summary(dir_sizes_count: int, total_files: Optional[int], total_size: int, elapsed: float,
                     filtered_total: int, filtered_count: int, search_term: Optional[str]) -> None:
     summary_lines = [
         ("Total size", byte_size(total_size)),
         ("Directories", f"{dir_sizes_count:,}"),
-        ("Files", f"{total_files:,}"),
+        ("Files", f"{total_files:,}" if total_files is not None else "n/a"),
         ("Elapsed", f"{elapsed:.2f}s"),
     ]
     if search_term:
@@ -197,9 +275,10 @@ def _render_summary(dir_sizes_count: int, total_files: int, total_size: int, ela
             table.add_row(f"{label}:", value)
         console.print(Panel(table, title="Scan Summary", border_style="green", padding=(0, 1)))
     else:
+        files_label = f"{total_files:,}" if total_files is not None else "n/a"
         print(
             f"\nTotal size: {byte_size(total_size)} "
-            f"across {dir_sizes_count:,} directories and {total_files:,} files "
+            f"across {dir_sizes_count:,} directories and {files_label} files "
             f"in {elapsed:.2f} seconds"
         )
         if search_term:
@@ -227,6 +306,20 @@ def _render_errors(errors: list[str]) -> None:
             print("  (showing first few only)")
 
 
+def _render_engine_details(engine: str, details: List[str]) -> None:
+    header = f"Engine: {engine}"
+    body = "\n".join(details) if details else ""
+    if RICH_AVAILABLE:
+        console.print(Panel(body or "no details", title=header, border_style="cyan"))
+    else:
+        print(f"\n{header}")
+        if body:
+            for line in details:
+                print(f"- {line}")
+        else:
+            print("- no details")
+
+
 def main(argv=None):
     args = parse_args(argv)
     root = Path(args.path).expanduser()
@@ -241,8 +334,11 @@ def main(argv=None):
     root = root.resolve()
     _render_intro(root, args.include_hidden)
     start_time = perf_counter()
-    dir_sizes, total_files, errors = collect_directory_sizes(root, args.include_hidden)
+    result = collect_directory_sizes(root, args.include_hidden, args.depth)
     elapsed = perf_counter() - start_time
+    dir_sizes = result.dir_sizes
+    total_files = result.total_files
+    errors = result.errors
     total_size = dir_sizes[root]
 
     entries = prepare_entries(dir_sizes, root, args.depth, args.search)
@@ -256,6 +352,9 @@ def main(argv=None):
             _print_message("No directories matched the provided search term.", style="yellow")
         else:
             _print_message("No directories found under the specified root.", style="yellow")
+
+    if args.verbose:
+        _render_engine_details(result.engine, result.details)
 
     _render_summary(len(dir_sizes), total_files, total_size, elapsed, filtered_total, len(entries), args.search)
     _render_errors(errors)
