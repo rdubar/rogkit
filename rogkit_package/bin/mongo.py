@@ -120,7 +120,15 @@ def parse_arguments():
 if __name__ == "__main__":
     args = parse_arguments()
     config = load_config()
-    logger = MongoDBLogger(config)
+    
+    try:
+        logger = MongoDBLogger(config)
+    except ConnectionFailure:
+        print("Exiting due to MongoDB connection failure.")
+        exit(1)
+    except Exception as e:
+        print(f"An unexpected error occurred: {e}")
+        exit(1)
 
     if args.log:
         logger.log_text(args.log)
