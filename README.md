@@ -285,7 +285,7 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `strike` | S̶t̶r̶i̶k̶e̶t̶h̶r̶o̶u̶g̶h̶ text | - | `from strike import strikethru` |
 | `fig` | ASCII art text generator | - | `from fig import generate_ascii_art` |
 | `plural` | Pluralize words | - | `from plural import plural` |
-| `padding` | Remove padding files | - | - |
+| `padding` | Remove padding files (.____padding_file) with confirm gate | - | `--confirm` deletes, otherwise dry-run |
 
 ### 📊 Data Format Tools
 

@@ -117,7 +117,7 @@ alias rcase='$ROGKIT_PYTHON -m rogkit_package.bin.randomcase "$@"'
 alias strike='$ROGKIT_PYTHON -m rogkit_package.bin.strike "$@"'
 alias fig='$ROGKIT_PYTHON -m rogkit_package.bin.fig "$@"'
 alias plural='$ROGKIT_PYTHON -m rogkit_package.bin.plural "$@"'
-alias padding='$ROGKIT_PYTHON -m rogkit_package.bin.padding "$@"'
+alias padding='$ROGKIT_PACKAGE/bin/padding.sh "$@"'
 
 # ------------------------------------------------------------------------------
 # Data Format Tools
