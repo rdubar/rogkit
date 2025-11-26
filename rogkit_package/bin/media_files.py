@@ -271,7 +271,7 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
             extensions.extend(["-e", ext])
         if shutil.which("fd"):
             # Pattern '.' ensures we search within roots rather than treating a root as the pattern.
-            cmd = ["fd", "-t", "f", "-a", "-0"] + extensions + ["."] + local_paths
+            cmd = ["fd", "-t", "f", "-a", "-i", "-0"] + extensions + ["."] + local_paths
             result = subprocess.run(cmd, capture_output=True, text=True)
             candidates = [p for p in result.stdout.split("\0") if p]
             if result.returncode != 0 and not candidates:
@@ -325,7 +325,7 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
         # Build a remote command that prefers fd for extension filtering, with find fallback
         ext_args = " ".join(f"-e {ext}" for ext in MEDIA_TYPES)
         quoted_paths = " ".join(f'"{p}"' if " " in p else p for p in paths)
-        fd_cmd = f'fd -t f {ext_args} {quoted_paths} -x stat -c "%s %p" {{}}'
+        fd_cmd = f'fd -t f -i {ext_args} {quoted_paths} -x stat -c "%s %p" {{}}'
         find_cmd = f'find {quoted_paths} -type f -printf "%s %p\\n"'
         remote_cmd = f'if command -v fd >/dev/null 2>&1; then {fd_cmd}; else {find_cmd}; fi'
 
