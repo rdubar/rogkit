@@ -270,6 +270,8 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
         for ext in MEDIA_TYPES:
             extensions.extend(["-e", ext])
         if shutil.which("fd"):
+            if verbose:
+                print("Local discovery: fd (case-insensitive extensions)")
             # Pattern '.' ensures we search within roots rather than treating a root as the pattern.
             cmd = ["fd", "-t", "f", "-a", "-i", "-0"] + extensions + ["."] + local_paths
             result = subprocess.run(cmd, capture_output=True, text=True)
@@ -279,6 +281,8 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
                     print(f"fd failed locally (exit {result.returncode}); stderr: {result.stderr.strip()}")
                 candidates = []
         else:
+            if verbose:
+                print("Local discovery: os.walk (fd not available)")
             candidates = []
 
         if not candidates:
