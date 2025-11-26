@@ -266,7 +266,9 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
     def get_local_media_files(local_paths: List[str]) -> List[MediaFile]:
         """Retrieve media files from the local file system."""
         media_files = []
-        extensions = [f"-e {ext}" for ext in MEDIA_TYPES]
+        extensions = []
+        for ext in MEDIA_TYPES:
+            extensions.extend(["-e", ext])
         if shutil.which("fd"):
             cmd = ["fd", "-t", "f", "-a", "-0"] + extensions + local_paths
             try:
