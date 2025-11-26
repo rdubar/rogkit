@@ -28,6 +28,7 @@ A collection of 85+ `Python` (and some `sh` and `Go`) utilities for developers a
 
 - Python 3.11+ (3.12 recommended)
 - Go 1.22+ (optional, required for Go CLI tools)
+- `fd` (preferred for fast file discovery; many utilities will fall back to Python/`find` if missing)
 - Git and GitHub CLI (optional for clone)
 - Linux: Additional packages for full functionality (see below)
 
