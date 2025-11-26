@@ -252,7 +252,7 @@ def _resolve_remote_settings(args_server: Optional[str], args_user: Optional[str
     user = args_user or (config_user if isinstance(config_user, str) and config_user else "rog")
     return server, user
 
-def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, verbose: bool = False) -> List[MediaFile]:
+def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, verbose: bool = False, engine: str = "auto") -> List[MediaFile]:
     # TODO: load default media scan paths from configuration instead of /mnt wildcards.
     """
     Retrieve a list of media files from the specified path. If the path is available locally,
@@ -269,10 +269,10 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
         extensions = []
         for ext in MEDIA_TYPES:
             extensions.extend(["-e", ext])
-        if shutil.which("fd"):
+        use_fd = engine != "python" and shutil.which("fd")
+        if use_fd:
             if verbose:
                 print("Local discovery: fd (case-insensitive extensions)")
-            # Pattern '.' ensures we search within roots rather than treating a root as the pattern.
             cmd = ["fd", "-t", "f", "-a", "-i", "-0"] + extensions + ["."] + local_paths
             result = subprocess.run(cmd, capture_output=True, text=True)
             candidates = [p for p in result.stdout.split("\0") if p]
@@ -281,8 +281,10 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
                     print(f"fd failed locally (exit {result.returncode}); stderr: {result.stderr.strip()}")
                 candidates = []
         else:
+            if engine == "fd" and verbose and not shutil.which("fd"):
+                print("Local discovery requested fd but fd not available; falling back to os.walk.")
             if verbose:
-                print("Local discovery: os.walk (fd not available)")
+                print("Local discovery: os.walk (fd not used)")
             candidates = []
 
         if not candidates:
@@ -332,7 +334,12 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
         fd_cmd = f'fd -t f -i {ext_args} {quoted_paths} -x stat -c "%s %p" {{}}'
         find_pred = " -o ".join(f'-iname "*.{ext}"' for ext in MEDIA_TYPES)
         find_cmd = f'find {quoted_paths} -type f \\( {find_pred} \\) -printf "%s %p\\n"'
-        remote_cmd = f'if command -v fd >/dev/null 2>&1; then {fd_cmd}; else {find_cmd}; fi'
+        if engine == "fd":
+            remote_cmd = f'{fd_cmd} || true'
+        elif engine == "python":
+            remote_cmd = find_cmd
+        else:
+            remote_cmd = f'if command -v fd >/dev/null 2>&1; then {fd_cmd}; else {find_cmd}; fi'
         if verbose:
             print(f"Remote command: {remote_cmd}")
 
@@ -977,6 +984,7 @@ def main():
     parser.add_argument("--small", action="store_true", help="Find small media folders")
     parser.add_argument("--server", default=None, help="Server hostname or IP address (overrides config)")
     parser.add_argument("--username", default=None, help="Username for SSH connection (overrides config)")
+    parser.add_argument("--engine", "-E", choices=["auto", "fd", "python"], default="auto", help="Discovery engine for file listing")
     
     args = parser.parse_args()
     search = ' '.join(args.search) if args.search else None
@@ -1008,9 +1016,10 @@ def main():
     if args.verbose:
         print(f"Resolved paths: {resolved_paths}")
         print(f"Resolved server/user: {server}/{username}")
+        print(f"Requested engine: {args.engine}")
     if should_try_fetch:
         print(f"Fetching media file list from {server}:{resolved_paths}...")
-        media_files = get_remote_media_files(resolved_paths, server, username, verbose=args.verbose)
+        media_files = get_remote_media_files(resolved_paths, server, username, verbose=args.verbose, engine=args.engine)
 
         if media_files:
             print(f"Found {len(media_files):,} media files.")
