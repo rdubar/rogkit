@@ -270,7 +270,8 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
         for ext in MEDIA_TYPES:
             extensions.extend(["-e", ext])
         if shutil.which("fd"):
-            cmd = ["fd", "-t", "f", "-a", "-0"] + extensions + local_paths
+            # Pattern '.' ensures we search within roots rather than treating a root as the pattern.
+            cmd = ["fd", "-t", "f", "-a", "-0"] + extensions + ["."] + local_paths
             result = subprocess.run(cmd, capture_output=True, text=True)
             candidates = [p for p in result.stdout.split("\0") if p]
             if result.returncode != 0 and not candidates:
