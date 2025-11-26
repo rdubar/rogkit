@@ -15,6 +15,8 @@ import os
 import sys
 from dataclasses import dataclass, field
 from typing import Iterable, List, Optional, Sequence, Set, Tuple
+import shutil
+import subprocess
 
 from ..bin.bytes import byte_size
 from ..bin.delete import safe_delete
@@ -211,6 +213,60 @@ def search_and_collect_files(
     return results
 
 
+def _filter_candidates(
+    candidates: Sequence[str],
+    text_matches: Sequence[str],
+    extensions: Set[str],
+    max_size: Optional[int],
+) -> PurgeResults:
+    """Apply purge filters to a precomputed candidate list."""
+    results = PurgeResults()
+    for filepath in candidates:
+        results.total_files += 1
+        matched, reason = matches_criteria(
+            filepath, text_matches, extensions, max_size
+        )
+        if matched:
+            results.files_to_delete.append(filepath)
+        else:
+            if reason == "extension":
+                results.skipped_extension += 1
+            elif reason == "text":
+                results.skipped_text += 1
+            elif reason in {"size", "size-unreadable"}:
+                results.skipped_size += 1
+    return results
+
+
+def _fd_discover_files(folders: Sequence[str], extensions: Set[str], verbose: bool) -> Optional[List[str]]:
+    """Use fd to quickly gather candidate files (extension-only filtering)."""
+    if shutil.which("fd") is None:
+        return None
+
+    cmd = ["fd", "-t", "f", "-a", "-H", "-I", "-0"]
+    for ext in extensions:
+        cleaned = ext[1:] if ext.startswith(".") else ext
+        cmd.extend(["-e", cleaned])
+    cmd.extend(folders)
+
+    if verbose:
+        _print_message(f"Using fd for discovery: {' '.join(cmd)}", style="dim")
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        if verbose:
+            _print_message("fd discovery failed; falling back to Python scan.", style="bold yellow")
+            if result.stderr:
+                _print_message(result.stderr.strip(), style="dim")
+        return None
+
+    output = result.stdout
+    candidates = [path for path in output.split("\0") if path]
+    if verbose:
+        _print_message(f"fd returned {len(candidates)} candidate files (extensions only).", style="dim")
+    return candidates
+
+
 def _is_sample_media_file(path):
     """Check if file is a sample media file (not an actual media file)."""
     file = os.path.basename(path)
@@ -374,7 +430,12 @@ def main():
         style="dim",
     )
 
-    results = search_and_collect_files(folders, text_matches, extensions, max_size_bytes)
+    results: PurgeResults
+    fd_candidates = _fd_discover_files(folders, extensions, verbose=False)
+    if fd_candidates is not None:
+        results = _filter_candidates(fd_candidates, text_matches, extensions, max_size_bytes)
+    else:
+        results = search_and_collect_files(folders, text_matches, extensions, max_size_bytes)
     _print_message(
         f"Found {len(results.files_to_delete):,} files to delete "
         f"from {results.total_files:,} files scanned.",
