@@ -63,6 +63,13 @@ DEFAULT_ROGKIT_TOML = {
             "~/Media",
         ],
     },
+    "media_files": {
+        "folders": [
+            "/mnt/media1/Media/",
+            "/mnt/media2/Media/",
+            "/mnt/media3/Media/",
+        ],
+    },
     "vido": {"temp_folder": "", "download_folder": "", "default_input_file": ""},
 }
 

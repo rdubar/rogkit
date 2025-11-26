@@ -336,6 +336,9 @@ def main():
         "-c", "--confirm", action="store_true", help="Confirm deletion of files."
     )
     parser.add_argument(
+        "-v", "--verbose", action="store_true", help="Show extra diagnostics."
+    )
+    parser.add_argument(
         "-f",
         "--folder",
         action="append",
@@ -431,7 +434,10 @@ def main():
     )
 
     results: PurgeResults
-    fd_candidates = _fd_discover_files(folders, extensions, verbose=False)
+    fd_candidates = _fd_discover_files(folders, extensions, verbose=args.verbose)
+    if args.verbose:
+        engine = "fd (extensions only)" if fd_candidates is not None else "python os.walk"
+        _print_message(f"Discovery engine: {engine}", style="dim")
     if fd_candidates is not None:
         results = _filter_candidates(fd_candidates, text_matches, extensions, max_size_bytes)
     else:

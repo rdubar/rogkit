@@ -1,4 +1,22 @@
 # Roger's Media File Tool
+"""
+Config example (add to ~/.config/rogkit/config.toml):
+
+[media_files]
+# Use one or more roots; globs are allowed.
+folders = [
+    "/mnt/media1/Media/",
+    "/mnt/media2/Media/",
+    "/mnt/media3/Media/",
+]
+# Optional overrides (fallbacks: media.remote_host / media.remote_user)
+server = "pi5"
+user = "rog"
+# password is currently unused (SSH keys preferred)
+# password = ""
+
+You can still override via CLI flags: --path, --server, --username.
+"""
 import json
 import os
 import argparse
@@ -12,6 +30,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Dict, List, Optional
 from builtins import print as builtin_print
+import subprocess
 
 try:
     import paramiko  # type: ignore
@@ -36,6 +55,7 @@ from .seconds import time_ago_in_words
 from .bytes import byte_size
 from .media_scan import get_media_info
 from ..settings import ensure_package_data_dir, package_data_dir
+from .tomlr import get_config_value
 
 
 DATA_DIR = package_data_dir
@@ -200,7 +220,39 @@ def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
         print(f"Index error with line: {file_line}. Error: {e}")
         return None
 
-def get_remote_media_files(path: str, server_ip: str, username: str) -> List[MediaFile]:
+def _resolve_media_paths(cli_path: Optional[str]) -> List[str]:
+    """Resolve media paths from config or CLI, falling back to a default."""
+    config_paths = (
+        get_config_value("media_files", "folders")
+        or get_config_value("media", "remote_folders")
+        or get_config_value("media_files", "path")
+    )
+    paths: List[str] = []
+    if isinstance(config_paths, str):
+        paths = [config_paths]
+    elif isinstance(config_paths, (list, tuple, set)):
+        paths = list(config_paths)
+    elif cli_path:
+        paths = [cli_path]
+
+    if not paths:
+        paths = ["/mnt/media*/Media"]
+
+    expanded = []
+    for p in paths:
+        expanded.append(os.path.expanduser(p))
+    return expanded
+
+def _resolve_remote_settings(args_server: Optional[str], args_user: Optional[str]) -> tuple[str, str]:
+    """Resolve SSH host/user from CLI or config (media_files -> media)."""
+    config_server = get_config_value("media_files", "server") or get_config_value("media", "remote_host")
+    config_user = get_config_value("media_files", "user") or get_config_value("media", "remote_user")
+
+    server = args_server or (config_server if isinstance(config_server, str) and config_server else "pi5")
+    user = args_user or (config_user if isinstance(config_user, str) and config_user else "rog")
+    return server, user
+
+def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, verbose: bool = False) -> List[MediaFile]:
     # TODO: load default media scan paths from configuration instead of /mnt wildcards.
     """
     Retrieve a list of media files from the specified path. If the path is available locally,
@@ -208,29 +260,48 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
 
     :param server_ip: IP address or hostname of the server
     :param username: Username for SSH connection
-    :param path: Path to search for media files (default is /mnt/media*/Media)
+    :param paths: Paths to search for media files (default is /mnt/media*/Media)
     :return: List of MediaFile objects
     """
     def get_local_media_files(local_paths: List[str]) -> List[MediaFile]:
         """Retrieve media files from the local file system."""
         media_files = []
-        for local_path in local_paths:
-            for root, _dirs, files in os.walk(local_path):
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    try:
-                        size = os.path.getsize(file_path)
-                        media_file = parse_media_file_line(f"{size} {file_path}")
-                        if media_file:
-                            media_files.append(media_file)
-                    except OSError as e:
-                        print(f"Error processing local file: {file_path}, Error: {e}")
+        extensions = [f"-e {ext}" for ext in MEDIA_TYPES]
+        if shutil.which("fd"):
+            cmd = ["fd", "-t", "f", "-a", "-0"] + extensions + local_paths
+            try:
+                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
+                candidates = [p for p in result.stdout.split("\0") if p]
+            except subprocess.CalledProcessError as e:
+                print(f"fd failed locally ({e}); falling back to os.walk.")
+                candidates = []
+        else:
+            candidates = []
+
+        if not candidates:
+            for local_path in local_paths:
+                for root, _dirs, files in os.walk(local_path):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        candidates.append(file_path)
+
+        for file_path in candidates:
+            try:
+                size = os.path.getsize(file_path)
+                media_file = parse_media_file_line(f"{size} {file_path}")
+                if media_file:
+                    media_files.append(media_file)
+            except OSError as e:
+                print(f"Error processing local file: {file_path}, Error: {e}")
         return media_files
 
-    # Expand wildcards in the path using glob
-    matched_paths = glob.glob(path)
+    # Expand wildcards in the paths using glob
+    matched_paths: List[str] = []
+    for path in paths:
+        matched_paths.extend(glob.glob(path))
     if matched_paths:
-        print(f"Local paths detected: {matched_paths}")
+        if verbose:
+            print(f"Local paths detected: {matched_paths}")
         return get_local_media_files(matched_paths)
 
     # If the path is not available locally, fetch files remotely
@@ -248,11 +319,14 @@ def get_remote_media_files(path: str, server_ip: str, username: str) -> List[Med
         # Connect to the server using the default SSH keys
         ssh.connect(server_ip, username=username)
 
-        # Define the command to find all files in the specified path with sizes
-        if ' ' in path:
-            path = f'"{path}"'
-        find_command = f'find {path} -type f -exec du -b {{}} +'
-        _stdin, stdout, stderr = ssh.exec_command(find_command)
+        # Build a remote command that prefers fd for extension filtering, with find fallback
+        ext_args = " ".join(f"-e {ext}" for ext in MEDIA_TYPES)
+        quoted_paths = " ".join(f'"{p}"' if " " in p else p for p in paths)
+        fd_cmd = f'fd -t f {ext_args} {quoted_paths} -x stat -c "%s %p" {{}}'
+        find_cmd = f'find {quoted_paths} -type f -printf "%s %p\\n"'
+        remote_cmd = f'if command -v fd >/dev/null 2>&1; then {fd_cmd}; else {find_cmd}; fi'
+
+        _stdin, stdout, stderr = ssh.exec_command(remote_cmd)
         file_lines = stdout.read().decode('utf-8').splitlines()
 
         # Handle errors if any
@@ -776,7 +850,8 @@ def restore_backup_media(media_files: List[MediaFile], verbose: bool = False):
     print(f'Checking backup media files in: "{backup_disk_path}"')
 
     # Wrap path in quotes to handle spaces when running remotely
-    backup_media_files = get_remote_media_files(backup_disk_path, "pi5", "rog")
+    server, user = _resolve_remote_settings(None, None)
+    backup_media_files = get_remote_media_files([backup_disk_path], server, user)
     print(f"Found {len(backup_media_files):,} total files on backup disk.")
 
     # Create a set of standardized titles from the existing media files    
@@ -885,13 +960,13 @@ def main():
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one large file not classed as an 'extra'")
     # TODO: provide a config-backed default for --path instead of /mnt/media*/Media.
-    parser.add_argument('-p', "--path", default="/mnt/media*/Media", help="Path to search for media files")
+    parser.add_argument('-p', "--path", default=None, help="Path to search for media files (overrides config)")
     parser.add_argument('--hidden', action="store_true", help="Include hidden files")
     parser.add_argument('-R', "--restore", action="store_true", help="Restore media files from backup disk")
     parser.add_argument('-v', "--verbose", action="store_true", help="Verbose output")
     parser.add_argument("--small", action="store_true", help="Find small media folders")
-    parser.add_argument("--server", default="pi5", help="Server hostname or IP address")
-    parser.add_argument("--username", default="rog", help="Username for SSH connection")
+    parser.add_argument("--server", default=None, help="Server hostname or IP address (overrides config)")
+    parser.add_argument("--username", default=None, help="Username for SSH connection (overrides config)")
     
     args = parser.parse_args()
     search = ' '.join(args.search) if args.search else None
@@ -917,9 +992,15 @@ def main():
     media_files = None
     should_try_fetch = args.refresh or not cache_last_modified or time_ago_in_seconds > 3600
 
+    resolved_paths = _resolve_media_paths(args.path)
+    server, username = _resolve_remote_settings(args.server, args.username)
+
+    if args.verbose:
+        print(f"Resolved paths: {resolved_paths}")
+        print(f"Resolved server/user: {server}/{username}")
     if should_try_fetch:
-        print(f"Fetching media file list from {args.server}:{args.path}...")
-        media_files = get_remote_media_files(args.path, args.server, args.username)
+        print(f"Fetching media file list from {server}:{resolved_paths}...")
+        media_files = get_remote_media_files(resolved_paths, server, username, verbose=args.verbose)
 
         if media_files:
             print(f"Found {len(media_files):,} media files.")
