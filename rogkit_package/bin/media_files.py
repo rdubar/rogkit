@@ -326,8 +326,11 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
         ext_args = " ".join(f"-e {ext}" for ext in MEDIA_TYPES)
         quoted_paths = " ".join(f'"{p}"' if " " in p else p for p in paths)
         fd_cmd = f'fd -t f -i {ext_args} {quoted_paths} -x stat -c "%s %p" {{}}'
-        find_cmd = f'find {quoted_paths} -type f -printf "%s %p\\n"'
+        find_pred = " -o ".join(f'-iname "*.{ext}"' for ext in MEDIA_TYPES)
+        find_cmd = f'find {quoted_paths} -type f \\( {find_pred} \\) -printf "%s %p\\n"'
         remote_cmd = f'if command -v fd >/dev/null 2>&1; then {fd_cmd}; else {find_cmd}; fi'
+        if verbose:
+            print(f"Remote command: {remote_cmd}")
 
         _stdin, stdout, stderr = ssh.exec_command(remote_cmd)
         file_lines = stdout.read().decode('utf-8').splitlines()
