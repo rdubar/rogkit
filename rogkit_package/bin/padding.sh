@@ -3,6 +3,7 @@
 set -euo pipefail
 
 ROOT="."
+ROOT_ABS=""
 CONFIRM="false"
 VERBOSE="false"
 
@@ -44,28 +45,31 @@ while [ "${1-}" != "" ]; do
   esac
 done
 
-if [ ! -d "$ROOT" ]; then
+if ! ROOT_ABS=$(cd "$ROOT" 2>/dev/null && pwd); then
   log "Root path does not exist or is not a directory: $ROOT"
   exit 1
 fi
 
-log "Scanning for .____padding_file directories under: $ROOT"
+log "Scanning for .____padding_file directories under: $ROOT_ABS"
 
 if command -v fd >/dev/null 2>&1; then
   log_verbose "Using fd for discovery"
-  FIND_CMD=(fd ".____padding_file" "$ROOT" -t d -H -I)
+  FIND_CMD=(fd ".____padding_file" "$ROOT_ABS" -t d -H -I)
 else
   log_verbose "fd not found; falling back to find"
-  FIND_CMD=(find "$ROOT" -type d -name ".____padding_file")
+  FIND_CMD=(find "$ROOT_ABS" -type d -name ".____padding_file")
 fi
 
 log_verbose "Discovery command: ${FIND_CMD[*]}"
 
-mapfile -t matches < <("${FIND_CMD[@]}" || true)
+matches=()
+while IFS= read -r line; do
+  [ -n "$line" ] && matches+=("$line")
+done < <("${FIND_CMD[@]}" 2>/dev/null || true)
 
 COUNT=${#matches[@]}
 if [ "$COUNT" -eq 0 ]; then
-  log "No padding directories found."
+  log "No padding directories found under: $ROOT_ABS"
   exit 0
 fi
 
