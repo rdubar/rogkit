@@ -4,69 +4,98 @@ PDF creator from images.
 Converts a folder of JPG/PNG images into a single PDF document with A4 page size,
 automatically rotating landscape images and centering content.
 """
-import os
+from __future__ import annotations
+
 import argparse
+import io
+from pathlib import Path
+from typing import Iterable, Sequence
+
 from PIL import Image  # type: ignore
-from reportlab.pdfgen import canvas  # type: ignore
 from reportlab.lib.pagesizes import A4  # type: ignore
+from reportlab.lib.utils import ImageReader  # type: ignore
+from reportlab.pdfgen import canvas  # type: ignore
 
 
-def create_pdf_from_images(folder_path, output_pdf):
-    """Create PDF from all JPG/PNG images in folder, sorted by name."""
-    # Get all .jpg and .png files in the directory in name order
-    images = sorted([f for f in os.listdir(folder_path) if f.endswith('.jpg') or f.endswith('.png')])
+ImagePathSeq = Sequence[Path]
 
-    c = canvas.Canvas(output_pdf, pagesize=A4)
 
-    for image in images:
-        image_path = os.path.join(folder_path, image)
+def _iter_image_files(folder_path: Path, exts: Iterable[str]) -> list[Path]:
+    """Return image files in name order with allowed extensions."""
+    normalized_exts = {ext.lower() for ext in exts}
+    return sorted(
+        [
+            p
+            for p in folder_path.iterdir()
+            if p.is_file() and p.suffix.lower().lstrip(".") in normalized_exts
+        ],
+        key=lambda p: p.name.lower(),
+    )
+
+
+def create_pdf_from_images(folder_path: Path, output_pdf: Path) -> None:
+    """Create PDF from JPG/PNG images in a folder."""
+    images = _iter_image_files(folder_path, ("jpg", "jpeg", "png"))
+    if not images:
+        print(f"No JPG/PNG images found in {folder_path}")
+        return
+
+    c = canvas.Canvas(str(output_pdf), pagesize=A4)
+    page_width, page_height = A4
+
+    for image_path in images:
         with Image.open(image_path) as img:
-            # Rotate image if it's in landscape
             if img.width > img.height:
                 img = img.rotate(270, expand=True)
-            
-            # Calculate scale to fit A4 (taking into account DPI)
-            dpi = img.info.get('dpi', (300, 300))
-            scale_x = 595.0 / (img.width * 72 / dpi[0])
-            scale_y = 842.0 / (img.height * 72 / dpi[1])
+
+            dpi = img.info.get("dpi", (300, 300))
+            dpi_x, dpi_y = dpi if isinstance(dpi, (tuple, list)) and len(dpi) == 2 else (300, 300)
+            dpi_x = dpi_x or 300
+            dpi_y = dpi_y or 300
+
+            scale_x = page_width / (img.width * 72 / dpi_x)
+            scale_y = page_height / (img.height * 72 / dpi_y)
             scale = min(scale_x, scale_y)
-            
-            # Calculate new dimensions
+
             new_width = img.width * scale
             new_height = img.height * scale
-            
-            # Center the image
-            x = (595 - new_width * 72 / dpi[0]) / 2
-            y = (842 - new_height * 72 / dpi[1]) / 2
-            
-            # Convert to points
-            new_width_pt = new_width * 72 / dpi[0]
-            new_height_pt = new_height * 72 / dpi[1]
-            
-            # Save the possibly rotated and scaled image to a temporary file
-            temp_path = "temp_image.jpg"
-            img.save(temp_path)
-            
-            # Draw the image
-            c.drawInlineImage(temp_path, x, y, new_width_pt, new_height_pt)
+
+            x = (page_width - new_width * 72 / dpi_x) / 2
+            y = (page_height - new_height * 72 / dpi_y) / 2
+
+            new_width_pt = new_width * 72 / dpi_x
+            new_height_pt = new_height * 72 / dpi_y
+
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG")
+            buffer.seek(0)
+            img_reader = ImageReader(buffer)
+
+            c.drawImage(img_reader, x, y, new_width_pt, new_height_pt)
             c.showPage()
-            
-            # Optionally, remove the temporary file after adding it to the PDF
-            os.remove(temp_path)
+
     c.save()
+    print(f"PDF saved to {output_pdf}")
 
-    print(f'PDF saved to {output_pdf}')
 
-def main():
+def main() -> None:
     """CLI entry point for PDF creator."""
     parser = argparse.ArgumentParser(description="Convert images in a folder to a single PDF document.")
     parser.add_argument("folder", type=str, help="The folder containing images to be converted.")
+    parser.add_argument(
+        "-o",
+        "--output",
+        type=str,
+        default=None,
+        help="Output PDF path (default: folder/output.pdf)",
+    )
     args = parser.parse_args()
 
-    folder_path = args.folder
-    output_pdf = os.path.join(folder_path, "output.pdf")
+    folder_path = Path(args.folder).expanduser().resolve()
+    output_pdf = Path(args.output).expanduser().resolve() if args.output else folder_path / "output.pdf"
 
     create_pdf_from_images(folder_path, output_pdf)
+
 
 if __name__ == "__main__":
     main()
