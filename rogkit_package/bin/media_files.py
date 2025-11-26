@@ -271,11 +271,11 @@ def get_remote_media_files(paths: List[str], server_ip: str, username: str, *, v
             extensions.extend(["-e", ext])
         if shutil.which("fd"):
             cmd = ["fd", "-t", "f", "-a", "-0"] + extensions + local_paths
-            try:
-                result = subprocess.run(cmd, capture_output=True, text=True, check=True)
-                candidates = [p for p in result.stdout.split("\0") if p]
-            except subprocess.CalledProcessError as e:
-                print(f"fd failed locally ({e}); falling back to os.walk.")
+            result = subprocess.run(cmd, capture_output=True, text=True)
+            candidates = [p for p in result.stdout.split("\0") if p]
+            if result.returncode != 0 and not candidates:
+                if verbose:
+                    print(f"fd failed locally (exit {result.returncode}); stderr: {result.stderr.strip()}")
                 candidates = []
         else:
             candidates = []
