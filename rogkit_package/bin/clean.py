@@ -14,6 +14,7 @@ import argparse
 import fnmatch
 import os
 import subprocess
+import shutil
 import sys
 import time
 from pathlib import Path
@@ -130,6 +131,37 @@ def _filter_with_fuzzy(files: Sequence[Path], root_directory: Path, needle: str)
     _render_paths("Fuzzy matches", filtered_files)
     return filtered_files
 
+def _fd_discover_files(root_directory: Path, patterns: Sequence[str], *, minutes: int, use_all: bool, verbose: bool) -> Optional[List[Path]]:
+    """Use fd to discover files quickly. Returns None if fd unavailable or fails."""
+    if shutil.which("fd") is None:
+        return None
+
+    cmd = ["fd", "-t", "f", "-a", "-H", "-I"]
+    for pattern in patterns:
+        cmd.extend(["-g", pattern])
+
+    if not use_all:
+        cmd.extend(["--changed-within", f"{minutes}m"])
+
+    cmd.append(str(root_directory))
+
+    if verbose:
+        _print_message(f"Using fd for discovery: {' '.join(cmd)}", style="dim")
+
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    if result.returncode != 0:
+        _print_message("fd discovery failed; falling back to Python scan.", style="bold yellow")
+        if verbose and (result.stderr or result.stdout):
+            _print_message(result.stderr or result.stdout, style="dim")
+        return None
+
+    files = [Path(line.strip()) for line in result.stdout.splitlines() if line.strip()]
+    if use_all:
+        _print_message(f"fd found {len(files)} matching files (all).", style="bold yellow")
+    else:
+        _print_message(f"fd found {len(files)} files changed within last {minutes} minutes.", style="bold yellow")
+    return files
+
 def _read_stdin_paths(root_directory: Path) -> List[Path]:
     """Read newline-delimited paths from stdin and normalize them."""
     if sys.stdin.isatty():
@@ -212,19 +244,27 @@ def main():
             return
             
         _print_message(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
-        all_files = list(find_files(root_directory, desired_filenames))
-        total_files = len(all_files)
+        files_to_clean = _fd_discover_files(
+            root_directory,
+            desired_filenames,
+            minutes=args.minutes,
+            use_all=bool(args.all),
+            verbose=args.verbose,
+        )
+        if files_to_clean is None:
+            all_files = list(find_files(root_directory, desired_filenames))
+            total_files = len(all_files)
 
-        if args.all:
-            files_to_clean = all_files
-            _print_message(f"Searching ALL {total_files:,} files.", style="bold yellow")
-        else:
-            time_limit = time.time() - (args.minutes * 60)
-            files_to_clean = [file for file in all_files if file.stat().st_mtime > time_limit]
-            _print_message(
-                f"Found {len(files_to_clean)} of {total_files:,} files modified within the last {args.minutes} minutes. "
-                "(Use --all to match all files)."
-            )
+            if args.all:
+                files_to_clean = all_files
+                _print_message(f"Searching ALL {total_files:,} files.", style="bold yellow")
+            else:
+                time_limit = time.time() - (args.minutes * 60)
+                files_to_clean = [file for file in all_files if file.stat().st_mtime > time_limit]
+                _print_message(
+                    f"Found {len(files_to_clean)} of {total_files:,} files modified within the last {args.minutes} minutes. "
+                    "(Use --all to match all files)."
+                )
 
         # Warn if no files selected
         if not files_to_clean:

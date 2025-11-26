@@ -2,7 +2,7 @@
 
 **Utility toolkit for system administration, media management, and productivity.**
 
-A collection of 85+ Python (and some Go) utilities for developers and system administrators, featuring powerful Plex media library management, file operations, text processing, and system utilities.
+A collection of 85+ `Python` (and some `sh` and `Go`) utilities for developers and system administrators, featuring powerful Plex media library management, file operations, text processing, and system utilities.
 
 ---
 
