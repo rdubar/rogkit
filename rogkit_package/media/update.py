@@ -7,6 +7,7 @@ import os
 import shutil
 import subprocess
 import tempfile
+from datetime import datetime
 from pathlib import Path
 from time import perf_counter
 from typing import Optional, Tuple
@@ -147,6 +148,8 @@ def _copy_remote_file(sftp, remote_path: Path, local_path: Path) -> None:
 def sync_remote_db(remote: RemoteConfig, *, prefer_rsync: bool = False, verbose: bool = True) -> Path:
     """Sync the remote Plex database to the local cache."""
     sync_start = perf_counter()
+    method_used = "none"
+    mode = "local" if remote.db_path.exists() else "remote"
     if verbose:
         print(
             f"Syncing Plex DB from {remote.username}@{remote.host}:{remote.db_path} "
@@ -163,6 +166,7 @@ def sync_remote_db(remote: RemoteConfig, *, prefer_rsync: bool = False, verbose:
             shutil.copy2(remote.db_path, remote.cache_path)
             _write_cached_state(remote.cache_path, *src_state)
             performed_transfer = True
+            method_used = "local_copy"
         for suffix in ("-wal", "-shm"):
             source_sidecar = Path(str(remote.db_path) + suffix)
             dest_sidecar = Path(str(remote.cache_path) + suffix)
@@ -173,6 +177,7 @@ def sync_remote_db(remote: RemoteConfig, *, prefer_rsync: bool = False, verbose:
                     shutil.copy2(source_sidecar, dest_sidecar)
                     _write_cached_state(dest_sidecar, *side_state)
                     performed_transfer = True
+                    method_used = "local_copy"
             else:
                 with contextlib.suppress(FileNotFoundError):
                     os.remove(dest_sidecar)
@@ -199,9 +204,12 @@ def sync_remote_db(remote: RemoteConfig, *, prefer_rsync: bool = False, verbose:
                 copied = False
                 if prefer_rsync:
                     copied = _copy_remote_file_rsync(remote, remote.db_path, remote.cache_path)
+                    if copied:
+                        method_used = "rsync"
                 if not copied:
                     _copy_remote_file(sftp, remote.db_path, remote.cache_path)
                     copied = True
+                    method_used = "sftp"
                 if copied:
                     os.utime(remote.cache_path, (remote_state[1], remote_state[1]))
                     _write_cached_state(remote.cache_path, *remote_state)
@@ -226,6 +234,9 @@ def sync_remote_db(remote: RemoteConfig, *, prefer_rsync: bool = False, verbose:
 
                 if not _copy_remote_file_rsync(remote, remote_sidecar, local_sidecar):
                     _copy_remote_file(sftp, remote_sidecar, local_sidecar)
+                    method_used = method_used or "sftp"
+                else:
+                    method_used = "rsync"
                 _write_cached_state(local_sidecar, *side_state)
                 performed_transfer = True
 
@@ -239,4 +250,43 @@ def sync_remote_db(remote: RemoteConfig, *, prefer_rsync: bool = False, verbose:
         else:
             print(f"Cache already up to date ({size}); checked in {elapsed:.2f} seconds.")
 
+    _log_sync(remote, mode=mode, method=method_used, duration=elapsed, updated=performed_transfer, verbose=verbose)
     return remote.cache_path
+
+
+def _log_sync(
+    remote: RemoteConfig,
+    *,
+    mode: str,
+    method: str,
+    duration: float,
+    updated: bool,
+    verbose: bool = False,
+) -> None:
+    """Append a simple sync log line to ~/.local/state/rogkit/media_update.log."""
+    log_path = get_sync_log_path()
+    log_dir = log_path.parent
+    try:
+        log_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().isoformat(timespec="seconds")
+        status = "updated" if updated else "cached"
+        line = (
+            f"{ts} | host={remote.host} | mode={mode} | method={method or 'none'} | "
+            f"duration_s={duration:.2f} | status={status}\n"
+        )
+        with log_path.open("a", encoding="utf-8") as fh:
+            fh.write(line)
+        # Optional echo for visibility
+        if verbose or os.environ.get("ROGKIT_LOG_ECHO", "0") == "1":
+            print(f"Log entry: {line.strip()}")
+            print(f"Log file: {log_path}")
+    except Exception:
+        # Logging must never break the sync; swallow any errors.
+        if os.environ.get("ROGKIT_DEBUG_LOG", "0") == "1":
+            raise
+
+
+def get_sync_log_path() -> Path:
+    """Return the path where media sync logs are written."""
+    base = Path(os.environ.get("XDG_STATE_HOME", Path.home() / ".local" / "state")).expanduser()
+    return base / "rogkit" / "media_update.log"

@@ -74,7 +74,7 @@ from .search import (
     run_people_search,
     run_pretty_search,
 )
-from .update import sync_remote_db
+from .update import sync_remote_db, get_sync_log_path
 
 DAEMON_ENV_FLAG = "PLEX_DB_DAEMON_ACTIVE"
 DAEMON_SOCKET_NAME = "media_daemon.sock"
@@ -316,6 +316,10 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         )
         return 2
 
+    # normalize short flag for stop
+    if getattr(args, "stop_daemon_short", False):
+        args.stop_daemon = True
+
     if args.stop_daemon:
         if _request_daemon_shutdown():
             print("Requested media daemon shutdown.")
@@ -330,6 +334,22 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
 
     remote = load_remote_config()
 
+    if getattr(args, "show_log_short", False):
+        args.show_log = True
+
+    if args.show_log:
+        log_path = get_sync_log_path()
+        print(f"Media update log: {log_path}")
+        if log_path.exists():
+            try:
+                print(log_path.read_text(encoding="utf-8"))
+            except OSError as exc:
+                print(f"Unable to read log: {exc}", file=sys.stderr)
+                return 1
+        else:
+            print("Log file does not exist yet.")
+        return 0
+
     if args.update or args.update_plex:
         print("Updating Plex database and cache...")
         if not remote:
@@ -343,7 +363,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         current_step = 1
         try:
             print(f"[Step {current_step}/{total_steps}] Refreshing Plex snapshot...", flush=True)
-            synced_db_path = sync_remote_db(remote, prefer_rsync=args.rsync, verbose=True)
+            synced_db_path = sync_remote_db(remote, prefer_rsync=args.rsync, verbose=args.verbose)
             current_step += 1
             print(f"[Step {current_step}/{total_steps}] Rebuilding fast media cache...", flush=True)
             build_cache_table(synced_db_path)
@@ -380,7 +400,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             print("No local Plex database found; attempting to pull from remote host...")
             pull_start = perf_counter()
             try:
-                synced_db_path = sync_remote_db(remote, prefer_rsync=args.rsync, verbose=True)
+                synced_db_path = sync_remote_db(remote, prefer_rsync=args.rsync, verbose=args.verbose)
                 duration = perf_counter() - pull_start
                 build_cache_table(synced_db_path)
                 db_path = synced_db_path

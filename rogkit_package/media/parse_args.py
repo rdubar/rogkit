@@ -134,8 +134,31 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         help="Ask the running media daemon to exit.",
     )
     parser.add_argument(
+        "-S",
+        action="store_true",
+        dest="stop_daemon_short",
+        help="Short form for --stop-daemon.",
+    )
+    parser.add_argument(
         "--no-daemon",
         action="store_true",
         help="Run locally without attempting to use the background daemon.",
+    )
+    parser.add_argument(
+        "-v",
+        "--verbose",
+        action="store_true",
+        help="Verbose output (and echo sync log file path during updates).",
+    )
+    parser.add_argument(
+        "--show-log",
+        action="store_true",
+        help="Show the media update log path and contents, then exit.",
+    )
+    parser.add_argument(
+        "-L",
+        action="store_true",
+        dest="show_log_short",
+        help="Short form for --show-log.",
     )
     return parser.parse_args(list(argv) if argv is not None else None)
