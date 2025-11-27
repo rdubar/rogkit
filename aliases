@@ -118,6 +118,7 @@ alias strike='$ROGKIT_PYTHON -m rogkit_package.bin.strike "$@"'
 alias fig='$ROGKIT_PYTHON -m rogkit_package.bin.fig "$@"'
 alias plural='$ROGKIT_PYTHON -m rogkit_package.bin.plural "$@"'
 alias padding='$ROGKIT_PACKAGE/bin/padding.sh "$@"'
+alias scrape='$ROGKIT_PYTHON -m rogkit_package.bin.scrape "$@"'
 
 # ------------------------------------------------------------------------------
 # Data Format Tools
@@ -209,6 +210,7 @@ alias stars='$ROGKIT_PYTHON -m rogkit_package.bin.stars "$@"'
 # ------------------------------------------------------------------------------
 # Video & Media Download
 # ------------------------------------------------------------------------------
+alias scrape='$ROGKIT_PYTHON -m rogkit_package.bin.scrape "$@"'
 alias vido='$ROGKIT_PYTHON -m rogkit_package.bin.vido "$@"'
 alias yout='$ROGKIT_PYTHON -m rogkit_package.bin.vido "$@"'
 

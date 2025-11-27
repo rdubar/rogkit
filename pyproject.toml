@@ -37,6 +37,7 @@ dependencies = [
   "PyYAML",
   "reportlab",
   "requests",
+  "bs4",
   "requests-html",
   "send2trash",
   "sh",

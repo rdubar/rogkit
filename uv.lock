@@ -1600,6 +1600,7 @@ source = { editable = "." }
 dependencies = [
     { name = "boto3" },
     { name = "botocore" },
+    { name = "bs4" },
     { name = "colorama" },
     { name = "convertdate" },
     { name = "faker" },
@@ -1742,6 +1743,7 @@ requires-dist = [
     { name = "boto3", marker = "extra == 'aws'" },
     { name = "botocore" },
     { name = "botocore", marker = "extra == 'aws'" },
+    { name = "bs4" },
     { name = "colorama" },
     { name = "convertdate" },
     { name = "convertdate", marker = "extra == 'cli'" },

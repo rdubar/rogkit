@@ -50,6 +50,7 @@ cd rogkit
 curl -LsSf https://astral.sh/uv/install.sh | sh
 uv python pin 3.12
 uv sync --all-extras  # Install all dependencies (use --group ui for Streamlit)
+uv self update        # Keep uv itself up to date
 
 # Option 2: Using traditional venv
 python3.12 -m venv --without-pip venv
@@ -287,6 +288,13 @@ The CLI header shows cache size and age so you know when to rerun the refresh st
 | `fig` | ASCII art text generator | - | `from fig import generate_ascii_art` |
 | `plural` | Pluralize words | - | `from plural import plural` |
 | `padding` | Remove padding files | - | `--confirm` deletes |
+| `scrape` | Fetch page text or Markdown links with retries/UA | - | `from rogkit_package.bin.scrape import scrape` |
+
+**Scrape usage**
+
+- Text (with metadata): `scrape https://example.com --include-meta`
+- Markdown links: `scrape https://www.imdb.com/list/ls000571226/ --urls --pages 4`
+- JSON payload: `scrape https://example.com --json`
 
 ### 📊 Data Format Tools
 
