@@ -156,7 +156,7 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         help="Show the media update log path and contents, then exit.",
     )
     parser.add_argument(
-        "-L",
+        "-G",
         action="store_true",
         dest="show_log_short",
         help="Short form for --show-log.",
