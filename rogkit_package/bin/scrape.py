@@ -185,17 +185,17 @@ def main() -> int:
     parser.add_argument("--timeout", type=int, default=DEFAULT_TIMEOUT, help="Request timeout in seconds")
     parser.add_argument("--pages", type=int, default=1, help="Number of paginated pages to fetch (uses ?page=N)")
     parser.add_argument(
-        "--json",
+        "--json", "-j",
         action="store_true",
         help="Output JSON containing text, title, and description",
     )
     parser.add_argument(
-        "--include-meta",
+        "--include-meta", "-i",
         action="store_true",
         help="Include title/description in plain text output",
     )
     parser.add_argument(
-        "--urls",
+        "--links", "-l",
         action="store_true",
         help="Output extracted links in markdown format instead of page text",
     )
@@ -212,7 +212,7 @@ def main() -> int:
     if args.json:
         print(json.dumps(dataclasses.asdict(result), ensure_ascii=False, indent=2))
     else:
-        if args.urls:
+        if args.links:
             for link in result.links:
                 print(f"- [{link.text}]({link.href})")
         else:
