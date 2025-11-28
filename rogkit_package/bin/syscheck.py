@@ -178,6 +178,27 @@ def last_boot():
     except Exception:
         return None
 
+
+def needrestart_status():
+    """
+    Return needrestart summary if available (Debian/Ubuntu).
+
+    Runs in batch mode to avoid interactive prompts. Returns None if not present
+    or if the command fails.
+    """
+    path = shutil.which("needrestart")
+    if not path:
+        return None
+    try:
+        out = subprocess.check_output(
+            [path, "-b", "-r", "l"],
+            text=True,
+            stderr=subprocess.STDOUT,
+        )
+        return out.strip() or None
+    except Exception:
+        return None
+
 def format_memory(size_in_bytes):
     """
     Format memory size in bytes to human-readable string.
@@ -271,6 +292,9 @@ def render_report(data: dict) -> None:
     last_boot_info = data.get("last_boot")
     if last_boot_info:
         metrics_data.append(("Last Boot", last_boot_info))
+    needrestart_info = data.get("needrestart")
+    if needrestart_info:
+        metrics_data.append(("Needrestart", needrestart_info))
 
     for label, value in metrics_data:
         console.print(Text.assemble((f"{label:<20}", "bold blue"), (value, "white")))
@@ -322,6 +346,7 @@ def main():
     load_avg = get_load_averages(platform_type)
     memory_info = get_memory_info(platform_type)
     mem_pressure_pct = mac_memory_pressure() if platform_type == "mac" else None
+    restart_status = needrestart_status() if platform_type in ("linux", "pi") else None
 
     # Calculate reboot need
     reboot_need = calculate_reboot_need(uptime_seconds, load_avg, memory_info, mem_pressure_pct)
@@ -332,6 +357,7 @@ def main():
         "load": {"1": load_avg[0], "5": load_avg[1], "15": load_avg[2]},
         "memory": memory_info,
         "memory_pressure_free_pct": mem_pressure_pct,
+        "needrestart": restart_status,
         "score": reboot_need,
         "verdict": verdict_from_score(reboot_need),
         "last_boot": last_boot(),
