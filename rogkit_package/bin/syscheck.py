@@ -199,6 +199,86 @@ def needrestart_status():
     except Exception:
         return None
 
+def _apt_policy(package: str, apt_cache_path: str):
+    """Return installed/candidate versions for a package via apt-cache policy."""
+    try:
+        out = subprocess.check_output(
+            [apt_cache_path, "policy", package], text=True, stderr=subprocess.STDOUT
+        )
+    except Exception:
+        return None
+
+    def _extract(label: str):
+        m = re.search(rf"{label}:\s*(\S+)", out)
+        if not m:
+            return None
+        val = m.group(1)
+        return None if val == "(none)" else val
+
+    return {"installed": _extract("Installed"), "candidate": _extract("Candidate")}
+
+
+def kernel_update_status(platform_type: str):
+    """
+    Check whether a newer kernel is available or already installed.
+
+    Returns a dict with running version, package info, and flags indicating if an
+    update is available or if a newer kernel is installed but not running.
+    """
+    if platform_type not in ("pi", "linux"):
+        return None
+
+    apt_cache_path = shutil.which("apt-cache")
+    if not apt_cache_path:
+        return None
+
+    running_release = platform.uname().release
+    package_candidates = []
+    if platform_type == "pi":
+        package_candidates.append("raspberrypi-kernel")
+    package_candidates.extend([f"linux-image-{running_release}", "linux-image-generic"])
+
+    policy_info = None
+    chosen_package = None
+    seen = set()
+    for pkg in package_candidates:
+        if pkg in seen:
+            continue
+        seen.add(pkg)
+        info = _apt_policy(pkg, apt_cache_path)
+        if info and (info.get("installed") or info.get("candidate")):
+            policy_info = info
+            chosen_package = pkg
+            break
+
+    if not policy_info:
+        return None
+
+    try:
+        module_dirs = [
+            d for d in os.listdir("/lib/modules")
+            if os.path.isdir(os.path.join("/lib/modules", d))
+        ]
+        latest_dir = sorted(module_dirs)[-1] if module_dirs else None
+        newer_installed = bool(latest_dir and latest_dir != running_release)
+    except Exception:
+        newer_installed = None
+
+    update_available = (
+        policy_info.get("candidate")
+        and policy_info.get("installed")
+        and policy_info["candidate"] != policy_info["installed"]
+    )
+
+    return {
+        "running": running_release,
+        "package": chosen_package,
+        "installed": policy_info.get("installed"),
+        "candidate": policy_info.get("candidate"),
+        "update_available": bool(update_available),
+        "newer_installed": newer_installed,
+    }
+
 def format_memory(size_in_bytes):
     """
     Format memory size in bytes to human-readable string.
@@ -253,6 +333,32 @@ def _verdict_style(score: int) -> str:
         return "yellow"
     return "red"
 
+def format_kernel_status(status: dict) -> str:
+    """Summarize kernel status for display."""
+    if not status:
+        return "Unavailable"
+
+    running = status.get("running") or "unknown"
+    installed = status.get("installed")
+    candidate = status.get("candidate")
+    update_available = status.get("update_available")
+    newer_installed = status.get("newer_installed")
+
+    parts = [f"Running {running}"]
+    pkg = status.get("package")
+    if pkg:
+        parts.append(f"pkg: {pkg}")
+
+    if update_available and candidate:
+        parts.append(f"update available -> {candidate}")
+    elif installed:
+        parts.append(f"installed: {installed}")
+
+    if newer_installed:
+        parts.append("new kernel installed; reboot to use it")
+
+    return "; ".join(parts)
+
 
 def render_report(data: dict) -> None:
     """Pretty-print the system report using Rich."""
@@ -288,7 +394,10 @@ def render_report(data: dict) -> None:
     ]
     mp = data.get("memory_pressure_free_pct")
     if mp is not None:
-        metrics_data.append(("Memory pressure (free)", f"{mp}%"))
+        metrics_data.append(("Free Memory", f"{mp}%"))
+    kernel_status = data.get("kernel_status")
+    if kernel_status:
+        metrics_data.append(("Kernel", format_kernel_status(kernel_status)))
     last_boot_info = data.get("last_boot")
     if last_boot_info:
         metrics_data.append(("Last Boot", last_boot_info))
@@ -347,6 +456,7 @@ def main():
     memory_info = get_memory_info(platform_type)
     mem_pressure_pct = mac_memory_pressure() if platform_type == "mac" else None
     restart_status = needrestart_status() if platform_type in ("linux", "pi") else None
+    kernel_status = kernel_update_status(platform_type)
 
     # Calculate reboot need
     reboot_need = calculate_reboot_need(uptime_seconds, load_avg, memory_info, mem_pressure_pct)
@@ -358,6 +468,7 @@ def main():
         "memory": memory_info,
         "memory_pressure_free_pct": mem_pressure_pct,
         "needrestart": restart_status,
+        "kernel_status": kernel_status,
         "score": reboot_need,
         "verdict": verdict_from_score(reboot_need),
         "last_boot": last_boot(),
