@@ -220,9 +220,19 @@ def _apt_policy(package: str, apt_cache_path: str):
 
 def _normalize_kernel_version(name: str) -> str:
     """
-    Strip Pi arch suffixes like -v7+, -v8+, or trailing '+' so similar kernels compare equal.
+    Remove Pi arch suffixes (e.g., -rpi-2712, -rpi-v8) and trailing '+' so equivalent
+    kernels compare equal across arch variants.
     """
-    return re.sub(r"(-v\d+l?\+)?(\+)?$", "", name)
+    normalized = re.sub(r"-rpi.*$", "", name)
+    return normalized[:-1] if normalized.endswith("+") else normalized
+
+
+def _version_sort_key(name: str):
+    """Return a sortable key (major, minor, patch, normalized string) for kernel dirs."""
+    m = re.match(r"^(\d+)\.(\d+)\.(\d+)", name)
+    if not m:
+        return (0, 0, 0, _normalize_kernel_version(name))
+    return (int(m.group(1)), int(m.group(2)), int(m.group(3)), _normalize_kernel_version(name))
 
 
 def kernel_update_status(platform_type: str):
@@ -266,8 +276,8 @@ def kernel_update_status(platform_type: str):
             d for d in os.listdir("/lib/modules")
             if os.path.isdir(os.path.join("/lib/modules", d))
         ]
-        normalized_dirs = [_normalize_kernel_version(d) for d in module_dirs]
-        latest_base = sorted(normalized_dirs)[-1] if normalized_dirs else None
+        latest_dir = max(module_dirs, key=_version_sort_key) if module_dirs else None
+        latest_base = _normalize_kernel_version(latest_dir) if latest_dir else None
         base_running = _normalize_kernel_version(running_release)
         newer_installed = bool(latest_base and latest_base != base_running)
     except Exception:
