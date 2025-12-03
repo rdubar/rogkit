@@ -218,6 +218,13 @@ def _apt_policy(package: str, apt_cache_path: str):
     return {"installed": _extract("Installed"), "candidate": _extract("Candidate")}
 
 
+def _normalize_kernel_version(name: str) -> str:
+    """
+    Strip Pi arch suffixes like -v7+, -v8+, or trailing '+' so similar kernels compare equal.
+    """
+    return re.sub(r"(-v\d+l?\+)?(\+)?$", "", name)
+
+
 def kernel_update_status(platform_type: str):
     """
     Check whether a newer kernel is available or already installed.
@@ -259,8 +266,10 @@ def kernel_update_status(platform_type: str):
             d for d in os.listdir("/lib/modules")
             if os.path.isdir(os.path.join("/lib/modules", d))
         ]
-        latest_dir = sorted(module_dirs)[-1] if module_dirs else None
-        newer_installed = bool(latest_dir and latest_dir != running_release)
+        normalized_dirs = [_normalize_kernel_version(d) for d in module_dirs]
+        latest_base = sorted(normalized_dirs)[-1] if normalized_dirs else None
+        base_running = _normalize_kernel_version(running_release)
+        newer_installed = bool(latest_base and latest_base != base_running)
     except Exception:
         newer_installed = None
 
