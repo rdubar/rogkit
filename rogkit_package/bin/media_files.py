@@ -1021,7 +1021,7 @@ def main():
         print(f"Fetching media file list from {server}:{resolved_paths}...")
         media_files = get_remote_media_files(resolved_paths, server, username, verbose=args.verbose, engine=args.engine)
 
-        if media_file
+        if media_files:
             save_file_list_to_cache(media_files)
         else:
             print("⚠️ Failed to fetch new media files — attempting to load from cache.")
