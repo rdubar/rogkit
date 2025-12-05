@@ -1021,8 +1021,7 @@ def main():
         print(f"Fetching media file list from {server}:{resolved_paths}...")
         media_files = get_remote_media_files(resolved_paths, server, username, verbose=args.verbose, engine=args.engine)
 
-        if media_files:
-            print(f"Found {len(media_files):,} media files.")
+        if media_file
             save_file_list_to_cache(media_files)
         else:
             print("⚠️ Failed to fetch new media files — attempting to load from cache.")
@@ -1047,7 +1046,7 @@ def main():
                 print(get_media_info(file.filepath))
         return
 
-    print(f"Total {len(media_files):,} files in {len(media_folders):,} media folders.")
+    print(f"Checked {len(media_files):,} files in {len(media_folders):,} media folders.")
 
     # Display duplicates if requested
     if True or args.duplicates:
