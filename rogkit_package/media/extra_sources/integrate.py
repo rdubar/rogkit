@@ -291,7 +291,8 @@ def main():
 
     inserted = merge_extras_into_cache(args.source, args.extras, args.sqlite)
     label = args.source or "per-record providers"
-    print(f"Inserted {inserted} records into plex_search_cache ({label})")
+    records = "record" if inserted == 1 else "records"
+    print(f"Inserted {inserted} {records} into plex_search_cache ({label})")
 
 
 if __name__ == "__main__":

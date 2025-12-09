@@ -372,7 +372,8 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
                 print(f"[Step {current_step}/{total_steps}] Integrating extras catalog...", flush=True)
                 inserted = merge_extras_into_cache(None, None, None)
                 if inserted:
-                    print(f"Integrated {inserted} extra record(s) into the cache.")
+                    records = "record" if inserted == 1 else "records"
+                    print(f"Integrated {inserted} extra {records} into the cache.")
                 else:
                     print("No extras catalog entries were merged.")
             else:
@@ -437,9 +438,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             print("No media found in the Plex database.")
             return 0
         if args.all:
-            heading = f"Showing all {len(rows)} items added"
+            heading = f"Showing all {len(rows)} items added."
         else:
-            heading = f"Showing last {min(len(rows), args.number)} items added"
+            heading = f"Showing last {min(len(rows), args.number)} items added."
         console.print(heading)
         _render_media_rows(rows, args)
         if args.stats:

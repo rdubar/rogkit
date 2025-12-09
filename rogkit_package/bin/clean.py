@@ -136,31 +136,33 @@ def _fd_discover_files(root_directory: Path, patterns: Sequence[str], *, minutes
     if shutil.which("fd") is None:
         return None
 
-    cmd = ["fd", "-t", "f", "-a", "-H", "-I"]
-    for pattern in patterns:
-        cmd.extend(["-g", pattern])
-
+    # Run fd once per pattern; some fd versions treat multiple --glob flags as search paths.
+    base_cmd = ["fd", "-t", "f", "-t", "l", "-a", "-H", "-I"]
     if not use_all:
-        cmd.extend(["--changed-within", f"{minutes}m"])
+        base_cmd.extend(["--changed-within", f"{minutes}m"])
 
-    cmd.append(str(root_directory))
+    files: list[Path] = []
+    for pattern in patterns:
+        cmd = [*base_cmd, "-g", pattern, str(root_directory)]
+        if verbose:
+            _print_message(f"Using fd for discovery: {' '.join(cmd)}", style="dim")
 
-    if verbose:
-        _print_message(f"Using fd for discovery: {' '.join(cmd)}", style="dim")
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            _print_message("fd discovery failed; falling back to Python scan.", style="bold yellow")
+            if verbose and (result.stderr or result.stdout):
+                _print_message(result.stderr or result.stdout, style="dim")
+            return None
 
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    if result.returncode != 0:
-        _print_message("fd discovery failed; falling back to Python scan.", style="bold yellow")
-        if verbose and (result.stderr or result.stdout):
-            _print_message(result.stderr or result.stdout, style="dim")
-        return None
+        files.extend(Path(line.strip()) for line in result.stdout.splitlines() if line.strip())
 
-    files = [Path(line.strip()) for line in result.stdout.splitlines() if line.strip()]
+    # Deduplicate because we run fd per-pattern.
+    unique_files = _deduplicate_paths(files)
     if use_all:
-        _print_message(f"fd found {len(files)} matching files (all).", style="bold yellow")
+        _print_message(f"fd found {len(unique_files)} matching files (all).", style="bold yellow")
     else:
-        _print_message(f"fd found {len(files)} files changed within last {minutes} minutes.", style="bold yellow")
-    return files
+        _print_message(f"fd found {len(unique_files)} files changed within last {minutes} minutes.", style="bold yellow")
+    return unique_files
 
 def _read_stdin_paths(root_directory: Path) -> List[Path]:
     """Read newline-delimited paths from stdin and normalize them."""
