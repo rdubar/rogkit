@@ -1,0 +1,42 @@
+[package]
+name = "filehash"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "High-performance parallel file hasher and deduplicator"
+repository = "https://github.com/rdubar/rogkit"
+keywords = ["hash", "deduplication", "parallel", "files"]
+categories = ["command-line-utilities", "filesystem"]
+
+[[bin]]
+name = "filehash"
+path = "src/main.rs"
+
+[lib]
+name = "filehash"
+path = "src/lib.rs"
+
+[dependencies]
+clap.workspace = true
+rayon.workspace = true
+walkdir.workspace = true
+blake3.workspace = true
+md5.workspace = true
+sha2.workspace = true
+memmap2.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+csv.workspace = true
+anyhow.workspace = true
+thiserror.workspace = true
+indicatif.workspace = true
+colored.workspace = true
+
+[dev-dependencies]
+criterion.workspace = true
+tempfile = "3.10"
+
+[[bench]]
+name = "hash_benchmark"
+harness = false

@@ -6,6 +6,9 @@
 .DS_Store
 .spotify_cache
 
+# Working Roadmap file
+ROADMAP.md
+
 # Ignore json & pkl data files
 *.json
 *.pkl
@@ -16,6 +19,12 @@ archived
 
 # Go build artifacts
 go/bin/
+
+# Rust build artifacts
+rust/target/
+rust/**/target/
+Cargo.lock
+*.rs.bk
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
