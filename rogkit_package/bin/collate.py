@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional
 
 from ..bin.fuzzy import MatchResult, find_candidates
+from ..settings import get_invoking_cwd
 
 def clean_name(name):
     """Create a file-friendly name from a given string."""
@@ -156,7 +157,7 @@ if __name__ == "__main__":
             search_roots = (
                 [Path(p).expanduser() for p in args.fuzzy_root]
                 if args.fuzzy_root
-                else [Path.cwd()]
+                else [get_invoking_cwd()]
             )
             matches = find_candidates(
                 search_roots,

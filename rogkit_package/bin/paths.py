@@ -18,6 +18,7 @@ from typing import Iterable, List, Sequence, Tuple
 
 import ffmpeg  # type: ignore
 
+from ..settings import get_invoking_cwd
 from .bytes import byte_size
 from .tomlr import get_config_value
 
@@ -213,7 +214,7 @@ def resolve_media_paths(cli_paths: Iterable[str] | None) -> Tuple[List[Path], st
     if paths:
         return paths, "rogkit config [media].paths"
 
-    fallback = [Path.cwd()]
+    fallback = [get_invoking_cwd()]
     return fallback, "current working directory"
 
 

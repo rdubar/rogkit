@@ -21,6 +21,8 @@ import sys
 from pathlib import Path
 from typing import Iterable, List, Optional, Tuple
 
+from ..settings import get_invoking_cwd
+
 VIDEO_EXTENSIONS = {
     ".mkv",
     ".mp4",
@@ -211,7 +213,7 @@ def confirm(prompt: str, assume_yes: bool = False) -> bool:
 
 def perform_search(args: argparse.Namespace) -> None:
     """Handle --search mode."""
-    root = Path(args.target).expanduser().resolve() if args.target else Path.cwd().resolve()
+    root = Path(args.target).expanduser().resolve() if args.target else get_invoking_cwd()
     print(f"Scanning for large video files under {root} ...")
     candidates = find_candidate_videos(root, args.min_size_gb)
 

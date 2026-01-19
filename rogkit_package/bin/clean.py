@@ -21,6 +21,7 @@ from pathlib import Path
 from typing import Iterable, List, Optional, Sequence
 
 from ..bin.fuzzy import MatchResult, find_candidates
+from ..settings import get_invoking_cwd
 from .tomlr import get_config_value
 
 try:  # optional rich formatting
@@ -200,7 +201,7 @@ def main():
         return
 
     default_minutes = 10
-    root_directory = Path.cwd()
+    root_directory = get_invoking_cwd()
     desired_filenames = ['*.po', '*.pot']
 
     parser = argparse.ArgumentParser(description="Clean .po and .pot files modified within a certain time frame.")

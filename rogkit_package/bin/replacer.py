@@ -15,6 +15,7 @@ from typing import Iterable, Optional, Sequence
 import time
 
 from ..bin.fuzzy import MatchResult, find_candidates
+from ..settings import get_invoking_cwd
 
 SKIP_PARTS = (
     "node_modules",
@@ -96,7 +97,7 @@ def _resolve_search_path(args) -> Path:
     roots = (
         [Path(root).expanduser() for root in args.fuzzy_root]
         if args.fuzzy_root
-        else [Path.cwd()]
+        else [get_invoking_cwd()]
     )
     matches = find_candidates(
         roots,

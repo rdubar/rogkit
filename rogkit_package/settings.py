@@ -24,3 +24,14 @@ def ensure_package_data_dir() -> Path:
     """Ensure the package data directory exists and return it."""
     package_data_dir.mkdir(parents=True, exist_ok=True)
     return package_data_dir
+
+
+def get_invoking_cwd() -> Path:
+    """Get the working directory from which the user invoked the command.
+
+    When running via `uv run --directory`, the actual cwd changes to the
+    rogkit directory. The aliases set ROGKIT_CWD to preserve the original
+    directory. This function returns that original directory, falling back
+    to the actual cwd if not set.
+    """
+    return Path(os.environ.get("ROGKIT_CWD", ".")).resolve()

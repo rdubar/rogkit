@@ -12,11 +12,15 @@
 # ------------------------------------------------------------------------------
 INSTALL=~/dev
 ROGKIT="$INSTALL/rogkit"
-ROGKIT_VENV="$ROGKIT/.venv"
-ROGKIT_PYTHON="$ROGKIT_VENV/bin/python"
 ROGKIT_PACKAGE="$ROGKIT/rogkit_package"
 ROGKIT_GO="$ROGKIT/go"
 ROGKIT_GO_BIN="$ROGKIT_GO/bin"
+
+# Helper function to run Python via uv in rogkit directory
+# Passes original working directory via ROGKIT_CWD environment variable
+rogkit_py() {
+    ROGKIT_CWD="$PWD" uv run --directory "$ROGKIT" python "$@"
+}
 
 # Add rogkit package to Python path
 export PYTHONPATH="$ROGKIT:$PYTHONPATH"
@@ -30,206 +34,206 @@ fi
 # Core RogKit
 # ------------------------------------------------------------------------------
 alias rogkit='cat "$ROGKIT/README.md" | grep "^|"'
-alias update='/usr/bin/bash $ROGKIT_PACKAGE/bin/update "$@"'
+alias update='/usr/bin/bash $ROGKIT_PACKAGE/bin/update'
 
 # ------------------------------------------------------------------------------
 # AI & API Tools
 # ------------------------------------------------------------------------------
-alias aish='$ROGKIT_PYTHON -m rogkit_package.bin.aish "$@"'
-alias amaz='$ROGKIT_PYTHON -m rogkit_package.bin.amaz "$@"'
-alias chat='$ROGKIT_PYTHON -m rogkit_package.bin.chat "$@"'
-alias lm='$ROGKIT_PYTHON -m rogkit_package.bin.lm "$@"'
+alias aish='rogkit_py -m rogkit_package.bin.aish'
+alias amaz='rogkit_py -m rogkit_package.bin.amaz'
+alias chat='rogkit_py -m rogkit_package.bin.chat'
+alias lm='rogkit_py -m rogkit_package.bin.lm'
 
 # ------------------------------------------------------------------------------
 # Media Library Management (Plex Integration)
 # ------------------------------------------------------------------------------
 # Primary media library interface
-alias media='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
-alias m='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
+alias media='rogkit_py -m rogkit_package.media.media'
+alias m='rogkit_py -m rogkit_package.media.media'
 
 # Plex operations
-alias plex_db='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
-alias p='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
-alias pb='$ROGKIT_PYTHON -m rogkit_package.media.media "$@"'
-alias integrate='$ROGKIT_PYTHON -m rogkit_package.media.extra_sources.integrate "$@"'
+alias plex_db='rogkit_py -m rogkit_package.media.media'
+alias p='rogkit_py -m rogkit_package.media.media'
+alias pb='rogkit_py -m rogkit_package.media.media'
+alias integrate='rogkit_py -m rogkit_package.media.extra_sources.integrate'
 
 # Media file scanning and analysis
-alias media_files='$ROGKIT_PYTHON -m rogkit_package.bin.media_files "$@"'
-alias mfiles='$ROGKIT_PYTHON -m rogkit_package.bin.media_files "$@"'
-alias mf='$ROGKIT_PYTHON -m rogkit_package.bin.media_files "$@"'
+alias media_files='rogkit_py -m rogkit_package.bin.media_files'
+alias mfiles='rogkit_py -m rogkit_package.bin.media_files'
+alias mf='rogkit_py -m rogkit_package.bin.media_files'
 
-alias media_scan='$ROGKIT_PYTHON -m rogkit_package.bin.media_scan "$@"'
-alias mscan='$ROGKIT_PYTHON -m rogkit_package.bin.media_scan "$@"'
+alias media_scan='rogkit_py -m rogkit_package.bin.media_scan'
+alias mscan='rogkit_py -m rogkit_package.bin.media_scan'
 
 # Media playback
-alias media_play='$ROGKIT_PYTHON -m rogkit_package.bin.media_play "$@"'
-alias play='$ROGKIT_PYTHON -m rogkit_package.bin.media_play "$@"'
+alias media_play='rogkit_py -m rogkit_package.bin.media_play'
+alias play='rogkit_py -m rogkit_package.bin.media_play'
 
 # Media processing
-alias shrink='$ROGKIT_PYTHON -m rogkit_package.bin.shrink "$@"'
-alias tmdb='$ROGKIT_PYTHON -m rogkit_package.media.tmdb "$@"'
-alias tkm='$ROGKIT_PYTHON -m rogkit_package.media.media_tk "$@"'
+alias shrink='rogkit_py -m rogkit_package.bin.shrink'
+alias tmdb='rogkit_py -m rogkit_package.media.tmdb'
+alias tkm='rogkit_py -m rogkit_package.media.media_tk'
 
 # ------------------------------------------------------------------------------
 # File System Operations
 # ------------------------------------------------------------------------------
 # Backup and archiving
-alias backup='$ROGKIT_PYTHON -m rogkit_package.bin.backup "$@"'
-alias bac='$ROGKIT_PYTHON -m rogkit_package.bin.backup "$@"'
+alias backup='rogkit_py -m rogkit_package.bin.backup'
+alias bac='rogkit_py -m rogkit_package.bin.backup'
 
 # File operations
-alias collate='$ROGKIT_PYTHON -m rogkit_package.bin.collate "$@"'
-alias delete='$ROGKIT_PYTHON -m rogkit_package.bin.delete "$@"'
-alias del='$ROGKIT_PYTHON -m rogkit_package.bin.delete "$@"'
-alias paths='$ROGKIT_PYTHON -m rogkit_package.bin.paths "$@"'
-alias ppaths='$ROGKIT_PYTHON -m rogkit_package.bin.paths "$@"'
-alias pfiles='$ROGKIT_PYTHON -m rogkit_package.bin.paths "$@"'  # legacy alias for renamed utility
-alias renamer='$ROGKIT_PYTHON -m rogkit_package.bin.renamer "$@"'
-alias preplacer='$ROGKIT_PYTHON -m rogkit_package.bin.replacer "$@"'  # replaced by Go Utility
+alias collate='rogkit_py -m rogkit_package.bin.collate'
+alias delete='rogkit_py -m rogkit_package.bin.delete'
+alias del='rogkit_py -m rogkit_package.bin.delete'
+alias paths='rogkit_py -m rogkit_package.bin.paths'
+alias ppaths='rogkit_py -m rogkit_package.bin.paths'
+alias pfiles='rogkit_py -m rogkit_package.bin.paths'  # legacy alias for renamed utility
+alias renamer='rogkit_py -m rogkit_package.bin.renamer'
+alias preplacer='rogkit_py -m rogkit_package.bin.replacer'  # replaced by Go Utility
 
 # File discovery and analysis
-alias dirs='$ROGKIT_PYTHON -m rogkit_package.bin.dirs "$@"'
-alias empties='$ROGKIT_PYTHON -m rogkit_package.bin.empties "$@"'
-alias hidden='$ROGKIT_PYTHON -m rogkit_package.bin.hidden "$@"'
-alias large='$ROGKIT_PYTHON -m rogkit_package.bin.large "$@"'
+alias dirs='rogkit_py -m rogkit_package.bin.dirs'
+alias empties='rogkit_py -m rogkit_package.bin.empties'
+alias hidden='rogkit_py -m rogkit_package.bin.hidden'
+alias large='rogkit_py -m rogkit_package.bin.large'
 
 # File cleaning
-alias clean='$ROGKIT_PYTHON -m rogkit_package.bin.clean "$@"'
-alias cleaner='$ROGKIT_PYTHON -m rogkit_package.bin.cleaner "$@"'
-alias purge='$ROGKIT_PYTHON -m rogkit_package.bin.purge "$@"'
+alias clean='rogkit_py -m rogkit_package.bin.clean'
+alias cleaner='rogkit_py -m rogkit_package.bin.cleaner'
+alias purge='rogkit_py -m rogkit_package.bin.purge'
 
 # ------------------------------------------------------------------------------
 # Image & Document Processing
 # ------------------------------------------------------------------------------
-alias imager='$ROGKIT_PYTHON -m rogkit_package.bin.imager "$@"'
-alias pdfer='$ROGKIT_PYTHON -m rogkit_package.bin.pdfer "$@"'
-alias transparent='$ROGKIT_PYTHON -m rogkit_package.bin.transparent "$@"'
+alias imager='rogkit_py -m rogkit_package.bin.imager'
+alias pdfer='rogkit_py -m rogkit_package.bin.pdfer'
+alias transparent='rogkit_py -m rogkit_package.bin.transparent'
 
 # ------------------------------------------------------------------------------
 # Text & String Utilities
 # ------------------------------------------------------------------------------
-alias clipboard='$ROGKIT_PYTHON -m rogkit_package.bin.clipboard "$@"'
-alias clip='$ROGKIT_PYTHON -m rogkit_package.bin.clipboard "$@"'
+alias clipboard='rogkit_py -m rogkit_package.bin.clipboard'
+alias clip='rogkit_py -m rogkit_package.bin.clipboard'
 
-alias randomcase='$ROGKIT_PYTHON -m rogkit_package.bin.randomcase "$@"'
-alias rcase='$ROGKIT_PYTHON -m rogkit_package.bin.randomcase "$@"'
+alias randomcase='rogkit_py -m rogkit_package.bin.randomcase'
+alias rcase='rogkit_py -m rogkit_package.bin.randomcase'
 
-alias strike='$ROGKIT_PYTHON -m rogkit_package.bin.strike "$@"'
-alias fig='$ROGKIT_PYTHON -m rogkit_package.bin.fig "$@"'
-alias plural='$ROGKIT_PYTHON -m rogkit_package.bin.plural "$@"'
-alias padding='$ROGKIT_PACKAGE/bin/padding.sh "$@"'
-alias scrape='$ROGKIT_PYTHON -m rogkit_package.bin.scrape "$@"'
+alias strike='rogkit_py -m rogkit_package.bin.strike'
+alias fig='rogkit_py -m rogkit_package.bin.fig'
+alias plural='rogkit_py -m rogkit_package.bin.plural'
+alias padding='$ROGKIT_PACKAGE/bin/padding.sh'
+alias scrape='rogkit_py -m rogkit_package.bin.scrape'
 
 # ------------------------------------------------------------------------------
 # Data Format Tools
 # ------------------------------------------------------------------------------
-alias iso='$ROGKIT_PYTHON -m rogkit_package.bin.iso "$@"'
-alias miso='$ROGKIT_PYTHON -m rogkit_package.bin.miso "$@"'
+alias iso='rogkit_py -m rogkit_package.bin.iso'
+alias miso='rogkit_py -m rogkit_package.bin.miso'
 
-alias xmlr='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
-alias xml='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
-alias api='$ROGKIT_PYTHON -m rogkit_package.bin.xmlr "$@"'
+alias xmlr='rogkit_py -m rogkit_package.bin.xmlr'
+alias xml='rogkit_py -m rogkit_package.bin.xmlr'
+alias api='rogkit_py -m rogkit_package.bin.xmlr'
 
-alias tomlr='$ROGKIT_PYTHON -m rogkit_package.bin.tomlr "$@"'
-alias toml='$ROGKIT_PYTHON -m rogkit_package.bin.tomlr "$@"'
+alias tomlr='rogkit_py -m rogkit_package.bin.tomlr'
+alias toml='rogkit_py -m rogkit_package.bin.tomlr'
 
 # ------------------------------------------------------------------------------
 # Calculation & Conversion Tools
 # ------------------------------------------------------------------------------
 # Number formatting
-alias bignum='$ROGKIT_PYTHON -m rogkit_package.bin.bignum "$@"'
-alias bytes='$ROGKIT_PYTHON -m rogkit_package.bin.bytes "$@"'
-alias rounder='$ROGKIT_PYTHON -m rogkit_package.bin.rounder "$@"'
+alias bignum='rogkit_py -m rogkit_package.bin.bignum'
+alias bytes='rogkit_py -m rogkit_package.bin.bytes'
+alias rounder='rogkit_py -m rogkit_package.bin.rounder'
 
 # Time conversions
-alias seconds='$ROGKIT_PYTHON -m rogkit_package.bin.seconds "$@"'
-alias tim='$ROGKIT_PYTHON -m rogkit_package.bin.time_check "$@"'
-alias multical='$ROGKIT_PYTHON -m rogkit_package.bin.multical "$@"'
+alias seconds='rogkit_py -m rogkit_package.bin.seconds'
+alias tim='rogkit_py -m rogkit_package.bin.time_check'
+alias multical='rogkit_py -m rogkit_package.bin.multical'
 
 # Age & generation calculators
-alias catyears='$ROGKIT_PYTHON -m rogkit_package.bin.catyears "$@"'
-alias generations='$ROGKIT_PYTHON -m rogkit_package.bin.generations "$@"'
-alias gen='$ROGKIT_PYTHON -m rogkit_package.bin.generations "$@"'
+alias catyears='rogkit_py -m rogkit_package.bin.catyears'
+alias generations='rogkit_py -m rogkit_package.bin.generations'
+alias gen='rogkit_py -m rogkit_package.bin.generations'
 
 # Health & fitness
-alias bmi_calc='$ROGKIT_PYTHON -m rogkit_package.bin.bmi_calc "$@"'
-alias bmi='$ROGKIT_PYTHON -m rogkit_package.bin.bmi_calc "$@"'
+alias bmi_calc='rogkit_py -m rogkit_package.bin.bmi_calc'
+alias bmi='rogkit_py -m rogkit_package.bin.bmi_calc'
 
 # ------------------------------------------------------------------------------
 # System Information & Utilities
 # ------------------------------------------------------------------------------
-alias location='$ROGKIT_PYTHON -m rogkit_package.bin.location "$@"'
-alias loc='$ROGKIT_PYTHON -m rogkit_package.bin.location "$@"'
+alias location='rogkit_py -m rogkit_package.bin.location'
+alias loc='rogkit_py -m rogkit_package.bin.location'
 
-alias space='$ROGKIT_PYTHON -m rogkit_package.bin.space "$@"'
-alias mapper='$ROGKIT_PYTHON -m rogkit_package.bin.mapper "$@"'
+alias space='rogkit_py -m rogkit_package.bin.space'
+alias mapper='rogkit_py -m rogkit_package.bin.mapper'
 
-alias syscheck='$ROGKIT_PYTHON -m rogkit_package.bin.syscheck "$@"'
-alias sys='$ROGKIT_PYTHON -m rogkit_package.bin.syscheck "$@"'
-alias system='$ROGKIT_PYTHON -m rogkit_package.bin.system "$@"'
-alias pyinfo='$ROGKIT_PYTHON -m rogkit_package.bin.pyinfo "$@"'
+alias syscheck='rogkit_py -m rogkit_package.bin.syscheck'
+alias sys='rogkit_py -m rogkit_package.bin.syscheck'
+alias system='rogkit_py -m rogkit_package.bin.system'
+alias pyinfo='rogkit_py -m rogkit_package.bin.pyinfo'
 
-alias speeder='$ROGKIT_PYTHON -m rogkit_package.bin.speeder "$@"'
+alias speeder='rogkit_py -m rogkit_package.bin.speeder'
 
 # ------------------------------------------------------------------------------
 # Container & Remote Management
 # ------------------------------------------------------------------------------
-alias docker_bash='$ROGKIT_PYTHON -m rogkit_package.bin.docker_bash "$@"'
-alias dbash='$ROGKIT_PYTHON -m rogkit_package.bin.docker_bash "$@"'
+alias docker_bash='rogkit_py -m rogkit_package.bin.docker_bash'
+alias dbash='rogkit_py -m rogkit_package.bin.docker_bash'
 
-alias spot='$ROGKIT_PYTHON -m rogkit_package.bin.spot "$@"'
+alias spot='rogkit_py -m rogkit_package.bin.spot'
 
 # ------------------------------------------------------------------------------
 # Database & Storage
 # ------------------------------------------------------------------------------
-alias mongo='$ROGKIT_PYTHON -m rogkit_package.bin.mongo "$@"'
+alias mongo='rogkit_py -m rogkit_package.bin.mongo'
 
 # ------------------------------------------------------------------------------
 # Development Tools
 # ------------------------------------------------------------------------------
-alias nose='$ROGKIT_PYTHON -m rogkit_package.bin.nose "$@"'
-alias venv='$ROGKIT_PYTHON -m rogkit_package.bin.venv_set "$@"'
-alias inter='$ROGKIT_PYTHON -m rogkit_package.bin.inter "$@"'
-alias fuzzy='$ROGKIT_PYTHON -m rogkit_package.bin.fuzzy "$@"'
+alias nose='rogkit_py -m rogkit_package.bin.nose'
+alias venv='rogkit_py -m rogkit_package.bin.venv_set'
+alias inter='rogkit_py -m rogkit_package.bin.inter'
+alias fuzzy='rogkit_py -m rogkit_package.bin.fuzzy'
 
-# Streamlit dashboard (uses project virtualenv)
-alias rogstream='(cd "$ROGKIT" && "$ROGKIT_VENV/bin/python" -m streamlit run Home.py "$@")'
+# Streamlit dashboard
+alias rogstream='(cd "$ROGKIT" && uv run streamlit run Home.py "$@")'
 
 # ------------------------------------------------------------------------------
 # Security & Utilities
 # ------------------------------------------------------------------------------
-alias pw='$ROGKIT_PYTHON -m rogkit_package.bin.pw "$@"'
-alias fakes='$ROGKIT_PYTHON -m rogkit_package.bin.fakes "$@"'
+alias pw='rogkit_py -m rogkit_package.bin.pw'
+alias fakes='rogkit_py -m rogkit_package.bin.fakes'
 
 # ------------------------------------------------------------------------------
 # Entertainment & Games
 # ------------------------------------------------------------------------------
-alias dice='$ROGKIT_PYTHON -m rogkit_package.bin.dice "$@"'
-alias stars='$ROGKIT_PYTHON -m rogkit_package.bin.stars "$@"'
+alias dice='rogkit_py -m rogkit_package.bin.dice'
+alias stars='rogkit_py -m rogkit_package.bin.stars'
 
 # ------------------------------------------------------------------------------
 # Video & Media Download
 # ------------------------------------------------------------------------------
-alias scrape='$ROGKIT_PYTHON -m rogkit_package.bin.scrape "$@"'
-alias vido='$ROGKIT_PYTHON -m rogkit_package.bin.vido "$@"'
-alias yout='$ROGKIT_PYTHON -m rogkit_package.bin.vido "$@"'
+alias scrape='rogkit_py -m rogkit_package.bin.scrape'
+alias vido='rogkit_py -m rogkit_package.bin.vido'
+alias yout='rogkit_py -m rogkit_package.bin.vido'
 
 # ------------------------------------------------------------------------------
 # Information & Reference
 # ------------------------------------------------------------------------------
-alias wikipedia='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
-alias w='$ROGKIT_PYTHON -m rogkit_package.bin.wikipedia "$@"'
+alias wikipedia='rogkit_py -m rogkit_package.bin.wikipedia'
+alias w='rogkit_py -m rogkit_package.bin.wikipedia'
 
 # ------------------------------------------------------------------------------
 # Time & Clocks
 # ------------------------------------------------------------------------------
-alias ishtime='$ROGKIT_GO_BIN/ishtime "$@"'
-alias ish='$ROGKIT_GO_BIN/ishtime "$@"'
+alias ishtime='$ROGKIT_GO_BIN/ishtime'
+alias ish='$ROGKIT_GO_BIN/ishtime'
 
 # ------------------------------------------------------------------------------
 # Miscellaneous
 # ------------------------------------------------------------------------------
-alias drying='$ROGKIT_PYTHON -m rogkit_package.bin.drying "$@"'
+alias drying='rogkit_py -m rogkit_package.bin.drying'
 
 # ==============================================================================
 # End of RogKit Aliases
