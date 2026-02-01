@@ -904,7 +904,7 @@ xyzservices==2025.10.0 \
     --hash=sha256:c6b7648276c98e8222fbec84d9c763128cf3653705017a4d6c4c3652480ee144 \
     --hash=sha256:cfd6423367c7bc717ed5824d4dd7de2c91486886c1c193db9d8f0fa7fd43bc1b
     # via folium
-yt-dlp==2025.11.12 \
+yt-dlp==2026.1.31 \
     --hash=sha256:5f0795a6b8fc57a5c23332d67d6c6acf819a0b46b91a6324bae29414fa97f052 \
     --hash=sha256:b47af37bbb16b08efebb36825a280ea25a507c051f93bf413a6e4a0e586c6e79
     # via rogkit
