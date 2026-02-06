@@ -35,15 +35,16 @@ def display_space(path):
         f"{byte_size(free_space):10} | {percent_full:5.2f}%"
     )
 
-def display_paths(path_list=None, size=False, quiet=False, show_all=False):
+def display_paths(path_list=None, size=False, quiet=False, show_all=False, total=False):
     """
     Display disk space for multiple paths.
-    
+
     Args:
         path_list: List of paths to check (defaults to /mnt/* and /)
         size: Sort by size if True
-        quiet: Skip header if True  
+        quiet: Skip header if True
         show_all: Show all mount points including duplicates
+        total: Show totals row at the bottom
     """
     if path_list is None:
         path_list = []
@@ -88,8 +89,26 @@ def display_paths(path_list=None, size=False, quiet=False, show_all=False):
         except OSError:
             continue
 
+    if total and len(rows) > 1:
+        sum_total = sum(r[1] for r in rows)
+        sum_used = sum(r[2] for r in rows)
+        sum_free = sum(r[3] for r in rows)
+        sum_pct = (sum_used / sum_total * 100) if sum_total else 0
+        totals_row = ("TOTAL", sum_total, sum_used, sum_free, sum_pct)
+    else:
+        totals_row = None
+
     if quiet:
         for path, total_space, used_space, free_space, percent_full in rows:
+            print(
+                f"{path:20} | {byte_size(total_space):10} | {byte_size(used_space):10} | "
+                f"{byte_size(free_space):10} | {percent_full:5.2f}%"
+            )
+        if totals_row:
+            path, total_space, used_space, free_space, percent_full = totals_row
+            print(
+                f"{'─' * 20}─┼─{'─' * 10}─┼─{'─' * 10}─┼─{'─' * 10}─┼─{'─' * 6}"
+            )
             print(
                 f"{path:20} | {byte_size(total_space):10} | {byte_size(used_space):10} | "
                 f"{byte_size(free_space):10} | {percent_full:5.2f}%"
@@ -119,6 +138,18 @@ def display_paths(path_list=None, size=False, quiet=False, show_all=False):
             style=style,
         )
 
+    if totals_row:
+        table.add_section()
+        _, total_space, used_space, free_space, percent_full = totals_row
+        table.add_row(
+            "TOTAL",
+            byte_size(total_space),
+            byte_size(used_space),
+            byte_size(free_space),
+            f"{percent_full:5.2f}%",
+            style="bold cyan",
+        )
+
     console.print(table)
 
 def get_args():
@@ -128,8 +159,9 @@ def get_args():
     parser.add_argument('-s', '--size', action='store_true', help='Sort by size')
     parser.add_argument('-q', '--quiet', action='store_true', help='Short (quiet) output')
     parser.add_argument('-a', '--all', action='store_true', help='Show all mount points, including duplicates')
+    parser.add_argument('-t', '--total', action='store_true', help='Show totals row with combined sizes and usage percentage')
     return parser.parse_args()
 
 if __name__ == "__main__":
     args = get_args()
-    display_paths(args.paths, size=args.size, quiet=args.quiet, show_all=args.all)
+    display_paths(args.paths, size=args.size, quiet=args.quiet, show_all=args.all, total=args.total)
