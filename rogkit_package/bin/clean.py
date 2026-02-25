@@ -165,6 +165,35 @@ def _fd_discover_files(root_directory: Path, patterns: Sequence[str], *, minutes
         _print_message(f"fd found {len(unique_files)} files changed within last {minutes} minutes.", style="bold yellow")
     return unique_files
 
+def _git_diff_files(
+    root_directory: Path,
+    patterns: Sequence[str],
+    *,
+    verbose: bool = False,
+) -> List[Path]:
+    """Return changed .po/.pot files from ``git diff HEAD``."""
+    if shutil.which("git") is None:
+        return []
+    globs = [f"*{p[1:]}" for p in patterns]  # '*.po' -> '*.po' (keep as-is)
+    cmd = ["git", "diff", "HEAD", "--name-only", "--"] + globs
+    if verbose:
+        _print_message(f"Running: {' '.join(cmd)}", style="dim")
+    result = subprocess.run(
+        cmd, capture_output=True, text=True, cwd=root_directory,
+    )
+    if result.returncode != 0:
+        return []
+    files: List[Path] = []
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        path = (root_directory / line).resolve()
+        if path.exists():
+            files.append(path)
+    return files
+
+
 def _read_stdin_paths(root_directory: Path) -> List[Path]:
     """Read newline-delimited paths from stdin and normalize them."""
     if sys.stdin.isatty():
@@ -240,11 +269,14 @@ def main():
 
     if not selected_files:
         if not args.search:
-            # just show help
-            parser.print_help()
-            _print_message("Provide a search term (or file path) to select translations to clean.", style="yellow")
-            _print_message("You can also pipe file paths in: `find . -name \"*.po\" | clean.py --confirm`.", style="yellow")
-            return
+            git_files = _git_diff_files(root_directory, desired_filenames, verbose=args.verbose)
+            if git_files:
+                files_to_clean = git_files
+                _print_message(f"Found {len(git_files)} changed translation file(s) (git diff HEAD).", style="bold green")
+            else:
+                _print_message("No changed .po/.pot files found in git diff.", style="bold yellow")
+                parser.print_help()
+                return
             
         _print_message(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
         files_to_clean = _fd_discover_files(
