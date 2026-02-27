@@ -11,6 +11,7 @@ import platform
 import re
 import shutil
 import subprocess
+import sys
 from datetime import timedelta
 
 import psutil
@@ -379,6 +380,17 @@ def format_kernel_status(status: dict) -> str:
     return "; ".join(parts)
 
 
+def _prompt_for_free_confirmation() -> bool:
+    """Prompt interactively before running potentially disruptive free actions."""
+    if not sys.stdin.isatty():
+        return False
+    try:
+        answer = input("Free swap and caches now? [y/N]: ").strip().lower()
+    except EOFError:
+        return False
+    return answer in {"y", "yes"}
+
+
 def render_report(data: dict) -> None:
     """Pretty-print the system report using Rich."""
     score = data["score"]
@@ -463,9 +475,17 @@ def main():
         return
 
     if args.free:
-        if not args.confirm:
-            console.print("Dry run: --free requested. Re-run with --confirm to execute freeing actions.", style="yellow")
-        else:
+        should_execute = args.confirm
+        if not should_execute:
+            if _prompt_for_free_confirmation():
+                should_execute = True
+            else:
+                console.print(
+                    "Skipped freeing actions. Re-run with --confirm (non-interactive) or answer 'y' at the prompt.",
+                    style="yellow",
+                )
+
+        if should_execute:
             console.print("\nAttempting to free memory and swap...\n", style="yellow")
             free_system_resources(platform_type)
 
