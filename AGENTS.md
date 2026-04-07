@@ -182,6 +182,24 @@ Go commands live in `go/cmd/<name>/main.go` with shared logic in
 Workspace in `rust/` with `Cargo.toml` at the root. Currently only `filehash`.
 Build with standard `cargo build --release`.
 
+## Troubleshooting
+
+### Media daemon
+
+If you encounter issues with the media tool (`p` / `rogkit_package.media.media`), restart the daemon first:
+
+```sh
+p -S        # stop the running daemon
+p           # next invocation starts a fresh daemon automatically
+```
+
+Or explicitly:
+
+```sh
+p --stop-daemon
+p --daemon &   # start daemon in background (or just run any `p` command)
+```
+
 ## Dependency Groups (pyproject.toml)
 
 | Group | Packages |
