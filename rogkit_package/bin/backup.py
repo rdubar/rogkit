@@ -421,6 +421,9 @@ def create_backup(settings: BackupSet, *, verbose: bool = False) -> int:
                 ]
                 for file_name in files:
                     file_path = os.path.join(root, file_name)
+                    if not os.path.isfile(file_path):
+                        skipped_count += 1
+                        continue
                     if _matches_any(file_path, settings.file_excludes) or _matches_any(file_name, settings.file_excludes):
                         skipped_count += 1
                         continue
@@ -457,6 +460,7 @@ def create_backup(settings: BackupSet, *, verbose: bool = False) -> int:
         os.unlink(file_list.name)
 
     os.replace(temp_backup_path, backup_file_path)
+    _print_message(f"[{settings.name}] Backup saved to {backup_file_path}", "green")
 
     extra_destinations = valid_destinations[1:]
     for extra_path in extra_destinations:
