@@ -98,6 +98,7 @@ remaining work is human verification from the README checklist.
 - [x] **`dedupe`** — Find duplicate files by size and hash under a directory tree
   - `dedupe .`
   - `dedupe ~/Downloads --delete-empty`
+  - `dedupe . --exclude "*.log" --gitignore -v`
   - stdlib `hashlib` + `pathlib`; high-value cleanup tool
 
 ---

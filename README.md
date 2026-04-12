@@ -22,7 +22,7 @@ Personal command-line toolkit — 85+ tools built in Python, with Go binaries an
 | `ts` | 2026-04-12 | Convert timestamps between epoch seconds, local time, and UTC |
 | `serve` | 2026-04-12 | Serve a local directory over HTTP for quick previews |
 | `jwt` | 2026-04-12 | Decode JWT header and payload for inspection without verification |
-| `dedupe` | 2026-04-12 | Find duplicate files by size and hash, or delete zero-byte files |
+| `dedupe` | 2026-04-12 | Find duplicate files by size and hash; supports `--exclude`, `--verbose`, and optional `.gitignore` filtering |
 
 Built and maintained by Roger Dubar. Reflects a consistent engineering approach across a large, multi-language codebase: uniform conventions, modern tooling, and real daily use.
 
@@ -84,7 +84,7 @@ underlying Python modules may use disambiguated names such as `jsonr.py` and
 | `archive` | Inspect archive contents or extract them safely |
 | `clean` | Translation file cleaner — removes unused keys from `.po`/`.pot` files |
 | `collate` | Merge files from multiple locations into one directory |
-| `dedupe` | Find duplicate files by size and hash under a directory tree |
+| `dedupe` | Find duplicate files by size and hash under a directory tree, with exclude globs and optional `.gitignore` filtering |
 | `delete` | Delete or trash files/folders; accepts piped filenames with confirmation |
 | `dirs` | Recursive directory size calculator with sorted output |
 | `empties` | Find empty folders and sparse directory trees |
