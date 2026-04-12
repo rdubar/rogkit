@@ -234,6 +234,24 @@ alias ish='$ROGKIT_GO_BIN/ishtime'
 # Miscellaneous
 # ------------------------------------------------------------------------------
 alias drying='rogkit_py -m rogkit_package.bin.drying'
+alias note='rogkit_py -m rogkit_package.bin.note'
+alias json='rogkit_py -m rogkit_package.bin.jsonr'
+alias jsonr='rogkit_py -m rogkit_package.bin.jsonr'
+alias csv='rogkit_py -m rogkit_package.bin.csvr'
+alias csvr='rogkit_py -m rogkit_package.bin.csvr'
+alias env='rogkit_py -m rogkit_package.bin.envr'
+alias envr='rogkit_py -m rogkit_package.bin.envr'
+alias procs='rogkit_py -m rogkit_package.bin.procs'
+alias ports='rogkit_py -m rogkit_package.bin.ports'
+alias myip='rogkit_py -m rogkit_package.bin.myip'
+alias httpcheck='rogkit_py -m rogkit_package.bin.httpcheck'
+alias archive='rogkit_py -m rogkit_package.bin.archive'
+alias hash='rogkit_py -m rogkit_package.bin.hash'
+alias url='rogkit_py -m rogkit_package.bin.url'
+alias ts='rogkit_py -m rogkit_package.bin.ts'
+alias serve='rogkit_py -m rogkit_package.bin.serve'
+alias jwt='rogkit_py -m rogkit_package.bin.jwt'
+alias dedupe='rogkit_py -m rogkit_package.bin.dedupe'
 
 # ==============================================================================
 # End of RogKit Aliases

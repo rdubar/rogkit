@@ -2,7 +2,51 @@
 
 Personal command-line toolkit — 85+ tools built in Python, with Go binaries and a Rust experiment.
 
+---
+
+## What's new
+
+| Tool | Added | What it does |
+|------|-------|-------------|
+| `note` | 2026-04-12 | Append timestamped notes to `~/notes.md`; `-l` to list/search |
+| `json` | 2026-04-12 | Pretty-print JSON with syntax highlighting; `-q .path` to query; `--keys` to list keys |
+| `csv`  | 2026-04-12 | Render CSV as a table; `-c` select columns, `-s` sort, `-n` row limit; auto-detects delimiter |
+| `env`  | 2026-04-12 | View environment variables as a table; filter by key or `--val` value text |
+| `procs` | 2026-04-12 | Find running processes by name/command; inspect CPU/memory or terminate matches |
+| `ports` | 2026-04-12 | Show listening TCP/UDP ports with owning process info; filter by port or `--proc` |
+| `myip` | 2026-04-12 | Show local IPv4 interfaces plus external IP; marks the default route interface |
+| `httpcheck` | 2026-04-12 | Check one or more URLs for status, timing, redirects, and content type |
+| `archive` | 2026-04-12 | List or safely extract `.zip`, `.tar*`, and `.gz` archives |
+| `hash` | 2026-04-12 | Hash files or stdin with `md5`, `sha1`, `sha256`, or `sha512` |
+| `url` | 2026-04-12 | Encode, decode, parse, and normalize URLs or query strings |
+| `ts` | 2026-04-12 | Convert timestamps between epoch seconds, local time, and UTC |
+| `serve` | 2026-04-12 | Serve a local directory over HTTP for quick previews |
+| `jwt` | 2026-04-12 | Decode JWT header and payload for inspection without verification |
+| `dedupe` | 2026-04-12 | Find duplicate files by size and hash, or delete zero-byte files |
+
 Built and maintained by Roger Dubar. Reflects a consistent engineering approach across a large, multi-language codebase: uniform conventions, modern tooling, and real daily use.
+
+Current status:
+The two planned utility batches in `ROADMAP.md` are now implemented, covered by
+tests, and ready for manual verification.
+
+## Human Test Queue
+
+- [ ] `note`
+- [ ] `json`
+- [ ] `csv`
+- [ ] `env`
+- [ ] `procs`
+- [ ] `ports`
+- [ ] `myip`
+- [ ] `httpcheck`
+- [ ] `archive`
+- [ ] `hash`
+- [ ] `url`
+- [ ] `ts`
+- [x] `serve`
+- [ ] `jwt`
+- [ ] `dedupe`
 
 ---
 
@@ -14,6 +58,11 @@ source aliases         # load shell aliases into your current shell
 ```
 
 Reload on every new terminal session by sourcing `aliases` from your shell profile.
+
+Command naming convention:
+Short user-facing commands live in `aliases` (`json`, `csv`, `env`) while the
+underlying Python modules may use disambiguated names such as `jsonr.py` and
+`csvr.py` to avoid collisions with standard-library modules or common utilities.
 
 ---
 
@@ -32,8 +81,10 @@ Reload on every new terminal session by sourcing `aliases` from your shell profi
 | Tool | What it does |
 |------|-------------|
 | `backup` | Archive files/folders with compression; supports incremental runs |
+| `archive` | Inspect archive contents or extract them safely |
 | `clean` | Translation file cleaner — removes unused keys from `.po`/`.pot` files |
 | `collate` | Merge files from multiple locations into one directory |
+| `dedupe` | Find duplicate files by size and hash under a directory tree |
 | `delete` | Delete or trash files/folders; accepts piped filenames with confirmation |
 | `dirs` | Recursive directory size calculator with sorted output |
 | `empties` | Find empty folders and sparse directory trees |
@@ -43,6 +94,7 @@ Reload on every new terminal session by sourcing `aliases` from your shell profi
 | `paths` | Full-path search with optional media metadata display |
 | `purge` | Remove junk files (`.DS_Store`, `__pycache__`, etc.) by pattern |
 | `renamer` | Bulk file rename with pattern matching and preview |
+| `serve` | Serve a local directory over HTTP for quick previews |
 | `space` | Disk usage summary, sorted by size |
 
 ### Media
@@ -70,6 +122,10 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `cleaner` | System cleanup for macOS and Raspberry Pi |
 | `docker_bash` | Interactive bash into a running Docker container |
 | `location` | Current location and weather data |
+| `myip` | Show local IPv4 interfaces and your current external IP |
+| `procs` | Find running processes by name/command, with optional termination |
+| `ports` | Show listening TCP/UDP ports with the owning process |
+| `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |
 | `speed_test` | Network speed test |
 | `syscheck` | System health report: uptime, load, memory, kernel status |
 | `system` | Enhanced system snapshot (CPU, memory, disk, network) |
@@ -82,10 +138,16 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 |------|-------------|
 | `bignum` | Convert large numbers to readable text (`1e12` → `1 trillion`) |
 | `bytes` | Human-readable byte-size conversion (SI and binary units) |
+| `hash` | Hash files or stdin with common digest algorithms |
 | `clipboard` | Copy text to the system clipboard |
+| `csv` | Render CSV files as terminal tables with column selection and sorting |
+| `env` | Pretty-print environment variables with key/value filtering |
 | `fakes` | Generate fake names, emails, addresses using Faker |
 | `fig` | ASCII art text via pyfiglet |
 | `generations` | Genealogy calculator — ancestors and DNA percentages per generation |
+| `json` | Pretty-print JSON or query simple paths from file/stdin |
+| `jwt` | Decode JWT header and payload without verification |
+| `note` | Append or list timestamped notes in a Markdown file |
 | `plural` | Pluralise English words correctly, including irregulars |
 | `randomcase` | Convert text to random case |
 | `rounder` | Round decimals while stripping unnecessary trailing zeros |
@@ -93,6 +155,8 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `seconds` | Convert seconds to human-readable durations |
 | `stars` | Star/pattern generator |
 | `strike` | Apply Unicode strikethrough to text |
+| `ts` | Convert timestamps between epoch seconds, local time, and UTC |
+| `url` | Encode, decode, parse, and normalize URLs/query strings |
 | `wikipedia` | Search and fetch Wikipedia articles |
 
 ### Developer & integration tools
@@ -104,7 +168,6 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `catyears` | Cat age to equivalent human years |
 | `dice` | Dice roller (configurable count and sides) |
 | `drying` | Clothes-drying weather advisor |
-| `fakes` | Fake data generator (names, emails, addresses) |
 | `mapper` | Address geocoding and map link generation |
 | `mongo` | MongoDB query helper and logger |
 | `multical` | Multi-calendar date conversion |
