@@ -1,96 +1,173 @@
 #!/bin/bash
 #
-# RogKit comprehensive updater
+# RogKit system updater — cross-platform (Debian/Raspberry Pi OS, macOS)
+#
+# Default: cautious — preview what will change, prompt before applying.
+# Use --full for more aggressive upgrades (dist-upgrade on Debian,
+# --greedy casks + App Store on macOS).
 #
 
+# --- Args ---
+DO_FULL=0
+AUTO_YES=0
+
 show_help() {
-    echo "Usage: $0 [OPTIONS]"
-    echo
-    echo "Options:"
-    echo "  --full        Perform full-upgrade (default is upgrade + dist-upgrade only)"
-    echo "  -h, --help    Show this help message and exit"
-    echo
-    echo "Examples:"
-    echo "  $0            Run normal upgrade without full-upgrade"
-    echo "  $0 --full     Run upgrade and full-upgrade"
+    cat <<EOF
+Usage: update [OPTIONS]
+
+Options:
+  --full        More aggressive upgrades:
+                  Debian: also runs dist-upgrade (may remove/replace packages)
+                  macOS:  also upgrades auto-updating casks and App Store apps
+  -y, --yes     Skip confirmation prompts
+  -h, --help    Show this help
+
+Platforms supported: Debian/Ubuntu/Raspberry Pi OS, macOS (Homebrew)
+EOF
 }
 
-# --- Parse args ---
-DO_FULL=0
 for arg in "$@"; do
     case $arg in
         --full) DO_FULL=1 ;;
+        -y|--yes) AUTO_YES=1 ;;
         -h|--help) show_help; exit 0 ;;
         *) echo "Unknown option: $arg"; show_help; exit 1 ;;
     esac
 done
 
-echo "RogKit comprehensive updater"
+# --- Helpers ---
+section() { echo; echo "==> $*"; }
 
+confirm() {
+    [[ $AUTO_YES -eq 1 ]] && return 0
+    read -r -p "$1 [y/N] " reply
+    [[ $reply =~ ^[Yy]$ ]]
+}
+
+# --- Debian/Ubuntu/Raspberry Pi OS ---
+update_debian() {
+    section "Refreshing package lists..."
+    sudo apt update
+
+    section "Packages available to upgrade:"
+    local upgradable
+    upgradable=$(apt list --upgradable 2>/dev/null | grep -v "^Listing" || true)
+    if [[ -z "$upgradable" ]]; then
+        echo "  (nothing to upgrade)"
+        return
+    fi
+    echo "$upgradable"
+
+    section "Dry run — what 'apt upgrade' would change:"
+    sudo apt -s upgrade | grep -E "^(Inst|Remv|Conf)" || echo "  (no changes)"
+
+    if [[ $DO_FULL -eq 1 ]]; then
+        section "Dry run — additional changes from dist-upgrade:"
+        echo "  ⚠  dist-upgrade can remove or replace packages"
+        sudo apt -s dist-upgrade | grep -E "^(Inst|Remv|Conf)" || echo "  (no additional changes)"
+    fi
+
+    echo
+    confirm "Apply upgrades?" || { echo "Aborted."; exit 0; }
+
+    section "Applying upgrades..."
+    sudo apt upgrade -y
+
+    if [[ $DO_FULL -eq 1 ]]; then
+        section "Applying dist-upgrade..."
+        sudo apt dist-upgrade -y
+    fi
+
+    section "Cleaning up..."
+    sudo apt autoremove -y
+    sudo apt --fix-broken install -y
+
+    if [[ -f /var/run/reboot-required ]]; then
+        echo
+        echo "⚠  Reboot required — run 'sudo reboot' when ready"
+    fi
+}
+
+# --- macOS (Homebrew) ---
+update_macos() {
+    if ! command -v brew &>/dev/null; then
+        echo "Homebrew not found — skipping package updates"
+        return
+    fi
+
+    section "Refreshing Homebrew..."
+    brew update
+
+    section "Formulae available to upgrade:"
+    brew outdated || true
+
+    if [[ $DO_FULL -eq 1 ]]; then
+        section "Casks available to upgrade (including auto-updating):"
+        brew outdated --greedy || true
+    fi
+
+    local has_updates
+    has_updates=$(brew outdated 2>/dev/null || true)
+    if [[ -z "$has_updates" ]] && [[ $DO_FULL -eq 0 ]]; then
+        echo "  (nothing to upgrade)"
+    else
+        echo
+        confirm "Apply Homebrew upgrades?" || { echo "Aborted."; exit 0; }
+
+        section "Upgrading formulae..."
+        brew upgrade
+
+        if [[ $DO_FULL -eq 1 ]]; then
+            section "Upgrading casks (--greedy)..."
+            brew upgrade --greedy
+        fi
+
+        section "Cleaning up..."
+        brew cleanup
+    fi
+
+    # App Store via mas (--full only, to match cautious default)
+    if [[ $DO_FULL -eq 1 ]] && command -v mas &>/dev/null; then
+        section "App Store updates:"
+        local mas_updates
+        mas_updates=$(mas outdated 2>/dev/null || true)
+        if [[ -n "$mas_updates" ]]; then
+            echo "$mas_updates"
+            confirm "Apply App Store updates?" && mas upgrade
+        else
+            echo "  (nothing to upgrade)"
+        fi
+    fi
+}
+
+# --- Main ---
 start_time=$(date +%s)
 
-# Capture system versions before upgrade
-system_info_before=$(lsb_release -a 2>/dev/null)
-kernel_version_before=$(uname -r)
-
-echo "Updating package lists..."
-sudo apt update
-
-echo "Upgrading packages..."
-sudo apt upgrade -y
-
-echo "Performing dist-upgrade..."
-sudo apt dist-upgrade -y
-
-# Check if a full-upgrade would do more
-if [ $DO_FULL -eq 1 ]; then
-    echo "Performing full-upgrade (as requested)..."
-    sudo apt full-upgrade -y
+echo "RogKit updater — $(date)"
+if [[ $DO_FULL -eq 1 ]]; then
+    echo "Mode: full (aggressive — dist-upgrade / greedy casks enabled)"
 else
-    echo "Skipping full-upgrade (run with --full to enable)."
-
-    # Warn if additional upgrades are pending that require full-upgrade
-    FULL_UPGRADE_CHECK=$(apt list --upgradable 2>/dev/null | grep -v "Listing..." | wc -l)
-    if [ "$FULL_UPGRADE_CHECK" -gt 0 ]; then
-        echo "⚠️  WARNING: $FULL_UPGRADE_CHECK packages are still upgradable."
-        echo "   Run with --full if you want to apply them."
-        apt list --upgradable 2>/dev/null | grep -v "Listing..."
-    fi
+    echo "Mode: cautious (default — use --full for more aggressive upgrades)"
 fi
 
-echo "Checking for and fixing broken dependencies..."
-sudo apt --fix-broken install -y
-
-echo "Cleaning up..."
-sudo apt autoremove -y
-
-# Check if a reboot is required
-if [ -f /var/run/reboot-required ]; then
-    echo 'Reboot required. Rebooting now...'
-    sudo reboot
-else
-    echo 'Update and upgrade complete. No reboot required.'
-fi
+case "$(uname -s)" in
+    Linux)
+        if command -v apt &>/dev/null; then
+            update_debian
+        else
+            echo "Unsupported Linux package manager — only apt is currently supported"
+            exit 1
+        fi
+        ;;
+    Darwin)
+        update_macos
+        ;;
+    *)
+        echo "Unsupported platform: $(uname -s)"
+        exit 1
+        ;;
+esac
 
 end_time=$(date +%s)
-total_time=$((end_time - start_time))
-
-# Capture system versions after upgrade
-system_info_after=$(lsb_release -a 2>/dev/null)
-kernel_version_after=$(uname -r)
-
-if [ "$system_info_before" != "$system_info_after" ] || [ "$kernel_version_before" != "$kernel_version_after" ]; then
-    echo "System versions have been updated."
-    echo "Before upgrade:"
-    echo "$system_info_before"
-    echo "Kernel version: $kernel_version_before"
-    echo
-    echo "After upgrade:"
-    echo "$system_info_after"
-    echo "Kernel version: $kernel_version_after"
-    echo
-else
-    echo "No changes in system versions."
-fi
-
-echo "Total time taken: $((total_time / 60)) minutes and $((total_time % 60)) seconds."
+echo
+echo "Done in $(( (end_time - start_time) / 60 ))m $(( (end_time - start_time) % 60 ))s"
