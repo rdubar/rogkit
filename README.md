@@ -1,52 +1,18 @@
 # rogkit
 
-Personal command-line toolkit — 85+ tools built in Python, with Go binaries and a Rust experiment.
+Personal command-line toolkit — 85+ tools built in Python, with Go binaries and a Rust experiment. Built for daily use on macOS (most tools also work on Linux).
+
+Built and maintained by [Roger Dubar](https://github.com/rdubar).
 
 ---
 
-## What's new
+## Prerequisites
 
-| Tool | Added | What it does |
-|------|-------|-------------|
-| `note` | 2026-04-12 | Append timestamped notes to `~/notes.md`; `-l` to list/search |
-| `json` | 2026-04-12 | Pretty-print JSON with syntax highlighting; `-q .path` to query; `--keys` to list keys |
-| `csv`  | 2026-04-12 | Render CSV as a table; `-c` select columns, `-s` sort, `-n` row limit; auto-detects delimiter |
-| `env`  | 2026-04-12 | View environment variables as a table; filter by key or `--val` value text |
-| `procs` | 2026-04-12 | Find running processes by name/command; inspect CPU/memory or terminate matches |
-| `ports` | 2026-04-12 | Show listening TCP/UDP ports with owning process info; filter by port or `--proc` |
-| `myip` | 2026-04-12 | Show local IPv4 interfaces plus external IP; marks the default route interface |
-| `httpcheck` | 2026-04-12 | Check one or more URLs for status, timing, redirects, and content type |
-| `archive` | 2026-04-12 | List or safely extract `.zip`, `.tar*`, and `.gz` archives |
-| `hash` | 2026-04-12 | Hash files or stdin with `md5`, `sha1`, `sha256`, or `sha512` |
-| `url` | 2026-04-12 | Encode, decode, parse, and normalize URLs or query strings |
-| `ts` | 2026-04-12 | Convert timestamps between epoch seconds, local time, and UTC |
-| `serve` | 2026-04-12 | Serve a local directory over HTTP for quick previews |
-| `jwt` | 2026-04-12 | Decode JWT header and payload for inspection without verification |
-| `dedupe` | 2026-04-12 | Find duplicate files by size and hash; supports `--exclude`, `--verbose`, and optional `.gitignore` filtering |
-
-Built and maintained by Roger Dubar. Reflects a consistent engineering approach across a large, multi-language codebase: uniform conventions, modern tooling, and real daily use.
-
-Current status:
-The two planned utility batches in `ROADMAP.md` are now implemented, covered by
-tests, and ready for manual verification.
-
-## Human Test Queue
-
-- [ ] `note`
-- [ ] `json`
-- [ ] `csv`
-- [ ] `env`
-- [ ] `procs`
-- [ ] `ports`
-- [ ] `myip`
-- [ ] `httpcheck`
-- [ ] `archive`
-- [ ] `hash`
-- [ ] `url`
-- [ ] `ts`
-- [x] `serve`
-- [ ] `jwt`
-- [ ] `dedupe`
+- **Python** — 3.14+ recommended
+- **[uv](https://github.com/astral-sh/uv)** — used for dependency management and running tools
+- **Go** 1.21+ — only needed to build the Go binaries (`go/`)
+- **Rust** stable toolchain — only needed to build the Rust tools (`rust/`)
+- **Optional external tools** — some media tools require `ffmpeg`, `HandBrake`, or `plexapi`
 
 ---
 
@@ -230,7 +196,7 @@ Typical workflow:
 
 ```sh
 p --update            # pull fresh Plex snapshot, merge extras
-tmdb --csv data/media.csv   # rebuild TMDB metadata from CSV
+tmdb --csv your_media.csv   # rebuild TMDB metadata from a CSV export
 p "blade runner"      # instant cache-backed search
 p "blade runner" -z   # all matches, sorted by year
 p --stats             # aggregate totals
@@ -337,3 +303,15 @@ uv run streamlit run Home.py
 ```
 
 Available pages: Media library browser, password generator, random-case converter.
+
+---
+
+## Platform support
+
+Primarily developed and tested on **macOS**. Most tools work on Linux. A small number of tools (`cleaner`, `system`, `myip`) have macOS-specific behaviour but degrade gracefully on other platforms.
+
+---
+
+## Licence
+
+MIT — free to use and adapt.
