@@ -314,4 +314,4 @@ Primarily developed and tested on **macOS**. Most tools work on Linux. A small n
 
 ## Licence
 
-MIT — free to use and adapt.
+MIT — see [LICENSE](LICENSE).
