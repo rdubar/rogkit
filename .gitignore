@@ -18,6 +18,9 @@ rogkit_package/data/*
 data/
 archived
 
+# Local notes and ideas
+notes/
+
 # Go build artifacts
 go/bin/
 
