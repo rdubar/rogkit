@@ -15,6 +15,7 @@ ROADMAP.md
 
 # Project data artifacts
 rogkit_package/data/*
+data/
 archived
 
 # Go build artifacts
