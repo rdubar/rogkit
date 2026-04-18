@@ -333,6 +333,6 @@ MIT — see [LICENSE](LICENSE).
 
 ## Credits
 
-Built and maintained by [Roger Dubar](https://github.com/rdubar), with development assistance from Claude (Anthropic).
+Built and maintained by [Roger Dubar](https://github.com/rdubar), with development assistance from Claude (Anthropic) and Codex (Open AI).
 
 With thanks to [Alphapet Ventures](https://alpha.pet).
