@@ -40,6 +40,7 @@ alias update='/usr/bin/bash $ROGKIT_PACKAGE/bin/update'
 # AI & API Tools
 # ------------------------------------------------------------------------------
 alias aish='rogkit_py -m rogkit_package.bin.aish'
+alias clu='rogkit_py -m rogkit_package.bin.clu'
 alias amaz='rogkit_py -m rogkit_package.bin.amaz'
 alias chat='rogkit_py -m rogkit_package.bin.chat'
 alias lm='rogkit_py -m rogkit_package.bin.lm'
