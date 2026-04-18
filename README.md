@@ -4,6 +4,21 @@ Personal command-line toolkit — 85+ tools built in Python, with Go binaries an
 
 Built and maintained by [Roger Dubar](https://github.com/rdubar).
 
+## Highlights
+
+A few tools most people find immediately useful:
+
+| Tool | What it does |
+|------|-------------|
+| `pw` | Cryptographically secure password generator |
+| `serve` | Serve any folder over HTTP instantly |
+| `json` | Pretty-print and query JSON from file or stdin |
+| `dedupe` | Find duplicate files by content across a directory tree |
+| `purge` | Remove `.DS_Store`, `__pycache__`, and other junk recursively |
+| `scrape` | Extract readable text from any URL |
+| `note` | Append a timestamped note to a Markdown file; `-l` to search |
+| `myip` | Show all local interfaces and your external IP |
+
 ---
 
 ## Prerequisites
@@ -315,3 +330,9 @@ Primarily developed and tested on **macOS**. Most tools work on Linux. A small n
 ## Licence
 
 MIT — see [LICENSE](LICENSE).
+
+## Credits
+
+Built and maintained by [Roger Dubar](https://github.com/rdubar), with development assistance from Claude (Anthropic).
+
+With thanks to [Alphapet Ventures](https://alpha.pet).
