@@ -58,6 +58,7 @@ class SpotifyClient:
             redirect_uri=self.redirect_uri,
             scope=self.scope,
             cache_path=self.cache_path,
+            open_browser=True,
         )
 
         token_info = auth_manager.get_cached_token()
@@ -65,7 +66,7 @@ class SpotifyClient:
             print("Using cached Spotify token.")
         else:
             print('No cached token, launching Spotify authorization flow...')
-            token = auth_manager.get_access_token()
+            token = auth_manager.get_access_token(as_dict=False)
             if not token:
                 raise RuntimeError("Failed to obtain Spotify access token.")
             print("Authentication successful.")
@@ -160,7 +161,7 @@ def _require_spotify_credentials():
         print(SPOTIFY_CONFIG_HELP)
         raise SystemExit(1)
 
-    if redirect_uri.lower().startswith("http://"):
+    if redirect_uri.lower().startswith("http://") and not redirect_uri.lower().startswith("http://127.0.0.1") and not redirect_uri.lower().startswith("http://localhost"):
         print("Spotify requires HTTPS redirect URIs. Please update spotify_redirect_uri to use https.")
         print(SPOTIFY_CONFIG_HELP)
         raise SystemExit(1)
