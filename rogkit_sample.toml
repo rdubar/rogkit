@@ -1,33 +1,47 @@
 # Preferred location: ~/.config/rogkit/config.toml
 # Legacy fallback (still supported by some tools): ~/.rogkit.toml
+#
+# Credentials and secrets belong in ~/.config/rogkit/secrets.toml (same structure,
+# gitignored, excluded from cloud backups). Only non-sensitive config goes here.
 
 [backup]
 backup_to = [ "~/archive/",]
-# Optional global exclusions
+
+# Filename patterns treated as secrets. Sets with include_secrets = false (the
+# default) automatically exclude these — use that for any cloud-synced destination.
+secret_patterns = ["secrets.toml", ".env"]
+
+# Optional global exclusions (appended to defaults if set)
 # file_excludes = [".DS_Store", "*.pyc"]
 # folder_excludes = ["__pycache__", "/tmp"]
 
+# Cloud-synced set — secrets excluded automatically
 [[backup.set]]
-name = "DocumentsToNAS"
+name = "CloudBackup"
 destinations = [
-    "/mnt/nas/backups/docs",
-    "/mnt/external1/docs"
+    "~/Dropbox/Backups",
+    "~/Library/Mobile Documents/com~apple~CloudDocs/Backups"
 ]
 paths = [
-    "~/Documents",
-    "~/Work/Reports",
-    "/etc/hosts"
+    "~/.ssh",
+    "~/.config/",
+    "~/dev",
+    "~/bin",
+    "~/.zshrc",
 ]
 
+# Local-only set — include_secrets = true allows secrets files through
 [[backup.set]]
-name = "MediaArchive"
-destinations = [
-    "/mnt/nas/media",
-    "/mnt/cloud/media"
-]
+name = "LocalBackup"
+include_secrets = true
+destinations = ["/mnt/nas/backups", "~/Archive/Backups"]
 paths = [
-    "~/Pictures",
-    "~/Videos"
+    "~/.ssh",
+    "~/.config/",
+    "~/dev",
+    "~/bin",
+    "~/.zshrc",
+    "~/.env",
 ]
 
 # Legacy fallback (used only if no backup.set entries present):
@@ -38,14 +52,8 @@ paths = [
 # path to your translation_clean.sh script
 script_path = ""
 
-[openweather]
-openweather_api_key = ""
-
-[ipinfo]
-ipinfo_api_key = ""
-
 [media]
-# default roots for media tools (cli); pass --path to override #
+# default roots for media tools (cli); pass --path to override
 remote_host = "192.168.0.50"
 remote_user = "rog"
 remote_password = ""
@@ -53,13 +61,12 @@ remote_folders = ["/mnt/media1/Media/Movies"]
 
 [plex]
 plex_server_url = ""
-plex_server_token = ""
+# plex_server_token → secrets.toml
 
 [spotify]
-spotify_client_id = ""
-spotify_client_secret = ""
-# Spotify now requires HTTPS redirect URIs
-spotify_redirect_uri = "https://your-app.example.com/callback"
+# spotify_client_id → secrets.toml
+# spotify_client_secret → secrets.toml
+spotify_redirect_uri = "http://127.0.0.1:8888/callback/"
 
 [purge]
 # folders to scan when running `purge.py`; override with --folder if omitted
@@ -72,4 +79,29 @@ temp_folder = ""
 download_folder = ""
 default_input_file = ""
 
-
+# ── secrets.toml (gitignored, local backup only) ────────────────────────────
+# [aws]
+# aws_access_key_id = ""
+# aws_secret_access_key = ""
+#
+# [ipinfo]
+# ipinfo_api_key = ""
+#
+# [mongodb]
+# username = ""
+# password = ""
+# uri = ""
+#
+# [openweather]
+# openweather_api_key = ""
+#
+# [plex]
+# plex_server_token = ""
+#
+# [spotify]
+# spotify_client_id = ""
+# spotify_client_secret = ""
+#
+# [tmdb]
+# tmdb_api_key = ""
+# tmdb_api_read_access_token = ""

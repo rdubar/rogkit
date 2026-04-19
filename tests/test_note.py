@@ -40,6 +40,35 @@ def test_timestamp_prefix_written(tmp_path):
     assert re.search(r"\*\*\d{2}:\d{2}\*\*", content)
 
 
+def test_append_inserts_under_today_when_later_section_exists(tmp_path):
+    from datetime import datetime
+    f = tmp_path / "notes.md"
+    today = datetime.now().strftime("%Y-%m-%d")
+    f.write_text(
+        f"## {today}\n\n- **09:00** early note\n\n## 2099-01-01\n\n- **10:00** future note\n",
+        encoding="utf-8",
+    )
+    append_note("new note", f)
+    content = f.read_text()
+    # new note must appear before the future section
+    assert content.index("new note") < content.index("2099-01-01")
+
+
+def test_append_preserves_surrounding_spacing(tmp_path):
+    from datetime import datetime
+    f = tmp_path / "notes.md"
+    today = datetime.now().strftime("%Y-%m-%d")
+    f.write_text(
+        f"## {today}\n\n- **09:00** first\n\n## 2099-01-01\n\n- **10:00** future\n",
+        encoding="utf-8",
+    )
+    append_note("second", f)
+    content = f.read_text()
+    # future section heading must still be present and intact
+    assert "## 2099-01-01" in content
+    assert "future" in content
+
+
 def test_multiple_notes_same_day_no_duplicate_heading(tmp_path):
     f = tmp_path / "notes.md"
     append_note("note one", f)

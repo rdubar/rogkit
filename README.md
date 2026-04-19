@@ -62,7 +62,7 @@ underlying Python modules may use disambiguated names such as `jsonr.py` and
 
 | Tool | What it does |
 |------|-------------|
-| `backup` | Archive files/folders with compression; supports incremental runs |
+| `backup` | Archive files/folders with compression; per-set secrets exclusion for cloud vs local destinations |
 | `archive` | Inspect archive contents or extract them safely |
 | `clean` | Translation file cleaner — removes unused keys from `.po`/`.pot` files |
 | `collate` | Merge files from multiple locations into one directory |
@@ -238,19 +238,47 @@ User shell → alias
 
 Tools use `from ..settings import get_invoking_cwd` to recover the user's original working directory, since `uv run --directory` changes cwd to the rogkit root.
 
-Configuration lives at `~/.config/rogkit/config.toml`:
+Configuration lives in two files:
+
+**`~/.config/rogkit/config.toml`** — non-sensitive settings (safe to version-control):
 
 ```toml
 [plex]
 plex_server_url = "http://192.168.1.100"
+
+[vido]
+download_folder = "~/Downloads/Videos"
+
+[backup]
+secret_patterns = ["secrets.toml", ".env"]
+
+[[backup.set]]
+name = "CloudBackup"
+destinations = ["~/Dropbox/Backups"]
+paths = ["~/.config/", "~/dev"]
+
+[[backup.set]]
+name = "LocalBackup"
+include_secrets = true
+destinations = ["~/Archive/Backups"]
+paths = ["~/.config/", "~/dev", "~/.env"]
+```
+
+**`~/.config/rogkit/secrets.toml`** — credentials only (gitignored, excluded from cloud backups):
+
+```toml
+[plex]
 plex_server_token = "your_token"
 
 [tmdb]
 tmdb_api_key = "your_key"
 
-[vido]
-download_folder = "~/Downloads/Videos"
+[spotify]
+spotify_client_id = "..."
+spotify_client_secret = "..."
 ```
+
+Both files share the same TOML structure. `secrets.toml` is deep-merged on top of `config.toml` at load time — tools see a single unified config with no code changes required. See [`rogkit_sample.toml`](rogkit_sample.toml) for a full annotated example.
 
 ---
 

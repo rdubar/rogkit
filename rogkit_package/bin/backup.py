@@ -6,39 +6,46 @@ under `[[backup.set]]` entries (each with `name`, `paths`, and `destinations`).
 Legacy whitelist entries from `~/.config/rogkit/backup.txt` are still supported
 as a fallback when no sets are defined.
 
-Example per-set config:
-
-    [[backup.set]]
-    name = "DocumentsToNAS"
-    destinations = ["/mnt/nas/backups/docs", "/mnt/external1/docs"]
-    paths = ["~/Documents", "~/Work/Reports", "/etc/hosts"]
-
-    [[backup.set]]
-    name = "MediaArchive"
-    destinations = ["/mnt/nas/media", "/mnt/cloud/media"]
-    paths = ["~/Pictures", "~/Videos"]
-
-Legacy `backup.txt` whitelist (one file/folder per line) also works:
-
-    # dotfiles & secrets
-    ~/.zshrc
-    ~/.zshrc_apv
-    ~/.ssh
-    ~/.gnupg
-    ~/.env_apv
-
-    # app + tooling config
-    ~/.config/rogkit
-    ~/.config/vnpner
-    ~/dev
-    ~/bin
-
-`config.toml` still provides destinations and optional overrides:
+Secrets handling
+----------------
+Declare filename patterns that count as secrets in `[backup]`:
 
     [backup]
-    backup_to = ["/mnt/backups", "~/Archive/Backups"]
+    secret_patterns = ["secrets.toml", ".env"]
+
+Sets with `include_secrets = false` (the default) automatically exclude files
+matching those patterns — use this for any cloud-synced destination. Sets with
+`include_secrets = true` include them — use this for local-only destinations.
+
+Example per-set config:
+
+    # Cloud-synced — secrets excluded automatically
+    [[backup.set]]
+    name = "CloudBackup"
+    destinations = ["~/Dropbox/Backups", "~/Library/Mobile Documents/..."]
+    paths = ["~/.ssh", "~/.config/", "~/dev"]
+
+    # Local only — secrets included
+    [[backup.set]]
+    name = "LocalBackup"
+    include_secrets = true
+    destinations = ["~/Archive/Backups"]
+    paths = ["~/.ssh", "~/.config/", "~/dev", "~/.env"]
+
+Optional global overrides (shared by all sets):
+
+    [backup]
+    secret_patterns = ["secrets.toml", ".env"]
     file_excludes = [".DS_Store", "*.pyc"]
     folder_excludes = ["__pycache__", "/tmp"]
+
+Legacy `backup.txt` whitelist (one path per line) also works when no sets
+are defined:
+
+    ~/.zshrc
+    ~/.ssh
+    ~/.config/rogkit
+    ~/dev
 """
 
 from __future__ import annotations
@@ -159,22 +166,25 @@ CONFIG_HELP = dedent(
     """
     Preferred: define per-backup sets in ~/.config/rogkit/config.toml:
 
-        [[backup.set]]
-        name = "DocumentsToNAS"
-        destinations = ["/mnt/nas/backups/docs", "/mnt/external1/docs"]
-        paths = ["~/Documents", "~/Work/Reports", "/etc/hosts"]
+        [backup]
+        secret_patterns = ["secrets.toml", ".env"]   # excluded from cloud sets
 
         [[backup.set]]
-        name = "MediaArchive"
-        destinations = ["/mnt/nas/media", "/mnt/cloud/media"]
-        paths = ["~/Pictures", "~/Videos"]
+        name = "CloudBackup"
+        destinations = ["~/Dropbox/Backups"]
+        paths = ["~/.ssh", "~/.config/", "~/dev"]
 
-    Optional defaults (shared by all sets):
+        [[backup.set]]
+        name = "LocalBackup"
+        include_secrets = true
+        destinations = ["~/Archive/Backups"]
+        paths = ["~/.ssh", "~/.config/", "~/dev", "~/.env"]
+
+    Optional global overrides:
 
         [backup]
-        backup_to = ["/mnt/backups", "~/Archive/Backups"]
-        # file_excludes = [".DS_Store", "*.pyc"]
-        # folder_excludes = ["__pycache__", "node_modules"]
+        file_excludes = [".DS_Store", "*.pyc"]
+        folder_excludes = ["__pycache__", "node_modules"]
 
     Legacy fallback whitelist in ~/.config/rogkit/backup.txt (one path per line)
     is still supported when no sets are defined:
@@ -194,6 +204,7 @@ class BackupSet:
     destinations: List[str]
     file_excludes: List[str]
     folder_excludes: List[str]
+    secrets_excluded: bool = False
 
 
 def _as_list(value: object) -> List[str]:
@@ -240,6 +251,7 @@ def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
     base_folder_excludes = _as_list(backup_config.get("folder_excludes")) or list(DEFAULT_FOLDER_EXCLUDES)
     base_destinations = [_normalize_path(path) for path in _as_list(backup_config.get("backup_to"))]
     base_sources = [_normalize_path(path) for path in _as_list(backup_config.get("backup_from"))]
+    secret_patterns = _as_list(backup_config.get("secret_patterns"))
 
     backup_sets: List[BackupSet] = []
     for entry in sets_raw:
@@ -251,6 +263,10 @@ def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
 
         file_excludes = base_file_excludes + _as_list(entry.get("file_excludes"))
         folder_excludes = base_folder_excludes + _as_list(entry.get("folder_excludes"))
+        include_secrets = bool(entry.get("include_secrets", False))
+        secrets_excluded = bool(secret_patterns) and not include_secrets
+        if secrets_excluded:
+            file_excludes = file_excludes + secret_patterns
 
         sources = [_normalize_path(path) for path in sources_raw]
         destinations = [_normalize_path(path) for path in destinations_raw]
@@ -262,6 +278,7 @@ def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
                 destinations=destinations,
                 file_excludes=file_excludes,
                 folder_excludes=folder_excludes,
+                secrets_excluded=secrets_excluded,
             )
         )
     return backup_sets
@@ -389,6 +406,8 @@ def create_backup(settings: BackupSet, *, verbose: bool = False) -> int:
     _print_paths("Folders", source_folders, "cyan") if source_folders else _print_message("No folder entries in whitelist.", "yellow")
     if source_files:
         _print_paths("Files", source_files, "magenta")
+    if settings.secrets_excluded:
+        _print_message("Secrets excluded (set include_secrets = true to include)", "bold yellow")
 
     _print_message(f"Primary backup destination: {backup_file_path}", "bold blue")
 

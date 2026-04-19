@@ -5,6 +5,7 @@
 *.pkl
 .DS_Store
 .spotify_cache
+secrets.toml
 
 # Working Roadmap file
 ROADMAP.md

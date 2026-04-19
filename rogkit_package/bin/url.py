@@ -77,10 +77,18 @@ def normalize_url(value: str, *, sort_query: bool = True) -> str:
     query = parsed.query
     if sort_query:
         query = urlencode(sorted(parse_qsl(parsed.query, keep_blank_values=True)))
+    # Rebuild netloc: lowercase only hostname, preserve credentials and port casing.
+    host = (parsed.hostname or "").lower()
+    netloc = f"{host}:{parsed.port}" if parsed.port else host
+    if parsed.username is not None:
+        userinfo = parsed.username
+        if parsed.password is not None:
+            userinfo = f"{userinfo}:{parsed.password}"
+        netloc = f"{userinfo}@{netloc}"
     return urlunparse(
         (
             parsed.scheme.lower(),
-            parsed.netloc.lower(),
+            netloc,
             parsed.path or "/",
             parsed.params,
             query,

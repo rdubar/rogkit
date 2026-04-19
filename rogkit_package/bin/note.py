@@ -72,7 +72,14 @@ def append_note(text: str, notes_file: Path) -> None:
 
     # If today's heading already exists, insert under it; otherwise append heading + entry.
     if date_heading in existing:
-        updated = existing.rstrip("\n") + "\n" + entry
+        heading_pos = existing.index(date_heading)
+        rest = existing[heading_pos + len(date_heading):]
+        next_section = re.search(r"\n## ", rest)
+        if next_section:
+            cut = heading_pos + len(date_heading) + next_section.start()
+            updated = existing[:cut].rstrip("\n") + "\n" + entry + "\n" + existing[cut:].lstrip("\n")
+        else:
+            updated = existing.rstrip("\n") + "\n" + entry
     else:
         separator = "\n" if existing else ""
         updated = existing + f"{separator}{date_heading}\n\n" + entry

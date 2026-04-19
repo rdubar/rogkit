@@ -17,9 +17,10 @@ DEFAULT_ROGKIT_TOML = {
     "backup": {
         "backup_from": ["~/"],
         "backup_to": ["~/archive/"],
+        "secret_patterns": ["secrets.toml", ".env"],
         "set": [
             {
-                "name": "DocumentsToNAS",
+                "name": "CloudBackup",
                 "destinations": [
                     "/mnt/nas/backups/docs",
                     "/mnt/external1/docs",
@@ -31,7 +32,8 @@ DEFAULT_ROGKIT_TOML = {
                 ],
             },
             {
-                "name": "MediaArchive",
+                "name": "LocalBackup",
+                "include_secrets": True,
                 "destinations": [
                     "/mnt/nas/media",
                     "/mnt/cloud/media",
@@ -44,19 +46,15 @@ DEFAULT_ROGKIT_TOML = {
         ],
     },
     "clean": {"script_path": ""},
-    "openweather": {"openweather_api_key": ""},
-    "ipinfo": {"ipinfo_api_key": ""},
     "media": {
         "remote_host": "192.168.0.50",
         "remote_user": "rog",
         "remote_password": "",
         "remote_folders": ["/mnt/media1/Media/Movies"],
     },
-    "plex": {"plex_server_url": "", "plex_server_token": ""},
+    "plex": {"plex_server_url": ""},
     "spotify": {
-        "spotify_client_id": "",
-        "spotify_client_secret": "",
-        "spotify_redirect_uri": "https://your-app.example.com/callback",
+        "spotify_redirect_uri": "http://127.0.0.1:8888/callback/",
     },
     "purge": {
         "folders": [
@@ -90,6 +88,22 @@ def get_config_value(group: str, key: str, verbose: bool = False):
         print(f"⚠️  No value found for '{key}' in group '{group}'.")
 
     return value if value is not None else []
+
+def get_rogkit_secrets_path() -> Path:
+    """Get secrets.toml path — sibling of config.toml."""
+    return get_rogkit_toml_path().parent / "secrets.toml"
+
+
+def _deep_merge(base: dict, override: dict) -> dict:
+    """Recursively merge override into base, returning a new dict."""
+    result = dict(base)
+    for key, value in override.items():
+        if key in result and isinstance(result[key], dict) and isinstance(value, dict):
+            result[key] = _deep_merge(result[key], value)
+        else:
+            result[key] = value
+    return result
+
 
 def get_rogkit_toml_path() -> Path:
     """
@@ -174,12 +188,18 @@ def validate_toml_file(path: Path) -> bool:
     return True
 
 def load_rogkit_toml(*args):
-    """ Load and return the contents of rogkit toml as a dict. """
+    """Load config.toml, deep-merge secrets.toml on top, return the result."""
     rogkit_toml_path = get_rogkit_toml_path()
     if not os.path.exists(rogkit_toml_path):
         setup_rogkit_toml()
 
     data = load_toml_file(rogkit_toml_path)
+    secrets_path = get_rogkit_secrets_path()
+    if secrets_path.exists():
+        secrets = load_toml_file(secrets_path, exit_on_error=False)
+        if secrets:
+            data = _deep_merge(data, secrets)
+
     if args:
         return data[args[0]]
     return data
@@ -220,6 +240,77 @@ def get_default_toml():
     return DEFAULT_ROGKIT_TOML
 
 
+# Keys to extract into secrets.toml, by section.
+_SECRET_KEYS: dict[str, list[str]] = {
+    "aws":         ["aws_access_key_id", "aws_secret_access_key"],
+    "mongodb":     ["username", "password", "uri"],
+    "openweather": ["openweather_api_key"],
+    "ipinfo":      ["ipinfo_api_key"],
+    "plex":        ["plex_server_token"],
+    "spotify":     ["spotify_client_id", "spotify_client_secret"],
+    "tmdb":        ["tmdb_api_key", "tmdb_api_read_access_token"],
+    "openai":      ["openai_api_key"],
+}
+
+
+def migrate_secrets() -> None:
+    """Split credential keys out of config.toml into secrets.toml.
+
+    Idempotent: safe to run multiple times. Only moves keys that are present
+    and non-empty in config.toml and not already in secrets.toml.
+    Also ensures [backup] secret_patterns is set in config.toml.
+    """
+    config_path = get_rogkit_toml_path()
+    secrets_path = get_rogkit_secrets_path()
+
+    config = load_toml_file(config_path)
+    existing_secrets = {}
+    if secrets_path.exists():
+        existing_secrets = load_toml_file(secrets_path, exit_on_error=False) or {}
+
+    moved: list[str] = []
+    new_secrets = _deep_merge({}, existing_secrets)
+
+    for section, keys in _SECRET_KEYS.items():
+        if section not in config:
+            continue
+        for key in keys:
+            value = config[section].get(key)
+            if not value:
+                continue
+            already_in_secrets = existing_secrets.get(section, {}).get(key)
+            if already_in_secrets:
+                continue
+            new_secrets.setdefault(section, {})[key] = value
+            del config[section][key]
+            moved.append(f"  {section}.{key}")
+
+    # Ensure [backup] secret_patterns is present in config
+    backup = config.setdefault("backup", {})
+    if "secret_patterns" not in backup:
+        backup["secret_patterns"] = ["secrets.toml", ".env"]
+        moved.append("  backup.secret_patterns (added)")
+
+    if not moved:
+        print("Nothing to migrate — config.toml already clean.")
+        return
+
+    # Write secrets.toml
+    secrets_path.parent.mkdir(parents=True, exist_ok=True)
+    with open(secrets_path, "w", encoding="utf-8") as f:
+        toml.dump(new_secrets, f)
+
+    # Write cleaned config.toml
+    with open(config_path, "w", encoding="utf-8") as f:
+        toml.dump(config, f)
+
+    print(f"Migrated to {secrets_path}:")
+    for line in moved:
+        print(line)
+    print(f"\nconfig.toml updated: {config_path}")
+    print("Done. Verify with: tomlr -s")
+
+
 def write_default_toml():
     """Write default TOML configuration to sample file."""
     toml_string = toml.dumps(get_default_toml())
@@ -248,6 +339,7 @@ def parse_args():
     parser.add_argument("-w", "--write", action="store_true", help="Write default rogkit toml to rogkit_sample.toml")
     parser.add_argument("--lowercase", action="store_true", help="Make all keys in the current rogkit toml lowercase")
     parser.add_argument("-v", "--validate", nargs="?", const="", metavar="PATH", help="Validate rogkit config (default) or a specific TOML file")
+    parser.add_argument("--migrate-secrets", action="store_true", help="Split credentials out of config.toml into secrets.toml (idempotent)")
     return parser.parse_args()
 
 def main():
@@ -255,6 +347,9 @@ def main():
     args = parse_args()
     print("Rogkit TOML Tool")
 
+    if args.migrate_secrets:
+        migrate_secrets()
+        return
     if args.write:
         write_default_toml()
     if args.create:

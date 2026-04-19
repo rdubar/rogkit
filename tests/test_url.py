@@ -37,6 +37,16 @@ def test_normalize_url():
     assert normalize_url("HTTPS://Example.COM/path?b=2&a=1") == "https://example.com/path?a=1&b=2"
 
 
+def test_normalize_url_preserves_credential_casing():
+    result = normalize_url("https://MyUser:MyPass@EXAMPLE.COM/path")
+    assert result.startswith("https://MyUser:MyPass@example.com")
+
+
+def test_normalize_url_preserves_port():
+    result = normalize_url("HTTPS://EXAMPLE.COM:8443/path?b=2&a=1")
+    assert result == "https://example.com:8443/path?a=1&b=2"
+
+
 def test_render_parsed_plain_outputs_rows(capsys):
     render_parsed(parse_url("https://example.com?a=1"), plain=True)
     out = capsys.readouterr().out
