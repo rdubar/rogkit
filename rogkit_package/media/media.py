@@ -296,10 +296,14 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     daemon_env = os.environ.get(DAEMON_ENV_FLAG) == "1"
     global console
     console = Console(force_terminal=True if daemon_env else None)
-    should_forward = not daemon_env and not args.no_daemon and not args.daemon and not args.stop_daemon
-
-    if should_forward and (args.update or args.update_plex):
-        print("Updating media database and cache... please wait.", flush=True)
+    is_update_request = args.update or args.update_plex
+    should_forward = (
+        not daemon_env
+        and not args.no_daemon
+        and not args.daemon
+        and not args.stop_daemon
+        and not is_update_request
+    )
 
     if should_forward:
         forwarded_exit = _forward_to_daemon(argv_list)
