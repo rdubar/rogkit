@@ -37,12 +37,15 @@ A few tools most people find immediately useful:
 ```sh
 uv sync --all-extras   # install all dependencies
 source aliases         # load shell aliases into your current shell
-setup --apply          # create config.toml if needed and make aliases persistent
+setup                  # preview config/profile changes
+setup --apply          # or: setup -y
 ```
 
 Reload on every new terminal session by sourcing `aliases` from your shell profile.
 Once aliases are loaded, run `doctor` for a quick rogkit health check covering
 config, secrets, shell setup, common binaries, and media connectivity.
+`doctor` now includes remediation hints for common warnings and failures, and
+`setup` previews by default before making any changes.
 
 Command naming convention:
 Short user-facing commands live in `aliases` (`json`, `csv`, `env`) while the

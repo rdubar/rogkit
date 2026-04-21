@@ -76,3 +76,15 @@ def test_check_shell_setup_reports_sourced_profile(monkeypatch, tmp_path):
 
     assert result.status == "ok"
     assert any(str(zshrc) in detail for detail in result.details)
+
+
+def test_check_config_missing_includes_setup_hint(monkeypatch, tmp_path):
+    config_path = tmp_path / "config.toml"
+    secrets_path = tmp_path / "secrets.toml"
+    monkeypatch.setattr(doctor, "get_rogkit_toml_path", lambda: config_path)
+    monkeypatch.setattr(doctor, "get_rogkit_secrets_path", lambda: secrets_path)
+
+    result = doctor._check_config()
+
+    assert result.status == "fail"
+    assert any("setup --apply" in detail for detail in result.details)

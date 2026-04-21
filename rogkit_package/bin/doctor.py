@@ -53,6 +53,12 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _with_hints(details: list[str], *hints: str) -> list[str]:
+    for hint in hints:
+        details.append(f"hint: {hint}")
+    return details
+
+
 def _shell_startup_candidates(shell: str | None) -> list[Path]:
     shell_name = Path(shell or os.environ.get("SHELL", "")).name.lower()
     home = Path.home()
@@ -102,7 +108,11 @@ def _check_config() -> CheckResult:
             name="config",
             status="fail",
             summary="config.toml is missing.",
-            details=details,
+            details=_with_hints(
+                details,
+                "Run `setup --apply` to create the default rogkit config.",
+                "Use `tomlr -d` to inspect the default config template.",
+            ),
         )
 
     try:
@@ -112,7 +122,10 @@ def _check_config() -> CheckResult:
             name="config",
             status="fail",
             summary="config.toml or secrets.toml could not be parsed.",
-            details=details,
+            details=_with_hints(
+                details,
+                "Run `tomlr --validate` to pinpoint the TOML parse issue.",
+            ),
         )
 
     section_names = sorted(config.keys())
@@ -129,7 +142,10 @@ def _check_config() -> CheckResult:
         name="config",
         status="warn",
         summary="Config loaded, but secrets.toml is missing.",
-        details=details,
+        details=_with_hints(
+            details,
+            "Create `secrets.toml` only if you need to store credentials separately from config.toml.",
+        ),
     )
 
 
@@ -159,14 +175,21 @@ def _check_shell_setup() -> CheckResult:
             name="shell",
             status="warn",
             summary="No shell startup file appears to source rogkit aliases.",
-            details=details,
+            details=_with_hints(
+                details,
+                "Run `setup --apply` to add the rogkit aliases source line automatically.",
+                f'Or source them manually with: source "{ALIASES_PATH}"',
+            ),
         )
 
     return CheckResult(
         name="shell",
         status="warn",
         summary="No known shell startup file was found to source rogkit aliases.",
-        details=details,
+        details=_with_hints(
+            details,
+            "Run `setup --shell-profile ~/.zshrc --apply` or pass the profile you want to update.",
+        ),
     )
 
 
@@ -182,7 +205,10 @@ def _check_binaries() -> CheckResult:
             name="binaries",
             status="fail",
             summary=f"Missing required binaries: {', '.join(missing_required)}.",
-            details=details,
+            details=_with_hints(
+                details,
+                f"Install required tools first: {', '.join(missing_required)}.",
+            ),
         )
 
     missing_optional = [name for name in optional if shutil.which(name) is None]
@@ -191,7 +217,10 @@ def _check_binaries() -> CheckResult:
             name="binaries",
             status="warn",
             summary=f"Required binaries are present; optional binaries missing: {', '.join(missing_optional)}.",
-            details=details,
+            details=_with_hints(
+                details,
+                "Missing optional tools only affect the rogkit commands that rely on them.",
+            ),
         )
 
     return CheckResult(
@@ -227,7 +256,10 @@ def _check_media() -> CheckResult:
             name="media",
             status="warn",
             summary="No remote Plex/media configuration found.",
-            details=details,
+            details=_with_hints(
+                details,
+                "Add `media_files.server` / `media_files.user` or a `[plex_remote]` section if you use remote Plex sync.",
+            ),
         )
 
     details.extend(
@@ -252,7 +284,11 @@ def _check_media() -> CheckResult:
             name="media",
             status="fail",
             summary=f"SSH to {remote.host}:{remote.port} is not reachable.",
-            details=details,
+            details=_with_hints(
+                details,
+                f"Test SSH directly with: ssh {remote.username}@{remote.host}",
+                "If the host is offline, bring it back first; otherwise re-check rogkit remote host settings.",
+            ),
         )
 
     if daemon_running:
@@ -267,7 +303,11 @@ def _check_media() -> CheckResult:
         name="media",
         status="warn",
         summary="Media remote host is reachable, but the media daemon is not running.",
-        details=details,
+        details=_with_hints(
+            details,
+            "Run `p` or `p --update-plex` to start the media daemon on demand.",
+            "If the daemon seems stuck, try `p -S` and then run `p` again.",
+        ),
     )
 
 

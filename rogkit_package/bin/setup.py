@@ -44,7 +44,7 @@ def _print_message(message: str, *, style: str | None = None) -> None:
         print(message)
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Set up rogkit config files and shell aliases.",
@@ -53,6 +53,13 @@ def parse_args() -> argparse.Namespace:
         "--apply",
         action="store_true",
         help="Write changes instead of only previewing them.",
+    )
+    parser.add_argument(
+        "-y",
+        "--yes",
+        dest="apply",
+        action="store_true",
+        help="Alias for --apply.",
     )
     parser.add_argument(
         "--shell-profile",
@@ -69,7 +76,7 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Skip rogkit config checks and creation.",
     )
-    return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def _detect_shell_name(shell: str | None = None) -> str:
@@ -284,7 +291,7 @@ def _print_next_steps(args: argparse.Namespace, results: list[SetupResult]) -> N
     config_changed = any(result.name == "config" and result.status == "changed" for result in results)
 
     if not args.apply:
-        _print_message("Preview only. Re-run with --apply to make these changes.", style="yellow")
+        _print_message("Preview only. Re-run with --apply or -y to make these changes.", style="yellow")
         return
 
     if shell_changed:

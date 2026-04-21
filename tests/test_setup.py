@@ -98,3 +98,18 @@ def test_run_setup_can_skip_sections():
     )
 
     assert setup.run_setup(args) == []
+
+
+def test_parse_args_yes_enables_apply():
+    args = setup.parse_args(["--yes"])
+
+    assert args.apply is True
+
+
+def test_print_next_steps_preview_mentions_yes(capsys):
+    setup._print_next_steps(
+        setup.argparse.Namespace(apply=False),
+        [setup.SetupResult("shell", "warn", "preview")],
+    )
+
+    assert "--apply or -y" in capsys.readouterr().out
