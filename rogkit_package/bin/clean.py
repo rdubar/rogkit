@@ -238,7 +238,7 @@ def main():
     parser.add_argument('-m', "--minutes", type=int, default=default_minutes, help="Minutes to look back for modified files")
     parser.add_argument('-a', "--all", action="store_true", help="Clean all matching files, ignoring modification time")
     parser.add_argument('-v', '--verbose', action='store_true', help="Enable verbose output")
-    parser.add_argument('search', nargs='?', default=None, help="Optional: only clean translation paths containing this string")
+    parser.add_argument('targets', nargs='*', default=[], help="Files/globs to clean (shell-expanded), or a search string to filter discovered files")
     args = parser.parse_args()
 
     if not root_directory.is_dir():
@@ -251,24 +251,27 @@ def main():
         if args.verbose:
             _render_paths("Paths provided via stdin", files_from_stdin)
 
-    matched_file: Optional[Path] = None
-    if args.search:
-        search_path = Path(args.search).expanduser()
-        if search_path.is_file():
-            matched_file = search_path
-        else:
-            test_path = root_directory / args.search
-            if test_path.is_file():
-                matched_file = test_path
+    matched_files: List[Path] = []
+    search_term: Optional[str] = None
+    for token in args.targets:
+        token_path = Path(token).expanduser()
+        if not token_path.is_absolute() and not token_path.is_file():
+            candidate = root_directory / token
+            if candidate.is_file():
+                token_path = candidate
+        if token_path.is_file():
+            if any(fnmatch.fnmatch(token_path.name, pat) for pat in desired_filenames):
+                matched_files.append(token_path)
+            continue
+        search_term = token
 
     selected_files: List[Path] = []
     if files_from_stdin:
         selected_files.extend(files_from_stdin)
-    if matched_file:
-        selected_files.append(matched_file)
+    selected_files.extend(matched_files)
 
     if not selected_files:
-        if not args.search:
+        if not search_term:
             git_files = _git_diff_files(root_directory, desired_filenames, verbose=args.verbose)
             if git_files:
                 files_to_clean = git_files
@@ -277,7 +280,7 @@ def main():
                 _print_message("No changed .po/.pot files found in git diff.", style="bold yellow")
                 parser.print_help()
                 return
-            
+
         _print_message(f"Searching for files named {', '.join(desired_filenames)} in {root_directory}")
         files_to_clean = _fd_discover_files(
             root_directory,
@@ -301,17 +304,15 @@ def main():
                     "(Use --all to match all files)."
                 )
 
-        # Warn if no files selected
         if not files_to_clean:
             _print_message("No files found to clean. Tip: use --all to clean/search across all files.", style="bold yellow")
 
-        # Filter by search string if provided
-        if args.search:
-            files_to_clean = _filter_with_fuzzy(files_to_clean, root_directory, args.search)
+        if search_term:
+            files_to_clean = _filter_with_fuzzy(files_to_clean, root_directory, search_term)
     else:
         files_to_clean = selected_files
-        if args.search and not matched_file:
-            files_to_clean = _filter_with_fuzzy(files_to_clean, root_directory, args.search)
+        if search_term:
+            files_to_clean = _filter_with_fuzzy(files_to_clean, root_directory, search_term)
 
     files_to_clean = _deduplicate_paths(files_to_clean)
 
