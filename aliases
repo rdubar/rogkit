@@ -235,6 +235,7 @@ alias ish='$ROGKIT_GO_BIN/ishtime'
 # Miscellaneous
 # ------------------------------------------------------------------------------
 alias drying='rogkit_py -m rogkit_package.bin.drying'
+alias doctor='rogkit_py -m rogkit_package.bin.doctor'
 alias note='rogkit_py -m rogkit_package.bin.note'
 alias json='rogkit_py -m rogkit_package.bin.jsonr'
 alias jsonr='rogkit_py -m rogkit_package.bin.jsonr'

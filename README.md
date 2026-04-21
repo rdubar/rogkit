@@ -40,6 +40,8 @@ source aliases         # load shell aliases into your current shell
 ```
 
 Reload on every new terminal session by sourcing `aliases` from your shell profile.
+Once aliases are loaded, run `doctor` for a quick rogkit health check covering
+config, secrets, shell setup, common binaries, and media connectivity.
 
 Command naming convention:
 Short user-facing commands live in `aliases` (`json`, `csv`, `env`) while the
@@ -102,6 +104,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | Tool | What it does |
 |------|-------------|
 | `cleaner` | System cleanup for macOS and Raspberry Pi |
+| `doctor` | Diagnose rogkit setup: config, secrets, aliases, binaries, and media connectivity |
 | `docker_bash` | Interactive bash into a running Docker container |
 | `location` | Current location and weather data |
 | `myip` | Show local IPv4 interfaces and your current external IP |
