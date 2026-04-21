@@ -34,6 +34,8 @@ fi
 # Core RogKit
 # ------------------------------------------------------------------------------
 alias rogkit='cat "$ROGKIT/README.md" | grep "^|"'
+alias setup='rogkit_py -m rogkit_package.bin.setup'
+alias rsetup='rogkit_py -m rogkit_package.bin.setup'
 alias update='/usr/bin/bash $ROGKIT_PACKAGE/bin/update'
 
 # ------------------------------------------------------------------------------

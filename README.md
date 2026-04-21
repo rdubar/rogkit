@@ -37,6 +37,7 @@ A few tools most people find immediately useful:
 ```sh
 uv sync --all-extras   # install all dependencies
 source aliases         # load shell aliases into your current shell
+setup --apply          # create config.toml if needed and make aliases persistent
 ```
 
 Reload on every new terminal session by sourcing `aliases` from your shell profile.
@@ -111,6 +112,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `procs` | Find running processes by name/command, with optional termination |
 | `ports` | Show listening TCP/UDP ports with the owning process |
 | `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |
+| `setup` | Create rogkit config.toml if missing and wire aliases into your shell profile |
 | `speed_test` | Network speed test |
 | `syscheck` | System health report: uptime, load, memory, kernel status |
 | `system` | Enhanced system snapshot (CPU, memory, disk, network) |
