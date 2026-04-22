@@ -45,7 +45,7 @@ def main():
     """CLI entry point for clipboard utility."""
     if not PYCLIP_AVAILABLE:
         print("❌ Error: pyclip is not installed")
-        print("Install with: pip install pyclip")
+        print("Install with: uv sync --group cli")
         exit(1)
     
     # join all text in args

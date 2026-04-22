@@ -29,14 +29,13 @@ Use the **sidebar** (← left) to navigate between different tools and utilities
 To start the Streamlit interface from the command line:
 
 ```bash
-cd ~/dev/rogkit
-streamlit run Home.py
+cd /path/to/rogkit
+uv run streamlit run Home.py
 ```
 
 Or use the shortcut (if using the rogkit aliases):
 ```bash
-cd ~/dev/rogkit
-streamlit run Home.py
+rogstream
 ```
 
 The application will automatically open in your default web browser at `http://localhost:8501`
@@ -45,7 +44,7 @@ The application will automatically open in your default web browser at `http://l
 
 RogKit also includes 85+ command-line utilities. View the full command reference:
 ```bash
-rogkit
+rogkit --help
 ```
 
 For detailed documentation, see the [README.md](https://github.com/rdubar/rogkit/blob/main/README.md)

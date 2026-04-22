@@ -40,7 +40,7 @@ class CheckResult:
     details: list[str] = field(default_factory=list)
 
 
-def parse_args() -> argparse.Namespace:
+def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Run rogkit environment, config, and media diagnostics."
@@ -50,7 +50,9 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Emit check results as JSON instead of formatted text.",
     )
-    return parser.parse_args()
+    if argv is None:
+        return parser.parse_args()
+    return parser.parse_args(argv)
 
 
 def _with_hints(details: list[str], *hints: str) -> list[str]:
@@ -352,9 +354,9 @@ def _render_rich(results: Iterable[CheckResult]) -> None:
     console.print(table)
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
-    args = parse_args()
+    args = parse_args(argv)
     results = run_checks()
 
     if args.json:

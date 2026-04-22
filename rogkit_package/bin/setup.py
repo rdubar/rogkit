@@ -76,6 +76,8 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip rogkit config checks and creation.",
     )
+    if argv is None:
+        return parser.parse_args()
     return parser.parse_args(argv)
 
 
@@ -302,9 +304,9 @@ def _print_next_steps(args: argparse.Namespace, results: list[SetupResult]) -> N
         _print_message("Nothing needed changing; rogkit setup already looks good.", style="green")
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
     """CLI entry point."""
-    args = parse_args()
+    args = parse_args(argv)
     results = run_setup(args)
 
     if RICH_AVAILABLE:

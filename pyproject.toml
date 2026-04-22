@@ -101,6 +101,9 @@ dev = [
   "pytest",
 ]
 
+[project.scripts]
+rogkit = "rogkit_package.bin.rogkit:main"
+
 [dependency-groups]
 cli = ["pyclip", "pyfiglet", "send2trash", "thefuzz", "sh", "spotipy", "psutil", "openai", "requests-html", "faker", "convertdate", "wikipedia"]
 media = ["yt-dlp", "ffmpeg-python", "Pillow", "plexapi", "paramiko", "python-dotenv"]

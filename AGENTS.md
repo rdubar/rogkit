@@ -6,8 +6,9 @@
 ## Project Overview
 
 **rogkit** is a personal utility toolkit: 85+ CLI tools in Python, plus Go
-binaries and a Rust workspace. Every Python tool is a standalone module with a
-`main()` entry point invoked via shell alias.
+binaries and a Rust workspace. Most Python tools are standalone modules with a
+`main()` entry point invoked via shell alias; the top-level `rogkit` command is
+the umbrella entry point for help, version/credits, update, doctor, and setup.
 
 ## Repository Layout
 
@@ -57,9 +58,14 @@ root. The original user directory is preserved in `ROGKIT_CWD`.
 
 ### Alias pattern
 
-Every Python tool has a corresponding line in the `aliases` file:
+Most Python tools have a corresponding line in the `aliases` file:
 ```bash
 alias tool_name='rogkit_py -m rogkit_package.bin.tool_name'
+```
+
+The top-level entry point is:
+```bash
+alias rogkit='rogkit_py -m rogkit_package.bin.rogkit'
 ```
 
 ## Creating a New Python Tool

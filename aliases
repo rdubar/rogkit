@@ -4,17 +4,25 @@
 # ==============================================================================
 # Professional utility toolkit for system administration, media management,
 # and productivity tools. Source this file in your shell configuration:
-#   source ~/dev/rogkit/aliases
+#   source /path/to/rogkit/aliases
 # ==============================================================================
 
 # ------------------------------------------------------------------------------
 # Environment Configuration
 # ------------------------------------------------------------------------------
-INSTALL=~/dev
-ROGKIT="$INSTALL/rogkit"
+if [ -n "${BASH_SOURCE[0]:-}" ]; then
+    _rogkit_source="${BASH_SOURCE[0]}"
+elif [ -n "${ZSH_VERSION:-}" ]; then
+    _rogkit_source="${(%):-%N}"
+else
+    _rogkit_source="$0"
+fi
+
+ROGKIT="$(cd "$(dirname "$_rogkit_source")" && pwd)"
 ROGKIT_PACKAGE="$ROGKIT/rogkit_package"
 ROGKIT_GO="$ROGKIT/go"
 ROGKIT_GO_BIN="$ROGKIT_GO/bin"
+unset _rogkit_source
 
 # Helper function to run Python via uv in rogkit directory
 # Passes original working directory via ROGKIT_CWD environment variable
@@ -33,10 +41,10 @@ fi
 # ------------------------------------------------------------------------------
 # Core RogKit
 # ------------------------------------------------------------------------------
-alias rogkit='cat "$ROGKIT/README.md" | grep "^|"'
-alias setup='rogkit_py -m rogkit_package.bin.setup'
-alias rsetup='rogkit_py -m rogkit_package.bin.setup'
-alias update='/usr/bin/bash $ROGKIT_PACKAGE/bin/update'
+alias rogkit='rogkit_py -m rogkit_package.bin.rogkit'
+alias setup='rogkit_py -m rogkit_package.bin.rogkit setup'
+alias rsetup='rogkit_py -m rogkit_package.bin.rogkit setup'
+alias update='rogkit_py -m rogkit_package.bin.rogkit update'
 
 # ------------------------------------------------------------------------------
 # AI & API Tools
@@ -237,7 +245,7 @@ alias ish='$ROGKIT_GO_BIN/ishtime'
 # Miscellaneous
 # ------------------------------------------------------------------------------
 alias drying='rogkit_py -m rogkit_package.bin.drying'
-alias doctor='rogkit_py -m rogkit_package.bin.doctor'
+alias doctor='rogkit_py -m rogkit_package.bin.rogkit doctor'
 alias note='rogkit_py -m rogkit_package.bin.note'
 alias json='rogkit_py -m rogkit_package.bin.jsonr'
 alias jsonr='rogkit_py -m rogkit_package.bin.jsonr'

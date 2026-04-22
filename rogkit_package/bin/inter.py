@@ -19,7 +19,7 @@ SUSPENDED_MESSAGE = dedent(
     - Reason: `tiktoken` (a transitive Open Interpreter dependency) does not yet
       provide Python 3.14 wheels, so the package fails to install.
     - Impact: the `inter` command no longer launches Open Interpreter.
-    - Workaround: use a Python 3.12 virtualenv and an older rogkit revision if
+    - Workaround: use a separate Python 3.12 environment and an older rogkit revision if
       you absolutely need this integration.
 
     Track upstream progress and revert this stub when tiktoken supports CPython 3.14.

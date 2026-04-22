@@ -2,7 +2,7 @@
 
 help:
 	@echo "Targets:"
-	@echo "  sync    - Create/refresh .venv from uv.lock (or pyproject if first run)"
+	@echo "  sync    - Create/refresh the uv-managed project environment"
 	@echo "  dev     - Sync with all extras (media, ui, aws, db, data, cli, dev)"
 	@echo "  export  - Export locked environment to requirements.txt"
 	@echo "  upgrade - Upgrade all locked dependencies (updates uv.lock)"
@@ -26,5 +26,4 @@ test:
 
 lint:
 	uv run ruff check . || true
-
 

@@ -61,7 +61,10 @@ def find_candidates(
 
     if strategy == "fuzz":
         if fuzz is None:
-            raise RuntimeError("RapidFuzz is not installed; install via `uv pip install rapidfuzz`.")
+            raise RuntimeError(
+                "RapidFuzz is not installed; add it to the rogkit environment with `uv add rapidfuzz` "
+                "or install it in the active uv-managed environment."
+            )
         return list(_fuzzy_matches(roots, needle, threshold))
 
     raise ValueError(f"Unknown strategy '{strategy}'. Try 'substring' or 'fuzz'.")
@@ -155,4 +158,3 @@ def _relative_to_any(path: Path, roots: Iterable[Path]) -> Path | None:
 
 if __name__ == "__main__":  # pragma: no cover
     main()
-

@@ -6,7 +6,7 @@ Built and maintained by [Roger Dubar](https://github.com/rdubar).
 
 ## Highlights
 
-A few tools most people find immediately useful:
+A few tools you may find immediately useful:
 
 | Tool | What it does |
 |------|-------------|
@@ -32,20 +32,56 @@ A few tools most people find immediately useful:
 
 ---
 
-## Quick start
+## Installation
+
+### Quick try (no clone required)
 
 ```sh
-uv sync --all-extras   # install all dependencies
-source aliases         # load shell aliases into your current shell
-setup                  # preview config/profile changes
-setup --apply          # or: setup -y
+uvx --from git+https://github.com/rdubar/rogkit rogkit --help
 ```
 
-Reload on every new terminal session by sourcing `aliases` from your shell profile.
-Once aliases are loaded, run `doctor` for a quick rogkit health check covering
+Good for a fast smoke test on a new machine.
+
+### Install the top-level command
+
+```sh
+uv tool install git+https://github.com/rdubar/rogkit
+rogkit --help
+rogkit --credits
+```
+
+This installs the packaged `rogkit` command. It is the easiest way for a colleague
+to try the toolkit on macOS or Linux without cloning the repo first.
+
+### Full checkout (recommended for contributors and the short aliases)
+
+```sh
+git clone https://github.com/rdubar/rogkit
+cd rogkit
+uv sync --all-extras   # install all dependencies
+source "$(pwd)/aliases"  # load shell aliases into your current shell
+rogkit --help          # top-level help and command overview
+rogkit setup           # preview config/profile changes
+rogkit setup --apply   # or: setup -y
+rogkit doctor          # health check
+rogkit --credits       # version, author, license, repo
+rogkit --update        # run the system/package updater
+```
+
+`rogkit` is now UV-first: use `uv sync`, `uv run`, and `uv tool`, and treat the
+project `.venv` as an implementation detail rather than something you activate manually.
+
+The `aliases` file auto-detects its own repo location, so it can be sourced from
+any clone path rather than assuming `~/dev/rogkit`.
+
+For a full contributor setup, let `rogkit setup --apply` add the aliases source line
+to your shell profile for future sessions.
+
+Once aliases are loaded, run `rogkit doctor` for a quick health check covering
 config, secrets, shell setup, common binaries, and media connectivity.
-`doctor` now includes remediation hints for common warnings and failures, and
-`setup` previews by default before making any changes.
+`rogkit doctor` includes remediation hints for common warnings and failures, and
+`rogkit setup` previews by default before making any changes. Short aliases such
+as `doctor`, `setup`, and `update` still work if you prefer them.
 
 Command naming convention:
 Short user-facing commands live in `aliases` (`json`, `csv`, `env`) while the
@@ -108,6 +144,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | Tool | What it does |
 |------|-------------|
 | `cleaner` | System cleanup for macOS and Raspberry Pi |
+| `rogkit` | Top-level toolkit entry point: help, version, credits, update, doctor, and setup |
 | `doctor` | Diagnose rogkit setup: config, secrets, aliases, binaries, and media connectivity |
 | `docker_bash` | Interactive bash into a running Docker container |
 | `location` | Current location and weather data |
@@ -240,7 +277,7 @@ p       # next run restarts it automatically
 ```
 User shell → alias
            → rogkit_py() wrapper  (sets ROGKIT_CWD="$PWD")
-           → uv run -m rogkit_package.bin.<tool>
+           → uv run --directory "$ROGKIT" python -m rogkit_package.bin.<tool>
            → tool.main()
 ```
 
@@ -361,6 +398,10 @@ Available pages: Media library browser, password generator, random-case converte
 ## Platform support
 
 Primarily developed and tested on **macOS**. Most tools work on Linux. A small number of tools (`cleaner`, `system`, `myip`) have macOS-specific behaviour but degrade gracefully on other platforms.
+
+The top-level `rogkit` command works on both macOS and Linux. `rogkit update`
+currently supports macOS plus `apt`-based Linux distributions (Debian, Ubuntu,
+Raspberry Pi OS).
 
 ---
 

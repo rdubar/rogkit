@@ -42,7 +42,8 @@ def make_graph():
         missing = " and ".join(module for module in ["pandas", "matplotlib"] if module in str(exc))
         print(
             "❌ Unable to generate graph: optional dependency missing. "
-            f"Install {missing or 'pandas and matplotlib'} (e.g. `pip install pandas matplotlib`)."
+            f"Install {missing or 'pandas and matplotlib'} in the rogkit uv environment "
+            "(for example `uv sync --group data`)."
         )
         return
 
