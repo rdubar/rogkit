@@ -63,9 +63,9 @@ Most Python tools have a corresponding line in the `aliases` file:
 alias tool_name='rogkit_py -m rogkit_package.bin.tool_name'
 ```
 
-The top-level entry point is:
+The repo-local developer entry point is:
 ```bash
-alias rogkit='rogkit_py -m rogkit_package.bin.rogkit'
+alias rogkit-dev='rogkit_py -m rogkit_package.bin.rogkit'
 ```
 
 ## Creating a New Python Tool

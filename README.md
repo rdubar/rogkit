@@ -54,20 +54,19 @@ rogkit --credits
 This installs the packaged `rogkit` command. It is the easiest way for a colleague
 to try the toolkit on macOS or Linux without cloning the repo first.
 
-### Full checkout (recommended for contributors and the short aliases)
+### Full checkout (recommended for contributors and repo-local aliases)
 
 ```sh
 git clone https://github.com/rdubar/rogkit
 cd rogkit
 uv sync --all-extras   # install all dependencies
 source "$(pwd)/aliases"  # load shell aliases into your current shell
-rogkit                 # command overview
-rogkit --help          # top-level CLI help
-rogkit setup           # preview config/profile changes
-rogkit setup --apply   # or: setup -y
-rogkit doctor          # health check
-rogkit --credits       # version, author, license, repo
-rogkit --update        # run the system/package updater
+rogkit                 # installed/global command, if you have it
+rogkit-dev             # repo-local command overview
+rogkit-dev --help      # repo-local CLI help
+setup                  # repo-local setup
+doctor                 # repo-local health check
+update                 # repo-local system/package updater
 ```
 
 `rogkit` is now UV-first: use `uv sync`, `uv run`, and `uv tool`, and treat the
@@ -75,6 +74,9 @@ project `.venv` as an implementation detail rather than something you activate m
 
 The `aliases` file auto-detects its own repo location, so it can be sourced from
 any clone path rather than assuming `~/dev/rogkit`.
+
+To avoid confusion, the repo alias is now `rogkit-dev`, not `rogkit`. That keeps
+the installed `rogkit` command and the checkout-backed developer command separate.
 
 For a full contributor setup, let `rogkit setup --apply` add the aliases source line
 to your shell profile for future sessions.
