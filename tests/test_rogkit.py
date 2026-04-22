@@ -19,6 +19,17 @@ def test_main_prints_credits(capsys):
     assert "Author: Roger D" in output
 
 
+def test_main_without_args_prints_command_overview(capsys):
+    rc = rogkit.main([])
+
+    output = capsys.readouterr().out
+    assert rc == 0
+    assert "Personal utility toolkit with 85+ commands." in output
+    assert "Common commands:" in output
+    assert "doctor  setup  update" in output
+    assert "Use `rogkit --help` for CLI help" in output
+
+
 def test_main_dispatches_doctor(monkeypatch):
     calls: list[list[str]] = []
     monkeypatch.setattr(rogkit.doctor_cmd, "main", lambda argv=None: calls.append(argv or []) or 0)

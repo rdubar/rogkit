@@ -46,6 +46,7 @@ Good for a fast smoke test on a new machine.
 
 ```sh
 uv tool install git+https://github.com/rdubar/rogkit
+rogkit
 rogkit --help
 rogkit --credits
 ```
@@ -60,7 +61,8 @@ git clone https://github.com/rdubar/rogkit
 cd rogkit
 uv sync --all-extras   # install all dependencies
 source "$(pwd)/aliases"  # load shell aliases into your current shell
-rogkit --help          # top-level help and command overview
+rogkit                 # command overview
+rogkit --help          # top-level CLI help
 rogkit setup           # preview config/profile changes
 rogkit setup --apply   # or: setup -y
 rogkit doctor          # health check
@@ -82,6 +84,9 @@ config, secrets, shell setup, common binaries, and media connectivity.
 `rogkit doctor` includes remediation hints for common warnings and failures, and
 `rogkit setup` previews by default before making any changes. Short aliases such
 as `doctor`, `setup`, and `update` still work if you prefer them.
+
+Bare `rogkit` prints a friendly overview of commonly available commands. Use
+`rogkit --help` when you want the stricter CLI usage screen instead.
 
 Command naming convention:
 Short user-facing commands live in `aliases` (`json`, `csv`, `env`) while the

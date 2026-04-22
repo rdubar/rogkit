@@ -12,6 +12,15 @@ from .. import __author__, __license__, __title__, __url__, __version__
 from . import doctor as doctor_cmd
 from . import setup as setup_cmd
 
+COMMAND_GROUPS: dict[str, tuple[str, ...]] = {
+    "Top-level": ("doctor", "setup", "update", "--version", "--credits", "--help"),
+    "AI & LLM": ("aish", "chat", "clu", "lm"),
+    "Files": ("archive", "backup", "dedupe", "delete", "json", "purge", "serve"),
+    "System": ("doctor", "httpcheck", "myip", "ports", "procs", "syscheck"),
+    "Media": ("p", "media_files", "media_scan", "shrink", "spot", "vido"),
+    "Data & text": ("bytes", "csv", "env", "hash", "note", "ts", "url"),
+}
+
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the top-level rogkit parser."""
@@ -59,6 +68,19 @@ def _print_credits() -> None:
     print(f"Author: {__author__}")
     print(f"License: {__license__}")
     print(f"Repo: {__url__}")
+
+
+def _print_command_overview() -> None:
+    """Print a friendly overview of commonly available rogkit commands."""
+    print(f"{__title__} v{__version__}")
+    print("Personal utility toolkit with 85+ commands.")
+    print()
+    print("Common commands:")
+    for heading, commands in COMMAND_GROUPS.items():
+        print(f"  {heading:<12} {'  '.join(commands)}")
+    print()
+    print("Use `rogkit --help` for CLI help, `rogkit --credits` for project info,")
+    print("or source the repo `aliases` file for the short command names.")
 
 
 def _run_update(argv: list[str] | None = None) -> int:
@@ -125,7 +147,7 @@ def main(argv: list[str] | None = None) -> int:
     if forwarded_args:
         parser.error(f"unrecognized arguments: {' '.join(forwarded_args)}")
 
-    parser.print_help()
+    _print_command_overview()
     return 0
 
 
