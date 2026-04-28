@@ -10,7 +10,6 @@ A few tools you may find immediately useful:
 
 | Tool | What it does |
 |------|-------------|
-| `clu` | Claude Code token usage — daily totals, rate window, hourly breakdown (`-b` brief, `-x` extra) |
 | `pw` | Cryptographically secure password generator |
 | `serve` | Serve any folder over HTTP instantly |
 | `json` | Pretty-print and query JSON from file or stdin |

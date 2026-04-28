@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Claude Code token usage — daily totals and 5-minute rate window."""
+"""Claude Code token usage — daily totals and 5-minute rate window.
+
+TODO: experimental — numbers may be unreliable. Verify against Anthropic's
+official usage reporting before trusting output.
+"""
 
 import argparse
 import glob
