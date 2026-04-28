@@ -17,7 +17,7 @@ rogkit/
 ├── rogkit_package/
 │   ├── bin/              # Python CLI tools (one file per tool)
 │   │   ├── __init__.py
-│   │   ├── clean.py      # ← canonical reference tool
+│   │   ├── hash.py       # ← canonical reference tool
 │   │   ├── dice.py
 │   │   └── ...           # ~70 tool modules
 │   ├── media/            # Media subsystem (daemon, cache, search, tmdb)
@@ -70,7 +70,7 @@ alias rogkit-dev='rogkit_py -m rogkit_package.bin.rogkit'
 
 ## Creating a New Python Tool
 
-Use `rogkit_package/bin/clean.py` as the canonical reference. Every new tool
+Use `rogkit_package/bin/hash.py` as the canonical reference. Every new tool
 **must** follow this structure:
 
 ```python
