@@ -1,6 +1,6 @@
 # rogkit
 
-Personal command-line toolkit — 85+ tools built in Python, with Go binaries and a Rust experiment. Built for daily use on macOS (most tools also work on Linux).
+Personal command-line toolkit: 85+ Python tools, a handful of Go binaries, and a small Rust workspace. Built for daily use on macOS; most tools also work on Linux.
 
 Built and maintained by [Roger Dubar](https://github.com/rdubar).
 
@@ -24,25 +24,25 @@ A few tools you may find immediately useful:
 
 ## Prerequisites
 
-- **Python** — 3.14+ recommended
+- **Python** — 3.14+
 - **[uv](https://github.com/astral-sh/uv)** — used for dependency management and running tools
 - **Go** 1.21+ — only needed to build the Go binaries (`go/`)
 - **Rust** stable toolchain — only needed to build the Rust tools (`rust/`)
-- **Optional external tools** — some media tools require `ffmpeg`, `HandBrake`, or `plexapi`
+- **Optional external tools** — some media tools require `ffmpeg`, HandBrake, Plex access, or API credentials
 
 ---
 
 ## Installation
 
-### Quick try (no clone required)
+### Try the packaged command
 
 ```sh
 uvx --from git+https://github.com/rdubar/rogkit rogkit --help
 ```
 
-Good for a fast smoke test on a new machine.
+This is useful for a quick smoke test without cloning the repository.
 
-### Install the top-level command
+To keep the top-level command installed:
 
 ```sh
 uv tool install git+https://github.com/rdubar/rogkit
@@ -51,44 +51,32 @@ rogkit --help
 rogkit --credits
 ```
 
-This installs the packaged `rogkit` command. It is the easiest way for a colleague
-to try the toolkit on macOS or Linux without cloning the repo first.
+The packaged `rogkit` command provides the project overview, credits, help, doctor, and update entry points. Use a full checkout for the short utility commands (`json`, `pw`, `p`, `doctor`, and so on), which are provided by the repository `aliases` file.
 
-### Full checkout (recommended for contributors and repo-local aliases)
+### Full checkout
 
 ```sh
 git clone https://github.com/rdubar/rogkit
 cd rogkit
-uv sync --all-extras   # install all dependencies
-source "$(pwd)/aliases"  # load shell aliases into your current shell
-rogkit                 # installed/global command, if you have it
-rogkit-dev             # repo-local command overview
-rogkit-dev --help      # repo-local CLI help
-setup                  # repo-local setup
-doctor                 # repo-local health check
-update                 # repo-local system/package updater
+uv sync --all-extras
+source "$(pwd)/aliases"
+rogkit-dev
+doctor
 ```
 
-`rogkit` is now UV-first: use `uv sync`, `uv run`, and `uv tool`, and treat the
-project `.venv` as an implementation detail rather than something you activate manually.
+`uv sync --all-extras` creates the project environment and installs all optional dependency groups. You do not need to activate the `.venv`; the aliases run tools through `uv run --directory`.
 
-The `aliases` file auto-detects its own repo location, so it can be sourced from
-any clone path rather than assuming `~/dev/rogkit`.
+The `aliases` file auto-detects the checkout path, so it can be sourced from any clone location. To load it automatically in future shells, run:
 
-To avoid confusion, the repo alias is now `rogkit-dev`, not `rogkit`. That keeps
-the installed `rogkit` command and the checkout-backed developer command separate.
+```sh
+setup --apply
+```
 
-For a full contributor setup, let `rogkit setup --apply` add the aliases source line
-to your shell profile for future sessions.
+`setup` creates `~/.config/rogkit/config.toml` if needed and adds the aliases source line to your shell profile. It previews changes by default; `--apply` writes them.
 
-Once aliases are loaded, run `rogkit doctor` for a quick health check covering
-config, secrets, shell setup, common binaries, and media connectivity.
-`rogkit doctor` includes remediation hints for common warnings and failures, and
-`rogkit setup` previews by default before making any changes. Short aliases such
-as `doctor`, `setup`, and `update` still work if you prefer them.
+Use `doctor` for a health check covering config, secrets, aliases, common binaries, and media connectivity. It includes remediation hints for common warnings and failures.
 
-Bare `rogkit` prints a friendly overview of commonly available commands. Use
-`rogkit --help` when you want the stricter CLI usage screen instead.
+`rogkit-dev` is the repo-local top-level command. It mirrors the packaged `rogkit` entry point while running from your checkout.
 
 Command naming convention:
 Short user-facing commands live in `aliases` (`json`, `csv`, `env`) while the
@@ -290,9 +278,9 @@ User shell → alias
 
 Tools use `from ..settings import get_invoking_cwd` to recover the user's original working directory, since `uv run --directory` changes cwd to the rogkit root.
 
-Configuration lives in two files:
+Configuration lives under `~/.config/rogkit/`:
 
-**`~/.config/rogkit/config.toml`** — non-sensitive settings (safe to version-control):
+**`config.toml`** — non-sensitive settings:
 
 ```toml
 [plex]
@@ -316,7 +304,7 @@ destinations = ["~/Archive/Backups"]
 paths = ["~/.config/", "~/dev", "~/.env"]
 ```
 
-**`~/.config/rogkit/secrets.toml`** — credentials only (gitignored, excluded from cloud backups):
+**`secrets.toml`** — credentials only:
 
 ```toml
 [plex]
@@ -330,7 +318,7 @@ spotify_client_id = "..."
 spotify_client_secret = "..."
 ```
 
-Both files share the same TOML structure. `secrets.toml` is deep-merged on top of `config.toml` at load time — tools see a single unified config with no code changes required. See [`rogkit_sample.toml`](rogkit_sample.toml) for a full annotated example.
+Both files share the same TOML structure. `secrets.toml` is deep-merged on top of `config.toml` at load time, so tools see a single unified config. See [`rogkit_sample.toml`](rogkit_sample.toml) for a full annotated example.
 
 ---
 
@@ -380,11 +368,13 @@ print(pg.generate_and_store_password())
 ## Development
 
 ```sh
-make dev              # uv sync --all-extras
-make test             # uv run pytest -q
-make lint             # uv run ruff check .
-./scripts/build_go.sh # compile all Go binaries
+make dev
+make test
+make lint
+./scripts/build_go.sh
 ```
+
+These map to `uv sync --all-extras`, `uv run pytest -q`, `uv run ruff check .`, and the Go build script respectively.
 
 Commit style: `tool_name: what changed` (e.g. `clean: add -t/--total option`). One logical change per commit, directly to `main`.
 
@@ -418,6 +408,6 @@ MIT — see [LICENSE](LICENSE).
 
 ## Credits
 
-Built and maintained by [Roger Dubar](https://github.com/rdubar), with development assistance from Claude (Anthropic) and Codex (Open AI).
+Built and maintained by [Roger Dubar](https://github.com/rdubar), with development assistance from Claude (Anthropic) and Codex (OpenAI).
 
 With thanks to [Alphapet Ventures](https://alpha.pet).
