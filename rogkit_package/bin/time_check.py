@@ -60,7 +60,7 @@ def set_time(ntp_url='pool.ntp.org'):
     print(f"Setting the system time: {' '.join(command)}")
     start_time = datetime.datetime.now()
     try:
-        result = subprocess.run(command, capture_output=True, text=True, check=True)
+        subprocess.run(command, capture_output=True, text=True, check=True)
         end_time = datetime.datetime.now()
         time_difference = (end_time - start_time).total_seconds()
         result_text = f"{ntp_url} : {time_difference} : {convert_seconds(time_difference)}"

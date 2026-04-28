@@ -5,8 +5,6 @@ from __future__ import annotations
 
 import argparse
 import functools
-import os
-import socket
 import sys
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path

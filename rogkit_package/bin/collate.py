@@ -11,7 +11,7 @@ import os
 import sys
 import fnmatch
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
 from ..bin.fuzzy import MatchResult, find_candidates
 from ..settings import get_invoking_cwd

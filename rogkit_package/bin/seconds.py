@@ -6,7 +6,6 @@ Provides functions to convert seconds into readable durations like
 "2 hours, 30 minutes" or "02:30:00" format.
 """
 import argparse
-from datetime import datetime
 from .bignum import bignum
 from .plural import plural
 

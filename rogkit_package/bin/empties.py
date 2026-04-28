@@ -19,7 +19,6 @@ from typing import List, Tuple
 try:  # Optional rich dependency for nicer verbose output
     from rich.console import Console
     from rich.table import Table
-    from rich.text import Text
 
     console = Console()
     RICH_AVAILABLE = True

@@ -2,7 +2,7 @@
 
 import sys
 
-from rogkit_package.bin.envr import list_env, main, render_env
+from rogkit_package.bin.envr import list_env, render_env
 
 
 def test_list_env_returns_sorted_pairs(monkeypatch):

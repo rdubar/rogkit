@@ -14,7 +14,6 @@ import os
 import shlex
 import sys
 import threading
-from argparse import Namespace
 from contextlib import redirect_stderr, redirect_stdout
 from pathlib import Path
 from typing import List, Optional, Sequence

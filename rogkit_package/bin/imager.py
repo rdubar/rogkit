@@ -10,7 +10,7 @@ import argparse
 import io
 import subprocess
 from pathlib import Path
-from typing import Iterable, List, Optional
+from typing import List, Optional
 
 import pyheif  # type: ignore
 from PIL import Image  # type: ignore

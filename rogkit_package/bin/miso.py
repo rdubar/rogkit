@@ -6,7 +6,6 @@ Mounts ISO files, extracts and concatenates VOB files from VIDEO_TS directories,
 and converts them to MP4/MKV format with optional compression using ffmpeg.
 """
 import argparse
-import os
 import re
 import subprocess
 import sys

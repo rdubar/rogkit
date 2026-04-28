@@ -5,7 +5,6 @@ from __future__ import annotations
 
 import argparse
 import gzip
-import io
 import shutil
 import sys
 import tarfile

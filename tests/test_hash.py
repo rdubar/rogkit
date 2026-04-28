@@ -5,7 +5,6 @@ from __future__ import annotations
 import hashlib
 import io
 import sys
-from pathlib import Path
 
 from rogkit_package.bin.hash import hash_bytes, hash_file, hash_stdin, render_results
 

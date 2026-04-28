@@ -3,7 +3,6 @@
 import re
 from pathlib import Path
 
-import pytest
 
 from rogkit_package.bin.note import _get_notes_file, _parse_entries, append_note, list_notes
 

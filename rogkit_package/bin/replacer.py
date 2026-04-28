@@ -11,7 +11,7 @@ import dataclasses
 import os
 import argparse
 from pathlib import Path
-from typing import Iterable, Optional, Sequence
+from typing import Optional
 import time
 
 from ..bin.fuzzy import MatchResult, find_candidates

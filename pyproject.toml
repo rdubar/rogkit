@@ -116,6 +116,8 @@ ui = ["streamlit"]
 packages = { find = { where = ["."], include = ["rogkit_package*", "pages*"], namespaces = false } }
 
 [tool.ruff]
+
+[tool.ruff.lint]
 # Ignore trailing whitespace warnings
 ignore = [
     "W291",  # trailing-whitespace

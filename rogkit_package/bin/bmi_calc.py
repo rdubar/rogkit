@@ -117,7 +117,7 @@ def show_bmi_table(period="month", height=181, weight=84, gain=2.5, limit=12, bm
     start_bmi = get_bmi(height, weight)
 
     if not start_bmi or start_bmi < 10:
-        print(f'Error: Invalid BMI.')
+        print('Error: Invalid BMI.')
         return
 
     print(f'Height: {height:.1f} cm ({feet}\'{inches:.0f}")\tStart BMI: {start_bmi:.2f}\tStart Weight: {start_weight:.1f} kg')

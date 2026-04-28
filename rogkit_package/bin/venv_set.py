@@ -10,9 +10,8 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
 from pathlib import Path
-from typing import Iterable, List, Optional, Tuple
+from typing import Iterable, List, Optional
 
 from .clipboard import copy_to_clipboard
 

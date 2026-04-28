@@ -7,7 +7,6 @@ import argparse
 import re
 import socket
 import subprocess
-import sys
 from dataclasses import dataclass
 from shutil import which
 

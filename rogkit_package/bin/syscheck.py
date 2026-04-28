@@ -15,7 +15,6 @@ import sys
 from datetime import timedelta
 
 import psutil
-from rich import box
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table

@@ -19,7 +19,6 @@ try:
     from rich.console import Console
     from rich.table import Table
     from rich.text import Text
-    from rich.bar import Bar
 
     console = Console()
     RICH_AVAILABLE = True

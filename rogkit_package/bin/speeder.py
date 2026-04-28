@@ -86,10 +86,10 @@ def string_manipulations():
 def list_operations():
     """Perform list operations."""
     for _ in range(5000):
-        l = [i for i in range(100)]
-        l.append(200)
-        l.pop(0)
-        l.sort(reverse=True)
+        values = [i for i in range(100)]
+        values.append(200)
+        values.pop(0)
+        values.sort(reverse=True)
 
 def run_benchmark(n=500):
     """Run all tests n times and print the total execution time."""
