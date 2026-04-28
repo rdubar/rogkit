@@ -109,7 +109,6 @@ alias hidden='rogkit_py -m rogkit_package.bin.hidden'
 alias large='rogkit_py -m rogkit_package.bin.large'
 
 # File cleaning
-alias clean='rogkit_py -m rogkit_package.bin.clean'
 alias cleaner='rogkit_py -m rogkit_package.bin.cleaner'
 alias purge='rogkit_py -m rogkit_package.bin.purge'
 

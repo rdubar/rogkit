@@ -45,7 +45,6 @@ DEFAULT_ROGKIT_TOML = {
             },
         ],
     },
-    "clean": {"script_path": ""},
     "media": {
         "remote_host": "192.168.0.50",
         "remote_user": "rog",

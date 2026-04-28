@@ -16,7 +16,7 @@ argument-hint: "<tool-name> [description]"
 
 2. **Check that `rogkit_package/bin/<tool_name>.py` does not already exist** -- abort if it does
 
-3. **Read `rogkit_package/bin/clean.py`** as a reference for the canonical tool structure
+3. **Read `rogkit_package/bin/hash.py`** as a reference for the canonical tool structure
 
 4. **Create `rogkit_package/bin/<tool_name>.py`** with this structure:
    ```python
@@ -90,4 +90,4 @@ argument-hint: "<tool-name> [description]"
 - ALWAYS include the rich fallback pattern
 - ALWAYS use `get_invoking_cwd()` -- never `os.getcwd()`
 - ALWAYS add the alias entry
-- Follow existing code style from `rogkit_package/bin/clean.py`
+- Follow existing code style from `rogkit_package/bin/hash.py`

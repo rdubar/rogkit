@@ -48,10 +48,6 @@ paths = [
 # backup_from = [ "~/",]
 # backup_to = [ "~/archive/",]
 
-[clean]
-# path to your translation_clean.sh script
-script_path = ""
-
 [media]
 # default roots for media tools (cli); pass --path to override
 remote_host = "192.168.0.50"
