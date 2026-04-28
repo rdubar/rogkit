@@ -27,6 +27,7 @@ from rogkit_package.settings import data_dir
 DATA_DIR = Path(data_dir)
 DEFAULT_CSV_PATH = DATA_DIR / "media.csv"
 DEFAULT_TMDB_PICKLE = DATA_DIR / "tmdb_cache.pkl"
+TMDB_TIMEOUT_SECONDS = 10
 
 
 def ensure_data_dir() -> None:
@@ -144,13 +145,19 @@ class DataList:
     def get_movie_details(self, title, year=None):
         """Search TMDb API for movie and return detailed metadata including credits."""
         url = f"https://api.themoviedb.org/3/search/movie?api_key={self.api_key}&query={title}"
-        response = requests.get(url, timeout=10)
+        response = self._get_tmdb_response(url, f"TMDB search for {title} ({year})")
+        if response is None:
+            return None
 
         if response.status_code != 200:
             print(f"Failed TMDB search for {title} ({year}): Status {response.status_code}")
             return None
 
-        results = response.json().get("results", [])
+        try:
+            results = response.json().get("results", [])
+        except ValueError as exc:
+            print(f"Failed TMDB search for {title} ({year}): Invalid JSON ({exc})")
+            return None
 
         if not results:
             print(f"No TMDB search results found for {title} ({year})")
@@ -182,13 +189,34 @@ class DataList:
             f"https://api.themoviedb.org/3/movie/{movie_id}"
             f"?api_key={self.api_key}&append_to_response=credits"
         )
-        detailed_response = requests.get(detailed_url, timeout=10)
+        detailed_response = self._get_tmdb_response(
+            detailed_url,
+            f"TMDB detail fetch for movie ID {movie_id}",
+        )
+        if detailed_response is None:
+            return None
 
         if detailed_response.status_code == 200:
-            return detailed_response.json()
+            try:
+                return detailed_response.json()
+            except ValueError as exc:
+                print(
+                    f"Failed TMDB detail fetch for movie ID {movie_id}: "
+                    f"Invalid JSON ({exc})"
+                )
+                return None
 
         print(f"Failed TMDB detail fetch for movie ID {movie_id}")
         return None
+
+    def _get_tmdb_response(self, url: str, context: str) -> Optional[requests.Response]:
+        """Return a TMDb response, treating network failures as a cache miss."""
+        try:
+            return requests.get(url, timeout=TMDB_TIMEOUT_SECONDS)
+        except requests.RequestException as exc:
+            print(f"{context} failed: {exc}")
+            return None
+
 
 def process_csv_file(
     data_list: DataList,
@@ -389,5 +417,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
