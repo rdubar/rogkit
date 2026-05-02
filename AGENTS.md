@@ -190,6 +190,10 @@ Build with standard `cargo build --release`.
 
 ## Troubleshooting
 
+### Pi 5 network choice
+
+For the Pi 5 powerline Ethernet vs Wi-Fi comparison, see `docs/reports/pi5-network-comparison-2026-05-02.md`; current recommendation is to keep `eth0` as the default route.
+
 ### Media daemon
 
 If you encounter issues with the media tool (`p` / `rogkit_package.media.media`), restart the daemon first:

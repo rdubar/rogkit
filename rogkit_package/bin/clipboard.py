@@ -14,7 +14,14 @@ except ImportError:
     PYCLIP_AVAILABLE = False
 
 
-def copy_to_clipboard(text, verbose=True):
+def _clipboard_setup_hint() -> str:
+    """Return a platform-specific hint for setting up clipboard support."""
+    if sys.platform == "linux":
+        return "Install wl-clipboard on Wayland, or xclip/xsel on X11."
+    return "Install a system clipboard backend supported by pyclip."
+
+
+def copy_to_clipboard(text: str, verbose: bool = True) -> bool:
     """
     Copy text to system clipboard.
     
@@ -27,33 +34,40 @@ def copy_to_clipboard(text, verbose=True):
     """
     if not PYCLIP_AVAILABLE:
         if verbose:
-            print("⚠️  Clipboard functionality not available (pyclip not installed)")
+            print("Clipboard functionality not available (pyclip not installed).")
             print(f"Text to copy: {text}")
-        return
+        return False
     
     try:
         pyclip.copy(text)
         if verbose:
-            print("✓ Copied to clipboard.")
+            print("Copied to clipboard.")
+        return True
     except Exception as e:
         if verbose:
             print(f"Error copying to clipboard: {e}")
+            print(_clipboard_setup_hint())
         else:
-            print("Could not copy to clipboard.")
+            print(f"Could not copy to clipboard. {_clipboard_setup_hint()}")
+        return False
 
-def main():
+
+def main(argv: list[str] | None = None) -> int:
     """CLI entry point for clipboard utility."""
+    if argv is None:
+        argv = sys.argv[1:]
+
     if not PYCLIP_AVAILABLE:
-        print("❌ Error: pyclip is not installed")
+        print("Error: pyclip is not installed")
         print("Install with: uv sync --group cli")
-        exit(1)
+        return 1
     
     # join all text in args
-    if len(sys.argv) < 2:
+    if not argv:
         print("Usage: clip.py <text>\nCopy <text> to clipboard.")
-        exit(1)
-    text = ' '.join(sys.argv[1:])
-    copy_to_clipboard(text)
+        return 1
+    text = ' '.join(argv)
+    return 0 if copy_to_clipboard(text) else 1
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())

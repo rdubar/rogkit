@@ -6,11 +6,15 @@ import socket
 import sys
 from types import SimpleNamespace
 
-from rogkit_package.bin.myip import InterfaceInfo, fetch_external_ip, list_interfaces, render_interfaces
+from rogkit_package.bin.myip import InterfaceInfo, _link_families, fetch_external_ip, list_interfaces, render_interfaces
 
 
 def _addr(family: int, address: str, netmask: str | None = None) -> SimpleNamespace:
     return SimpleNamespace(family=family, address=address, netmask=netmask)
+
+
+def _mac_family() -> int:
+    return next(iter(_link_families()))
 
 
 def test_list_interfaces_skips_loopback_by_default(monkeypatch):
@@ -19,11 +23,11 @@ def test_list_interfaces_skips_loopback_by_default(monkeypatch):
         lambda: {
             "lo0": [
                 _addr(socket.AF_INET, "127.0.0.1", "255.0.0.0"),
-                _addr(socket.AF_LINK, "00:00:00:00:00:00"),
+                _addr(_mac_family(), "00:00:00:00:00:00"),
             ],
             "en0": [
                 _addr(socket.AF_INET, "192.168.1.10", "255.255.255.0"),
-                _addr(socket.AF_LINK, "aa:bb:cc:dd:ee:ff"),
+                _addr(_mac_family(), "aa:bb:cc:dd:ee:ff"),
             ],
         },
     )
@@ -48,7 +52,7 @@ def test_list_interfaces_can_include_loopback(monkeypatch):
         lambda: {
             "lo0": [
                 _addr(socket.AF_INET, "127.0.0.1", "255.0.0.0"),
-                _addr(socket.AF_LINK, "00:00:00:00:00:00"),
+                _addr(_mac_family(), "00:00:00:00:00:00"),
             ]
         },
     )

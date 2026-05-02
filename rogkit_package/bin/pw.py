@@ -158,8 +158,10 @@ class PasswordGenerator:
     def copy_to_clipboard(self):
         """Copy generated password to system clipboard."""
         if self.password is not None:
-            copy_to_clipboard(self.password, verbose=False)
-            console.print("[green]Password copied to clipboard.[/]")
+            if copy_to_clipboard(self.password, verbose=False):
+                console.print("[green]Password copied to clipboard.[/]")
+            else:
+                console.print("[yellow]Password was not copied to clipboard.[/]")
         else:
             console.print("[yellow]No password generated to copy.[/]")
 

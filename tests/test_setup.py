@@ -15,9 +15,10 @@ def test_default_profile_for_shell(monkeypatch, tmp_path):
 
 def test_profile_sources_aliases_accepts_rogkit_path(tmp_path):
     profile = tmp_path / ".zshrc"
-    profile.write_text('source "/Users/rdubar/dev/rogkit/aliases"\n', encoding="utf-8")
+    aliases_path = tmp_path / "rogkit" / "aliases"
+    profile.write_text(f'source "{aliases_path}"\n', encoding="utf-8")
 
-    assert setup._profile_sources_aliases(profile) is True
+    assert setup._profile_sources_aliases(profile, aliases_path) is True
 
 
 def test_ensure_config_preview(monkeypatch, tmp_path):
