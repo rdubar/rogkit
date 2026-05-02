@@ -8,6 +8,7 @@ folders = [
     "/mnt/media1/Media/",
     "/mnt/media2/Media/",
     "/mnt/media3/Media/",
+    "/srv/media/Media/",
 ]
 # Optional overrides (fallbacks: media.remote_host / media.remote_user)
 server = "pi5"
@@ -66,6 +67,14 @@ ARCHIVE_FILE = DATA_DIR / "media_files_cache_archive.json"
 MIN_FILE_SIZE_MB = 150  # Minimum file size to consider as a valid replacement
 
 MEDIA_TYPES = { 'mp4', 'mkv', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mpg', 'mpeg', 'm4v', '3gp', 'vob', 'ts', 'divx', 'xvid' }
+
+
+@dataclass(frozen=True)
+class MediaPathParts:
+    disk: str
+    location: str
+    title: str
+    folderpath: str
 
 
 def _rich_print(*args, style: str | None = None, **kwargs):
@@ -167,6 +176,36 @@ def standardize_title(title: str) -> str:
 
     return title.lower().strip()
 
+
+def _extract_media_path_parts(file_path: str) -> Optional[MediaPathParts]:
+    """Extract media library parts from paths containing Media/<location>/<title>."""
+    parts = Path(file_path).parts
+    media_indexes = [
+        index
+        for index, part in enumerate(parts)
+        if part.lower() == "media" and len(parts) > index + 2
+    ]
+    if not media_indexes:
+        return None
+
+    media_index = media_indexes[-1]
+    disk = parts[media_index - 1] if media_index > 1 else "unknown"
+    location = parts[media_index + 1]
+    title = parts[media_index + 2]
+    folderpath = str(Path(*parts[: media_index + 3]))
+    if not folderpath.startswith("/") and file_path.startswith("/"):
+        folderpath = f"/{folderpath}"
+
+    if "tv" in location.lower():
+        location = "TV Shows"
+
+    return MediaPathParts(
+        disk=disk,
+        location=location,
+        title=title,
+        folderpath=folderpath,
+    )
+
 def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
     """
     Parse a file line (size and file path) into a MediaFile dataclass.
@@ -180,31 +219,19 @@ def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
         size_str, file_path = file_line.split(maxsplit=1)  # Split only at the first whitespace
         filesize = int(size_str)  # Convert size to integer
         
-        # Split the file path into giot statusparts
-        parts = file_path.split('/')
-        
-        # Validate that the parts list has enough elements
-        if len(parts) < 6:
-            # print(f"Skipping line due to insufficient parts: {parts}")
+        path_parts = _extract_media_path_parts(file_path)
+        if path_parts is None:
             return None
-        
-        # Extract disk, location, and title with safe indexing
-        disk = parts[2] if len(parts) > 2 else "unknown"
-        location = parts[4] if len(parts) > 4 else "unknown"
-        
-        # Normalize 'TV Shows' location for consistency
-        if 'tv' in location.lower():
-            location = 'TV Shows'
-        
-        title = standardize_title(parts[5]) if len(parts) > 5 else "unknown"
+
+        title = standardize_title(path_parts.title)
         filename = os.path.basename(file_path)  # Extract the file name
         filetype = os.path.splitext(filename)[1][1:]  # Extract the file extension without the dot
         
         # Create and return the MediaFile object
         return MediaFile(
             title=title,
-            disk=disk,
-            location=location,
+            disk=path_parts.disk,
+            location=path_parts.location,
             filepath=file_path,
             filename=filename,
             filetype=filetype,
@@ -222,6 +249,10 @@ def parse_media_file_line(file_line: str) -> Optional[MediaFile]:
 
 def _resolve_media_paths(cli_path: Optional[str]) -> List[str]:
     """Resolve media paths from config or CLI, falling back to a default."""
+    if cli_path:
+        paths = [cli_path]
+        return [os.path.expanduser(p) for p in paths]
+
     config_paths = (
         get_config_value("media_files", "folders")
         or get_config_value("media", "remote_folders")
@@ -232,11 +263,9 @@ def _resolve_media_paths(cli_path: Optional[str]) -> List[str]:
         paths = [config_paths]
     elif isinstance(config_paths, (list, tuple, set)):
         paths = list(config_paths)
-    elif cli_path:
-        paths = [cli_path]
 
     if not paths:
-        paths = ["/mnt/media*/Media"]
+        paths = ["/mnt/media*/Media", "/srv/*/Media"]
 
     expanded = []
     for p in paths:
@@ -481,16 +510,14 @@ def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
     processed_files = 0
 
     for file in media_files:
-        # TODO: avoid assuming /mnt/[disk]/Media layout when parsing paths.
-        # Split the path into components: /mnt/[disk]/Media/[Location]/[Title]
-        parts = file.filepath.split('/')
-        if len(parts) < 5:
+        path_parts = _extract_media_path_parts(file.filepath)
+        if path_parts is None:
             invalid_paths += 1
             continue
 
-        disk = parts[2]
-        location = parts[4]
-        title = parts[5]
+        disk = path_parts.disk
+        location = path_parts.location
+        title = path_parts.title
 
         # Skip generic folder names like "Movies" or "TV Shows"
         if title.lower() in ["movies", "tv shows", "music", "audiobook", "tv programmes"]:
@@ -510,9 +537,8 @@ def group_files_into_folders(media_files: List[MediaFile]) -> List[MediaFolder]:
     # Create MediaFolder objects
     media_folders = []
     for (disk, location, title), files in folders.items():
-        # Construct folderpath from the title level
-        # TODO: construct folder paths without hard-coded /mnt structure.
-        folderpath = f"/mnt/{disk}/Media/{location}/{title}"
+        first_path_parts = _extract_media_path_parts(files[0].filepath)
+        folderpath = first_path_parts.folderpath if first_path_parts else os.path.dirname(files[0].filepath)
         media_folders.append(MediaFolder(
             disk=disk,
             location=location,
@@ -666,11 +692,9 @@ def process_exact_matches(exact_matches: List[str], media_files: List[MediaFile]
     # Iterate through media files and find exact matches on media3
     for file in media_files:
         if file.title in exact_matches and file.disk == "media3":
-            # Extract the main folder path (up to title level)
-            parts = file.filepath.split('/')
-            if len(parts) > 6:  # Ensure valid structure
-                main_folder = '/'.join(parts[:6])  # Keep up to "/disk/Media/Location/Title"
-                main_folders.add(main_folder)  # Add to the set
+            path_parts = _extract_media_path_parts(file.filepath)
+            if path_parts:
+                main_folders.add(path_parts.folderpath)
 
     # Convert the set to a sorted list for consistent output
     sorted_folders = sorted(main_folders)
@@ -976,7 +1000,6 @@ def main():
     parser.add_argument('-d', "--duplicates", action="store_true", help="Show duplicate media titles across disks (default)")
     parser.add_argument('-r', "--refresh", action="store_true", help="Refresh the file list from the server")
     parser.add_argument('-o', "--other", action="store_true", help="Show folders with more than one large file not classed as an 'extra'")
-    # TODO: provide a config-backed default for --path instead of /mnt/media*/Media.
     parser.add_argument('-p', "--path", default=None, help="Path to search for media files (overrides config)")
     parser.add_argument('--hidden', action="store_true", help="Include hidden files")
     parser.add_argument('-R', "--restore", action="store_true", help="Restore media files from backup disk")
