@@ -7,19 +7,34 @@ customizable fonts, colors, and layouts.
 import argparse
 
 import pyfiglet  # type: ignore
-from colorama import Fore, init  # type: ignore
 
-# Initialize colorama
-init(autoreset=True)
+try:  # optional rich formatting
+    from rich.console import Console
+    from rich.text import Text
+
+    console = Console()
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover
+    console = None
+    RICH_AVAILABLE = False
+
+
+def _print_message(message: str, *, style: str | None = None) -> None:
+    """Print with optional rich styling, fallback to plain print."""
+    if RICH_AVAILABLE:
+        console.print(Text(message, style=style) if style else message)
+    else:
+        print(message)
 
 
 def generate_ascii_art(
-    text, color="white",
-    font="standard",
-    horizontal_layout="default",
-    vertical_layout="default",
-    width=80
-):
+    text: str,
+    color: str = "white",
+    font: str = "standard",
+    horizontal_layout: str = "default",
+    vertical_layout: str = "default",
+    width: int = 80,
+) -> str:
     """
     Generate ASCII art from text with additional customization options.
 
@@ -43,24 +58,10 @@ def generate_ascii_art(
     if vertical_layout != "default":
         figlet.verticalLayout = vertical_layout
 
-    # Generate ASCII art
-    ascii_art = figlet.renderText(text)
-
-    # Map color names to colorama color codes
-    color_map = {
-        "blue": Fore.BLUE,
-        "red": Fore.RED,
-        "green": Fore.GREEN,
-        "yellow": Fore.YELLOW,
-        "white": Fore.WHITE,
-    }
-    selected_color = color_map.get(color.lower(), Fore.WHITE)
-
-    # Return the colored ASCII art
-    return selected_color + ascii_art
+    return figlet.renderText(text)
 
 
-def main():
+def main() -> None:
     """CLI entry point for ASCII art generator."""
     parser = argparse.ArgumentParser(description="Generate ASCII art from text")
     parser.add_argument(
@@ -113,14 +114,14 @@ def main():
     # Handle --list-fonts
     if args.list_fonts:
         fonts = pyfiglet.FigletFont.getFonts()
-        print("Available fonts:")
+        _print_message("Available fonts:")
         for font in fonts:
-            print(font)
+            _print_message(font)
         exit(0)
 
     # Check if text is provided
     if not args.text:
-        print("No text provided. Use --list-fonts to see available fonts.")
+        _print_message("No text provided. Use --list-fonts to see available fonts.")
         exit(0)
 
     # Join the text into a single string (to handle spaces)
@@ -136,15 +137,15 @@ def main():
             vertical_layout=args.vertical_layout,
             width=args.width,
         )
-        print(ascii_art)
+        _print_message(ascii_art, style=args.color)
     except pyfiglet.FontNotFound:
-        print(f"Error: Font '{args.font}' not found. Use --list-fonts to see available fonts.")
+        _print_message(f"Error: Font '{args.font}' not found. Use --list-fonts to see available fonts.", style="red")
     except pyfiglet.LayoutError:
-        print("Error: Invalid layout configuration.")
+        _print_message("Error: Invalid layout configuration.", style="red")
     except pyfiglet.SizeError:
-        print("Error: Invalid width configuration.")
+        _print_message("Error: Invalid width configuration.", style="red")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        _print_message(f"An error occurred: {e}", style="red")
 
 
 if __name__ == "__main__":

@@ -13,7 +13,6 @@ authors = [ { name = "Roger D", email ="rdubar@gmail.com" } ]
 dependencies = [
   "boto3",
   "botocore",
-  "colorama",
   "convertdate",
   "faker",
   "ffmpeg-python",

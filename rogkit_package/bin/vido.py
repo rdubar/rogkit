@@ -35,10 +35,24 @@ import time
 import datetime
 import toml  # type: ignore
 from yt_dlp import YoutubeDL  # type: ignore
-from colorama import init, Fore # type: ignore
 
-# Initialize colorama
-init(autoreset=True)
+try:  # optional rich formatting
+    from rich.console import Console
+    from rich.text import Text
+
+    console = Console()
+    RICH_AVAILABLE = True
+except ModuleNotFoundError:  # pragma: no cover
+    console = None
+    RICH_AVAILABLE = False
+
+
+def _print_message(message: str, *, style: str | None = None) -> None:
+    """Print with optional rich styling, fallback to plain print."""
+    if RICH_AVAILABLE:
+        console.print(Text(message, style=style) if style else message)
+    else:
+        print(message)
 
 class Config:
     """Video downloader configuration from TOML file."""
@@ -50,7 +64,7 @@ class Config:
             self.download_folder = self.config['vido']['download_folder']
             self.default_input_file = self.config['vido']['default_input_file']
         except Exception as e:
-            print(Fore.MAGENTA + f"Failed to load [vido] section of config file {config_file}: {e}")
+            _print_message(f"Failed to load [vido] section of config file {config_file}: {e}", style="magenta")
             exit(1)
 
     def get_download_options(self):
@@ -68,7 +82,7 @@ def get_title_from_url(url):
             info_dict = ydl.extract_info(url, download=False)
             return info_dict.get('title', None)
     except Exception as e:
-        print(Fore.MAGENTA + f"Error fetching title with yt_dlp: {e}")
+        _print_message(f"Error fetching title with yt_dlp: {e}", style="magenta")
         return None
 
 def set_directory(directory=None):
@@ -82,10 +96,10 @@ def set_directory(directory=None):
 
         os.makedirs(directory, exist_ok=True)
         os.chdir(directory)
-        print(Fore.CYAN + "Working directory set to:", os.getcwd())
+        _print_message(f"Working directory set to: {os.getcwd()}", style="cyan")
         return directory
     except Exception as e:
-        print(Fore.MAGENTA + f"Failed to change directory: {e}")
+        _print_message(f"Failed to change directory: {e}", style="magenta")
         return None
 
 def showtime(s: float) -> str:
@@ -98,9 +112,9 @@ def process_lines(lines, config):
     temp_folder = config.temp_folder
     set_directory(temp_folder)
 
-    print(Fore.CYAN + "Processing the following lines:")
+    _print_message("Processing the following lines:", style="cyan")
     for line in lines:
-        print(Fore.YELLOW + line.strip())
+        _print_message(line.strip(), style="yellow")
 
     for line in lines:
         if "http" in line.lower():
@@ -110,10 +124,10 @@ def process_url(url, config):
     """Download video from URL and move to final destination."""
     title = get_title_from_url(url)
     if not title:
-        print(Fore.MAGENTA + "Skipping URL due to title fetch failure.")
+        _print_message("Skipping URL due to title fetch failure.", style="magenta")
         return
 
-    print(Fore.CYAN + "Downloading:", title)
+    _print_message(f"Downloading: {title}", style="cyan")
     try:
         with YoutubeDL(config.get_download_options()) as ydl:
             video_info = ydl.extract_info(url, download=True)
@@ -123,10 +137,10 @@ def process_url(url, config):
             os.rename(output, final_output)
 
     except Exception as e:
-        print(Fore.MAGENTA + f"Error downloading {url}\n{e}")
+        _print_message(f"Error downloading {url}\n{e}", style="magenta")
         return
 
-    print(Fore.GREEN + f"Downloaded to {final_output}")
+    _print_message(f"Downloaded to {final_output}", style="green")
 
 def get_movies(search, config):
     """Main function to download videos from URLs, files, or search terms."""
@@ -134,11 +148,11 @@ def get_movies(search, config):
 
     # Handle multiple parameters
     if isinstance(search, list) and len(search) > 1:
-        print(Fore.CYAN + f"Processing {len(search)} parameters sequentially...")
+        _print_message(f"Processing {len(search)} parameters sequentially...", style="cyan")
         for i, item in enumerate(search, 1):
-            print(Fore.YELLOW + f"\n--- Processing item {i}/{len(search)}: {item} ---")
+            _print_message(f"\n--- Processing item {i}/{len(search)}: {item} ---", style="yellow")
             get_movies(item, config)  # Recursively process each item
-        print(Fore.CYAN + f"\nCompleted all {len(search)} tasks in {showtime(time.perf_counter() - clock)}.")
+        _print_message(f"\nCompleted all {len(search)} tasks in {showtime(time.perf_counter() - clock)}.", style="cyan")
         return
 
     # Handle single parameter (original logic)
@@ -153,10 +167,10 @@ def get_movies(search, config):
         with open(search, "r", encoding="utf-8") as f:
             lines = f.readlines()
     else:
-        print(Fore.CYAN + "Processing single input.")
+        _print_message("Processing single input.", style="cyan")
 
     process_lines(lines, config)
-    print(Fore.CYAN + f"Completed task in {showtime(time.perf_counter() - clock)}.")
+    _print_message(f"Completed task in {showtime(time.perf_counter() - clock)}.", style="cyan")
     
 def update_yt_dlp():
     """Report whether a newer yt_dlp exists and how to upgrade (no installs)."""
@@ -168,9 +182,9 @@ def update_yt_dlp():
     try:
         current_version = metadata.version("yt_dlp")
     except metadata.PackageNotFoundError:
-        print(Fore.MAGENTA + "yt_dlp is not currently installed in this environment.")
+        _print_message("yt_dlp is not currently installed in this environment.", style="magenta")
     except Exception as e:
-        print(Fore.MAGENTA + f"Could not determine installed yt_dlp version: {e}")
+        _print_message(f"Could not determine installed yt_dlp version: {e}", style="magenta")
 
     latest_version = None
     try:
@@ -178,12 +192,15 @@ def update_yt_dlp():
             data = json.load(resp)
             latest_version = data["info"]["version"]
     except Exception as e:
-        print(Fore.MAGENTA + f"Unable to check PyPI for the latest yt_dlp release: {e}")
-        print(Fore.CYAN + "You can manually check with `uv pip index versions yt-dlp` or visit https://pypi.org/project/yt-dlp/.")
+        _print_message(f"Unable to check PyPI for the latest yt_dlp release: {e}", style="magenta")
+        _print_message(
+            "You can manually check with `uv pip index versions yt-dlp` or visit https://pypi.org/project/yt-dlp/.",
+            style="cyan",
+        )
         return
 
-    print(Fore.CYAN + f"Installed yt_dlp version: {current_version}")
-    print(Fore.CYAN + f"Latest    yt_dlp version: {latest_version}")
+    _print_message(f"Installed yt_dlp version: {current_version}", style="cyan")
+    _print_message(f"Latest    yt_dlp version: {latest_version}", style="cyan")
 
     def parse_version(v):
         try:
@@ -202,13 +219,13 @@ def update_yt_dlp():
         needs_upgrade = current_version != latest_version
 
     if needs_upgrade:
-        print(Fore.YELLOW + f"Update available: {current_version} -> {latest_version}")
-        print(Fore.CYAN + "Upgrade steps (uv-managed project):")
+        _print_message(f"Update available: {current_version} -> {latest_version}", style="yellow")
+        _print_message("Upgrade steps (uv-managed project):", style="cyan")
         print("  uv add -U yt-dlp")
         print("  uv export -o requirements.txt")
         print("  uv sync --all-extras")
     else:
-        print(Fore.GREEN + "yt_dlp is up to date.")
+        _print_message("yt_dlp is up to date.", style="green")
 
 def main():
     """CLI entry point for video downloader."""
@@ -238,10 +255,10 @@ def main():
     if not os.path.exists(args.config):
         legacy_path = os.path.expanduser("~/.rogkit.toml")
         if os.path.exists(legacy_path):
-            print(f"⚠️  Config not found at {args.config}, falling back to legacy: {legacy_path}")
+            _print_message(f"Config not found at {args.config}, falling back to legacy: {legacy_path}", style="yellow")
             args.config = legacy_path
         else:
-            print(f"❌ No configuration file found at {args.config} or legacy location.")
+            _print_message(f"No configuration file found at {args.config} or legacy location.", style="red")
             sys.exit(1)
 
     # Load and print config (example usage)
@@ -249,10 +266,10 @@ def main():
         with open(args.config, 'r', encoding='utf-8') as f:
             config_data = toml.load(f)
             if args.debug:
-                print("Loaded config:")
-                print(toml.dumps(config_data))
+                _print_message("Loaded config:")
+                _print_message(toml.dumps(config_data))
     except Exception as e:
-        print(f"❌ Failed to load config from {args.config}: {e}")
+        _print_message(f"Failed to load config from {args.config}: {e}", style="red")
         sys.exit(1)
 
     config = Config(args.config)
@@ -260,7 +277,7 @@ def main():
     if args.search:
         search = args.search
     else:
-        search = input(Fore.CYAN + "Enter URL, filename or search term: ")
+        search = input("Enter URL, filename or search term: ")
 
     if args.debug:
         get_movies(search, config)
@@ -268,7 +285,7 @@ def main():
         try:
             get_movies(search, config)
         except Exception as e:
-            print(Fore.MAGENTA + f"Error: {e}")
+            _print_message(f"Error: {e}", style="magenta")
 
 if __name__ == "__main__":
     main()
