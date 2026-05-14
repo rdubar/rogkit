@@ -188,6 +188,60 @@ Go commands live in `go/cmd/<name>/main.go` with shared logic in
 Workspace in `rust/` with `Cargo.toml` at the root. Currently only `filehash`.
 Build with standard `cargo build --release`.
 
+## Backup
+
+`rogkit_package/bin/backup.py` is the backup tool. Two flavours of set in
+`~/.config/rogkit/config.toml`:
+
+- `[[backup.set]]` — plain tar.gz. Files matching `secret_patterns` (basename
+  match only — see `_matches_basename`) are stripped. Use for cloud-synced
+  destinations.
+- `[[backup.encrypted_set]]` — `tar -czf - | age` piped together so plaintext
+  never lands on disk. `secret_patterns` is bypassed; secrets are the point.
+  Requires `recipients` and/or `recipients_file`; ages preflight before the
+  real tar runs.
+
+Per-machine strategy doc (not committed; lives next to the config):
+`~/.config/rogkit/backup-strategy.md`.
+
+### One-line invocations
+
+| Command | Effect |
+|---|---|
+| `backup -b` | Run all configured sets |
+| `backup -b --set <name>` | Run a single set |
+| `backup -b --encrypted` | Only encrypted sets |
+| `backup --plan` | Dry-run preview (no writes) |
+| `backup --list-sets` | List configured sets |
+
+The `backup` shell alias is defined in `aliases` and resolves to
+`rogkit_py -m rogkit_package.bin.backup`. Works in interactive shells; works
+from `Bash` tool invocations after the shell snapshot loads.
+
+### Scheduled weekly run (m3)
+
+A LaunchAgent (`~/Library/LaunchAgents/com.rdubar.backup-weekly.plist`) fires
+Monday 08:00 and invokes `scripts/run-backup-weekly.sh`, which runs `backup -b`
+and posts a Notification Center alert on completion (Glass on success, Sosumi
+on failure). Logs to `~/Library/Logs/rogkit-backup-weekly.log` (script output)
+and `…launchd.log` (launchd-side stdout/stderr).
+
+```sh
+# Inspect / manage
+launchctl list | grep com.rdubar.backup-weekly
+launchctl unload ~/Library/LaunchAgents/com.rdubar.backup-weekly.plist
+launchctl load   ~/Library/LaunchAgents/com.rdubar.backup-weekly.plist
+launchctl start  com.rdubar.backup-weekly   # fire now, ignoring schedule
+
+# Run the wrapper directly (same path launchd takes)
+~/dev/rogkit/scripts/run-backup-weekly.sh
+```
+
+The wrapper (`scripts/run-backup-weekly.sh`) is committed and machine-agnostic;
+the plist is per-machine and not committed. neo / pi follow the same pattern
+when set up — each generates its own age identity and its own
+`backup-recipients.txt` (machine-local; m3 / neo / pi do **not** share keys).
+
 ## Troubleshooting
 
 ### Pi 5 network choice
