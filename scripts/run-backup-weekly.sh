@@ -12,6 +12,11 @@
 
 set -uo pipefail
 
+# launchd hands us a minimal PATH (/usr/bin:/bin:/usr/sbin:/sbin). Prepend the
+# locations where Homebrew and user-installed tools actually live, so age and
+# any other brew-installed binary the backup process shells out to are found.
+export PATH="/opt/homebrew/bin:/usr/local/bin:$HOME/.local/bin:$PATH"
+
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 UV="${UV:-$HOME/.local/bin/uv}"
 LOG_DIR="$HOME/Library/Logs"

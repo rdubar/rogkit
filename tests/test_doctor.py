@@ -140,8 +140,9 @@ def test_check_backup_health_reports_ok_for_verified_archives(
     )
 
     recipients = tmp_path / ".config" / "rogkit" / "backup-recipients.txt"
-    identity = tmp_path / ".config" / "rogkit" / "backup-age-identity.txt"
+    identity = tmp_path / ".config" / "age" / "keys.txt"
     recipients.parent.mkdir(parents=True)
+    identity.parent.mkdir(parents=True)
     recipients.write_text("age1example\n", encoding="utf-8")
     identity.write_text("AGE-SECRET-KEY-1...", encoding="utf-8")
 

@@ -269,7 +269,10 @@ def _check_backup_health() -> CheckResult:
 
     failures: list[str] = []
     warnings: list[str] = []
-    local_identity = Path.home() / ".config" / "rogkit" / "backup-age-identity.txt"
+    # age's standard identity location. age itself defaults here when invoked
+    # without `-i`, so a missing file here genuinely means "this machine has
+    # no key to decrypt its own encrypted archives".
+    local_identity = Path.home() / ".config" / "age" / "keys.txt"
 
     for setting in backup_sets:
         set_details = [
@@ -283,6 +286,7 @@ def _check_backup_health() -> CheckResult:
             continue
 
         found_archive = False
+        unreadable_destinations: list[Path] = []
         for destination in setting.destinations:
             destination_path = Path(destination)
             if not destination_path.is_dir():
@@ -290,14 +294,30 @@ def _check_backup_health() -> CheckResult:
                 set_details.append(f"destination missing: {destination_path}")
                 continue
 
-            archives = sorted(
-                destination_path.glob(_archive_pattern(setting)),
-                key=lambda path: path.stat().st_mtime,
-                reverse=True,
-            )
+            try:
+                archives = sorted(
+                    destination_path.glob(_archive_pattern(setting)),
+                    key=lambda path: path.stat().st_mtime,
+                    reverse=True,
+                )
+            except OSError as exc:
+                unreadable_destinations.append(destination_path)
+                warnings.append(f"{setting.name}: cannot read {destination_path} ({exc.strerror or exc})")
+                set_details.append(f"unreadable destination: {destination_path}")
+                continue
+
             if not archives:
-                warnings.append(f"{setting.name}: no archives in {destination_path}")
-                set_details.append(f"no archives in: {destination_path}")
+                # Path.glob silently returns empty if the directory enumeration
+                # is denied (e.g. macOS TCC on cloud-storage folders). Probe
+                # readability so we don't report a misleading "no archives".
+                try:
+                    next(iter(destination_path.iterdir()), None)
+                    warnings.append(f"{setting.name}: no archives in {destination_path}")
+                    set_details.append(f"no archives in: {destination_path}")
+                except OSError as exc:
+                    unreadable_destinations.append(destination_path)
+                    warnings.append(f"{setting.name}: cannot read {destination_path} ({exc.strerror or exc})")
+                    set_details.append(f"unreadable destination: {destination_path}")
                 continue
 
             latest = archives[0]
@@ -334,7 +354,7 @@ def _check_backup_health() -> CheckResult:
                     failures.append(f"{setting.name}: local age identity missing")
                     set_details.append(f"local identity missing: {local_identity}")
 
-        if not found_archive:
+        if not found_archive and not unreadable_destinations:
             failures.append(f"{setting.name}: no backup archives found")
 
         details.extend(set_details)
