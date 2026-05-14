@@ -248,6 +248,21 @@ def _archive_pattern(setting) -> str:
     return f"backup-{backup_cmd._slugify(setting.name)}-*{suffix}"
 
 
+def _age_identity_candidates() -> list[Path]:
+    home = Path.home()
+    return [
+        home / ".config" / "age" / "keys.txt",
+        home / ".config" / "rogkit" / "backup-age-identity.txt",
+    ]
+
+
+def _existing_age_identity() -> Path | None:
+    for candidate in _age_identity_candidates():
+        if candidate.exists():
+            return candidate
+    return None
+
+
 def _check_backup_health() -> CheckResult:
     details: list[str] = []
     try:
@@ -269,11 +284,6 @@ def _check_backup_health() -> CheckResult:
 
     failures: list[str] = []
     warnings: list[str] = []
-    # age's standard identity location. age itself defaults here when invoked
-    # without `-i`, so a missing file here genuinely means "this machine has
-    # no key to decrypt its own encrypted archives".
-    local_identity = Path.home() / ".config" / "age" / "keys.txt"
-
     for setting in backup_sets:
         set_details = [
             f"set: {setting.name}",
@@ -284,6 +294,22 @@ def _check_backup_health() -> CheckResult:
             set_details.append("no destinations configured")
             details.extend(set_details)
             continue
+
+        if setting.encrypted:
+            if shutil.which("age") is None:
+                failures.append(f"{setting.name}: age is not installed")
+                set_details.append("age binary missing")
+            if not setting.recipients_file or not Path(setting.recipients_file).exists():
+                failures.append(f"{setting.name}: recipients file missing")
+                set_details.append("recipients file missing")
+
+            local_identity = _existing_age_identity()
+            if local_identity is None:
+                failures.append(f"{setting.name}: local age identity missing")
+                candidates = ", ".join(str(path) for path in _age_identity_candidates())
+                set_details.append(f"local identity missing; checked: {candidates}")
+            else:
+                set_details.append(f"local identity found: {local_identity}")
 
         found_archive = False
         unreadable_destinations: list[Path] = []
@@ -342,17 +368,6 @@ def _check_backup_health() -> CheckResult:
                 set_details.append("checksum mismatch")
             else:
                 set_details.append(f"archive verified: {latest}")
-
-            if setting.encrypted:
-                if shutil.which("age") is None:
-                    failures.append(f"{setting.name}: age is not installed")
-                    set_details.append("age binary missing")
-                if not setting.recipients_file or not Path(setting.recipients_file).exists():
-                    failures.append(f"{setting.name}: recipients file missing")
-                    set_details.append("recipients file missing")
-                if not local_identity.exists():
-                    failures.append(f"{setting.name}: local age identity missing")
-                    set_details.append(f"local identity missing: {local_identity}")
 
         if not found_archive and not unreadable_destinations:
             failures.append(f"{setting.name}: no backup archives found")

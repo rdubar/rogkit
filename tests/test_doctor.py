@@ -176,6 +176,97 @@ def test_check_backup_health_reports_ok_for_verified_archives(
     assert str(encrypted_archive) in "\n".join(result.details)
 
 
+def test_check_backup_health_accepts_rogkit_backup_age_identity(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(
+        doctor.shutil,
+        "which",
+        lambda name: "/opt/homebrew/bin/age" if name == "age" else f"/usr/bin/{name}",
+    )
+
+    encrypted_dest = tmp_path / "archive" / "backups" / "encrypted"
+    encrypted_dest.mkdir(parents=True)
+    encrypted_archive = _write_backup_archive(
+        encrypted_dest,
+        "backup-neo-secrets-2026-05-14-20-49-03.tar.gz.age",
+        b"encrypted-archive",
+    )
+
+    recipients = tmp_path / ".config" / "rogkit" / "backup-recipients.txt"
+    identity = tmp_path / ".config" / "rogkit" / "backup-age-identity.txt"
+    recipients.parent.mkdir(parents=True)
+    recipients.write_text("age1example\n", encoding="utf-8")
+    identity.write_text("AGE-SECRET-KEY-1...", encoding="utf-8")
+
+    encrypted = doctor.backup_cmd.BackupSet(
+        name="neo-secrets",
+        sources=[str(tmp_path / "private")],
+        destinations=[str(encrypted_dest)],
+        file_excludes=[],
+        folder_excludes=[],
+        encrypted=True,
+        recipients_file=str(recipients),
+    )
+    monkeypatch.setattr(doctor.backup_cmd, "load_backup_settings", lambda: [encrypted])
+
+    result = doctor._check_backup_health()
+
+    assert result.status == "ok"
+    details = "\n".join(result.details)
+    assert str(encrypted_archive) in details
+    assert f"local identity found: {identity}" in details
+
+
+def test_check_backup_health_reports_missing_age_identity_once_per_set(
+    monkeypatch, tmp_path
+):
+    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(
+        doctor.shutil,
+        "which",
+        lambda name: "/opt/homebrew/bin/age" if name == "age" else f"/usr/bin/{name}",
+    )
+
+    first_dest = tmp_path / "archive" / "backups" / "encrypted"
+    second_dest = tmp_path / "cloud" / "backups" / "encrypted"
+    first_dest.mkdir(parents=True)
+    second_dest.mkdir(parents=True)
+    _write_backup_archive(
+        first_dest,
+        "backup-neo-secrets-2026-05-14-20-49-03.tar.gz.age",
+        b"encrypted-archive",
+    )
+    _write_backup_archive(
+        second_dest,
+        "backup-neo-secrets-2026-05-14-20-49-03.tar.gz.age",
+        b"encrypted-archive-copy",
+    )
+
+    recipients = tmp_path / ".config" / "rogkit" / "backup-recipients.txt"
+    recipients.parent.mkdir(parents=True)
+    recipients.write_text("age1example\n", encoding="utf-8")
+
+    encrypted = doctor.backup_cmd.BackupSet(
+        name="neo-secrets",
+        sources=[str(tmp_path / "private")],
+        destinations=[str(first_dest), str(second_dest)],
+        file_excludes=[],
+        folder_excludes=[],
+        encrypted=True,
+        recipients_file=str(recipients),
+    )
+    monkeypatch.setattr(doctor.backup_cmd, "load_backup_settings", lambda: [encrypted])
+
+    result = doctor._check_backup_health()
+
+    assert result.status == "fail"
+    details = "\n".join(result.details)
+    assert details.count("neo-secrets: local age identity missing") == 1
+    assert details.count("local identity missing; checked:") == 1
+
+
 def test_check_backup_health_fails_when_checksum_does_not_match(monkeypatch, tmp_path):
     home = tmp_path
     monkeypatch.setattr(Path, "home", lambda: home)
