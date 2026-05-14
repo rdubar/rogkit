@@ -64,7 +64,7 @@ import os
 import shutil
 import subprocess
 import tempfile
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from fnmatch import fnmatch
 from pathlib import Path
@@ -219,6 +219,7 @@ class BackupSet:
     destinations: List[str]
     file_excludes: List[str]
     folder_excludes: List[str]
+    secret_patterns: List[str] = field(default_factory=list)
     secrets_excluded: bool = False
     encrypted: bool = False
     recipients: List[str] | None = None
@@ -283,68 +284,42 @@ def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
     base_sources = [_normalize_path(path) for path in _as_list(backup_config.get("backup_from"))]
     secret_patterns = _as_list(backup_config.get("secret_patterns"))
 
-    backup_sets: List[BackupSet] = []
-    for entry in sets_raw:
-        if not isinstance(entry, dict):
-            continue
-        name = entry.get("name") or "backup"
+    def _build(entry: dict, *, encrypted: bool, default_name: str, default_include_secrets: bool) -> BackupSet:
+        name = entry.get("name") or default_name
         sources_raw = _as_list(entry.get("paths") or entry.get("sources") or base_sources)
         destinations_raw = _as_list(entry.get("destinations") or base_destinations)
-
         file_excludes = base_file_excludes + _as_list(entry.get("file_excludes"))
         folder_excludes = base_folder_excludes + _as_list(entry.get("folder_excludes"))
-        include_secrets = bool(entry.get("include_secrets", False))
+        include_secrets = bool(entry.get("include_secrets", default_include_secrets))
         secrets_excluded = bool(secret_patterns) and not include_secrets
-        if secrets_excluded:
-            file_excludes = file_excludes + secret_patterns
-
-        sources = [_normalize_path(path) for path in sources_raw]
-        destinations = [_normalize_path(path) for path in destinations_raw]
-
-        backup_sets.append(
-            BackupSet(
-                name=str(name),
-                sources=sources,
-                destinations=destinations,
-                file_excludes=file_excludes,
-                folder_excludes=folder_excludes,
-                secrets_excluded=secrets_excluded,
-            )
+        applied_secret_patterns = list(secret_patterns) if secrets_excluded else []
+        return BackupSet(
+            name=str(name),
+            sources=[_normalize_path(p) for p in sources_raw],
+            destinations=[_normalize_path(p) for p in destinations_raw],
+            file_excludes=file_excludes,
+            folder_excludes=folder_excludes,
+            secret_patterns=applied_secret_patterns,
+            secrets_excluded=secrets_excluded,
+            encrypted=encrypted,
+            recipients=_as_list(entry.get("recipients")) if encrypted else None,
+            recipients_file=(
+                _normalize_path(str(entry["recipients_file"]))
+                if encrypted and entry.get("recipients_file")
+                else None
+            ),
         )
+
+    backup_sets: List[BackupSet] = []
+    for entry in sets_raw:
+        if isinstance(entry, dict):
+            backup_sets.append(_build(entry, encrypted=False, default_name="backup", default_include_secrets=False))
 
     encrypted_sets_raw = backup_config.get("encrypted_set") or []
     if isinstance(encrypted_sets_raw, list):
         for entry in encrypted_sets_raw:
-            if not isinstance(entry, dict):
-                continue
-            name = entry.get("name") or "encrypted"
-            sources_raw = _as_list(entry.get("paths") or entry.get("sources") or base_sources)
-            destinations_raw = _as_list(entry.get("destinations") or base_destinations)
-
-            file_excludes = base_file_excludes + _as_list(entry.get("file_excludes"))
-            folder_excludes = base_folder_excludes + _as_list(entry.get("folder_excludes"))
-            include_secrets = bool(entry.get("include_secrets", True))
-            secrets_excluded = bool(secret_patterns) and not include_secrets
-            if secrets_excluded:
-                file_excludes = file_excludes + secret_patterns
-
-            backup_sets.append(
-                BackupSet(
-                    name=str(name),
-                    sources=[_normalize_path(path) for path in sources_raw],
-                    destinations=[_normalize_path(path) for path in destinations_raw],
-                    file_excludes=file_excludes,
-                    folder_excludes=folder_excludes,
-                    secrets_excluded=secrets_excluded,
-                    encrypted=True,
-                    recipients=_as_list(entry.get("recipients")),
-                    recipients_file=(
-                        _normalize_path(str(entry["recipients_file"]))
-                        if entry.get("recipients_file")
-                        else None
-                    ),
-                )
-            )
+            if isinstance(entry, dict):
+                backup_sets.append(_build(entry, encrypted=True, default_name="encrypted", default_include_secrets=True))
     return backup_sets
 
 
@@ -415,6 +390,21 @@ def _matches_any(value: str, patterns: Iterable[str]) -> bool:
     return False
 
 
+def _matches_basename(file_name: str, patterns: Iterable[str]) -> bool:
+    """Pattern matching against the file's basename only.
+
+    Used for `secret_patterns` so a pattern like `.env` excludes files named
+    exactly `.env` (or matching the glob), but NOT a sibling path containing
+    `.env` as a substring (e.g. `myenv/file.txt`, `.envrc`).
+    """
+    for pattern in patterns:
+        if not pattern:
+            continue
+        if fnmatch(file_name, pattern.replace('\\', '/')):
+            return True
+    return False
+
+
 def _collect_sources(settings: BackupSet) -> tuple[List[str], List[str], List[str]]:
     ordered_sources = list(dict.fromkeys(settings.sources))
     source_files: List[str] = []
@@ -438,7 +428,11 @@ def _collect_included_files(settings: BackupSet, source_files: list[str], source
     total_file_size = 0
 
     for file_path in source_files:
+        file_name = os.path.basename(file_path)
         if _matches_any(file_path, settings.file_excludes):
+            skipped_count += 1
+            continue
+        if _matches_basename(file_name, settings.secret_patterns):
             skipped_count += 1
             continue
         if not os.path.isfile(file_path):
@@ -468,6 +462,9 @@ def _collect_included_files(settings: BackupSet, source_files: list[str], source
                     skipped_count += 1
                     continue
                 if _matches_any(file_path, settings.file_excludes) or _matches_any(file_name, settings.file_excludes):
+                    skipped_count += 1
+                    continue
+                if _matches_basename(file_name, settings.secret_patterns):
                     skipped_count += 1
                     continue
                 included_files.append(file_path)
@@ -531,7 +528,7 @@ def _sha256_file(path: str) -> str:
 
 def _write_manifest(settings: BackupSet, archive_path: str, plan: BackupPlan) -> str:
     manifest_path = archive_path + ".manifest.json"
-    payload = {
+    payload: dict = {
         "name": settings.name,
         "created_at": datetime.now().isoformat(timespec="seconds"),
         "encrypted": settings.encrypted,
@@ -540,42 +537,112 @@ def _write_manifest(settings: BackupSet, archive_path: str, plan: BackupPlan) ->
         "file_count": len(plan.included_files),
         "skipped_count": plan.skipped_count,
         "total_file_size": plan.total_file_size,
-        "sources": settings.sources,
-        "destinations": settings.destinations,
         "secrets_excluded": settings.secrets_excluded,
     }
+    # Encrypted-set manifests omit source/destination paths — those would advertise
+    # exactly what's inside the encrypted blob to anyone reading the destination directory.
+    if not settings.encrypted:
+        payload["sources"] = settings.sources
+        payload["destinations"] = settings.destinations
     Path(manifest_path).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
     return manifest_path
 
 
-def _copy_to_extra_destinations(primary_archive_path: str, extra_destinations: list[str]) -> None:
+def _copy_to_extra_destinations(primary_archive_path: str, extra_destinations: list[str], *, restrict_perms: bool) -> None:
     related_paths = [primary_archive_path]
     manifest_path = primary_archive_path + ".manifest.json"
     if os.path.exists(manifest_path):
         related_paths.append(manifest_path)
 
+    expected_sha = _sha256_file(primary_archive_path)
+
     for extra_path in extra_destinations:
         try:
             os.makedirs(extra_path, exist_ok=True)
             for path in related_paths:
-                shutil.copy2(path, os.path.join(extra_path, os.path.basename(path)))
+                target = os.path.join(extra_path, os.path.basename(path))
+                shutil.copy2(path, target)
+                if path == primary_archive_path:
+                    if _sha256_file(target) != expected_sha:
+                        os.unlink(target)
+                        raise OSError(f"sha256 mismatch after copy to {target}; copy deleted")
+                    if restrict_perms:
+                        os.chmod(target, 0o600)
             _print_message(f"Backup copied to {extra_path}", "green")
         except OSError as exc:
             _print_message(f"Error copying backup to {extra_path}: {exc}", "bold red")
 
 
-def _age_command(settings: BackupSet, source_path: str, output_path: str) -> list[str]:
+def _age_recipient_args(settings: BackupSet) -> list[str]:
+    args: list[str] = []
+    for recipient in (settings.recipients or []):
+        args.extend(["-r", recipient])
+    if settings.recipients_file:
+        args.extend(["-R", settings.recipients_file])
+    return args
+
+
+def _age_command(settings: BackupSet, source_path: str | None, output_path: str) -> list[str]:
+    """Build an age command. If `source_path` is None, age reads stdin."""
     if shutil.which("age") is None:
         raise FileNotFoundError("age")
-
-    command = ["age"]
-    recipients = settings.recipients or []
-    for recipient in recipients:
-        command.extend(["-r", recipient])
-    if settings.recipients_file:
-        command.extend(["-R", settings.recipients_file])
-    command.extend(["-o", output_path, source_path])
+    command = ["age", *_age_recipient_args(settings), "-o", output_path]
+    if source_path is not None:
+        command.append(source_path)
     return command
+
+
+def _preflight_age(settings: BackupSet) -> bool:
+    """Verify the age recipients are valid by encrypting an empty payload.
+
+    Catches malformed/typo recipient strings BEFORE any plaintext is produced.
+    """
+    try:
+        with tempfile.TemporaryDirectory() as td:
+            out_path = os.path.join(td, "preflight.age")
+            cmd = _age_command(settings, source_path=None, output_path=out_path)
+            subprocess.run(cmd, input=b"", check=True, capture_output=True)
+        return True
+    except subprocess.CalledProcessError as exc:
+        stderr = (exc.stderr or b"").decode("utf-8", errors="replace").strip()
+        _print_message(
+            f"[{settings.name}] age preflight failed: {stderr or exc}", "bold red"
+        )
+        return False
+    except FileNotFoundError:
+        _print_message("age is required for encrypted backups but was not found in PATH.", "bold red")
+        return False
+
+
+def _stream_tar_to_age(file_list_path: str, output_path: str, settings: BackupSet) -> None:
+    """Stream `tar -czf -` into `age` over a pipe.
+
+    Plaintext never touches the filesystem; it lives only in the kernel pipe
+    buffer between the two processes. On either process failing, the partial
+    output is unlinked and CalledProcessError is raised.
+    """
+    tar_cmd = ["tar", "-czf", "-", "-T", file_list_path]
+    age_cmd = _age_command(settings, source_path=None, output_path=output_path)
+
+    tar_proc = subprocess.Popen(tar_cmd, stdout=subprocess.PIPE)
+    try:
+        assert tar_proc.stdout is not None
+        age_proc = subprocess.Popen(age_cmd, stdin=tar_proc.stdout)
+        # Let tar receive SIGPIPE if age exits early.
+        tar_proc.stdout.close()
+        age_rc = age_proc.wait()
+        tar_rc = tar_proc.wait()
+    except Exception:
+        tar_proc.kill()
+        tar_proc.wait()
+        raise
+
+    if tar_rc != 0 or age_rc != 0:
+        if os.path.exists(output_path):
+            os.unlink(output_path)
+        failed = tar_cmd if tar_rc != 0 else age_cmd
+        rc = tar_rc if tar_rc != 0 else age_rc
+        raise subprocess.CalledProcessError(rc, failed)
 
 
 def _validate_encryption_settings(settings: BackupSet) -> bool:
@@ -608,6 +675,9 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
     if not _validate_encryption_settings(settings):
         return 1
 
+    if settings.encrypted and not dry_run and not _preflight_age(settings):
+        return 1
+
     plan = build_backup_plan(settings, create_destinations=not dry_run)
     if not plan.valid_destinations:
         _print_message(f"[{settings.name}] No usable backup destinations were found or could be created.", "bold red")
@@ -632,60 +702,63 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
         return 0
 
     start_time = perf_counter()
-    current_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
+    current_date = datetime.today().strftime('%Y-%m-%d-%H-%M-%S')
     backup_filename = f'backup-{_slugify(settings.name)}-{current_date}.tar.gz'
     if settings.encrypted:
         backup_filename += ".age"
 
     primary_archive_path = plan.valid_destinations[0]
     backup_file_path = os.path.join(primary_archive_path, backup_filename)
+    encrypted_temp_path = backup_file_path + ".tmp"
 
     _render_plan(plan)
-
     _print_message(f"Primary backup destination: {backup_file_path}", "bold blue")
 
-    with tempfile.NamedTemporaryFile(mode='w+', delete=False) as file_list:
-        for file_path in plan.included_files:
-            file_list.write(file_path + '\n')
-
-    if verbose:
-        with open(file_list.name, 'r', encoding='utf-8') as fh:
-            for line in fh:
-                _print_message(f"Added: {line.strip()}", "dim")
-
-    elapsed_time = convert_seconds(perf_counter() - start_time)
-    _print_message(
-        f"[{settings.name}] Queued {len(plan.included_files):,} files for backup ({byte_size(plan.total_file_size)}). "
-        f"Skipped {plan.skipped_count:,}. Elapsed time: {elapsed_time}.",
-        "bold",
-    )
-
     try:
-        if settings.encrypted:
-            with tempfile.TemporaryDirectory() as temp_dir:
-                plaintext_archive = os.path.join(temp_dir, "backup.tar.gz")
-                encrypted_temp_path = backup_file_path + ".tmp"
-                subprocess.run(["tar", "-czf", plaintext_archive, "-T", file_list.name], check=True)
-                subprocess.run(_age_command(settings, plaintext_archive, encrypted_temp_path), check=True)
+        with tempfile.TemporaryDirectory() as work_dir:
+            file_list_path = os.path.join(work_dir, "files.txt")
+            with open(file_list_path, "w", encoding="utf-8") as handle:
+                handle.write("\n".join(plan.included_files) + "\n")
+            # Restrict the file list — it enumerates every source path being backed up.
+            os.chmod(file_list_path, 0o600)
+
+            if verbose:
+                for path in plan.included_files:
+                    _print_message(f"Added: {path}", "dim")
+
+            elapsed_time = convert_seconds(perf_counter() - start_time)
+            _print_message(
+                f"[{settings.name}] Queued {len(plan.included_files):,} files for backup "
+                f"({byte_size(plan.total_file_size)}). Skipped {plan.skipped_count:,}. "
+                f"Elapsed time: {elapsed_time}.",
+                "bold",
+            )
+
+            if settings.encrypted:
+                # tar | age pipe — plaintext never lands on disk.
+                _stream_tar_to_age(file_list_path, encrypted_temp_path, settings)
                 os.replace(encrypted_temp_path, backup_file_path)
-        else:
-            temp_backup_path = backup_file_path + '.tmp'
-            subprocess.run(["tar", "-czf", temp_backup_path, "-T", file_list.name], check=True)
-            os.replace(temp_backup_path, backup_file_path)
+                os.chmod(backup_file_path, 0o600)
+            else:
+                plain_temp_path = backup_file_path + ".tmp"
+                subprocess.run(
+                    ["tar", "-czf", plain_temp_path, "-T", file_list_path],
+                    check=True,
+                )
+                os.replace(plain_temp_path, backup_file_path)
     except subprocess.CalledProcessError as exc:
         _print_message(f"[{settings.name}] Error while creating archive: {exc}", "bold red")
-        if os.path.exists(backup_file_path + ".tmp"):
-            os.unlink(backup_file_path + ".tmp")
+        for stale in (encrypted_temp_path, backup_file_path + ".tmp"):
+            if os.path.exists(stale):
+                os.unlink(stale)
         return 1
-    finally:
-        os.unlink(file_list.name)
 
     _print_message(f"[{settings.name}] Backup saved to {backup_file_path}", "green")
     manifest_path = _write_manifest(settings, backup_file_path, plan)
     _print_message(f"[{settings.name}] Manifest saved to {manifest_path}", "green")
 
     extra_destinations = plan.valid_destinations[1:]
-    _copy_to_extra_destinations(backup_file_path, extra_destinations)
+    _copy_to_extra_destinations(backup_file_path, extra_destinations, restrict_perms=settings.encrypted)
 
     total_elapsed = convert_seconds(perf_counter() - start_time)
     archive_size = os.path.getsize(backup_file_path)
