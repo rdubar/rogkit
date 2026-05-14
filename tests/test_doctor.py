@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
@@ -33,12 +34,14 @@ def test_run_checks_uses_all_checkers(monkeypatch):
         doctor.CheckResult("config", "ok", "config ok"),
         doctor.CheckResult("shell", "ok", "shell ok"),
         doctor.CheckResult("binaries", "ok", "binaries ok"),
+        doctor.CheckResult("backup", "ok", "backup ok"),
         doctor.CheckResult("media", "warn", "media warn"),
     ]
     monkeypatch.setattr(doctor, "_check_config", lambda: expected[0])
     monkeypatch.setattr(doctor, "_check_shell_setup", lambda: expected[1])
     monkeypatch.setattr(doctor, "_check_binaries", lambda: expected[2])
-    monkeypatch.setattr(doctor, "_check_media", lambda: expected[3])
+    monkeypatch.setattr(doctor, "_check_backup_health", lambda: expected[3])
+    monkeypatch.setattr(doctor, "_check_media", lambda: expected[4])
 
     assert doctor.run_checks() == expected
 
@@ -88,3 +91,125 @@ def test_check_config_missing_includes_setup_hint(monkeypatch, tmp_path):
 
     assert result.status == "fail"
     assert any("setup --apply" in detail for detail in result.details)
+
+
+def _write_backup_archive(dest: Path, filename: str, content: bytes) -> Path:
+    archive = dest / filename
+    archive.write_bytes(content)
+    manifest = Path(str(archive) + ".manifest.json")
+    manifest.write_text(
+        json.dumps(
+            {
+                "name": "test",
+                "encrypted": filename.endswith(".age"),
+                "sha256": hashlib.sha256(content).hexdigest(),
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+    return archive
+
+
+def test_check_backup_health_reports_ok_for_verified_archives(
+    monkeypatch, tmp_path
+):
+    home = tmp_path
+    monkeypatch.setattr(Path, "home", lambda: home)
+    monkeypatch.setattr(
+        doctor.shutil,
+        "which",
+        lambda name: "/opt/homebrew/bin/age" if name == "age" else f"/usr/bin/{name}",
+    )
+
+    plain_dest = tmp_path / "archive" / "backups"
+    encrypted_dest = plain_dest / "encrypted"
+    plain_dest.mkdir(parents=True)
+    encrypted_dest.mkdir(parents=True)
+
+    plain_archive = _write_backup_archive(
+        plain_dest,
+        "backup-neo-2026-05-14-20-48-00.tar.gz",
+        b"plain-archive",
+    )
+    encrypted_archive = _write_backup_archive(
+        encrypted_dest,
+        "backup-neo-secrets-2026-05-14-20-49-03.tar.gz.age",
+        b"encrypted-archive",
+    )
+
+    recipients = tmp_path / ".config" / "rogkit" / "backup-recipients.txt"
+    identity = tmp_path / ".config" / "rogkit" / "backup-age-identity.txt"
+    recipients.parent.mkdir(parents=True)
+    recipients.write_text("age1example\n", encoding="utf-8")
+    identity.write_text("AGE-SECRET-KEY-1...", encoding="utf-8")
+
+    plain = doctor.backup_cmd.BackupSet(
+        name="neo",
+        sources=[str(tmp_path / "dev")],
+        destinations=[str(plain_dest)],
+        file_excludes=[],
+        folder_excludes=[],
+    )
+    encrypted = doctor.backup_cmd.BackupSet(
+        name="neo-secrets",
+        sources=[str(tmp_path / "private")],
+        destinations=[str(encrypted_dest)],
+        file_excludes=[],
+        folder_excludes=[],
+        encrypted=True,
+        recipients=["age1example"],
+        recipients_file=str(recipients),
+    )
+    monkeypatch.setattr(
+        doctor.backup_cmd,
+        "load_backup_settings",
+        lambda: [plain, encrypted],
+    )
+
+    result = doctor._check_backup_health()
+
+    assert result.status == "ok"
+    assert str(plain_archive) in "\n".join(result.details)
+    assert str(encrypted_archive) in "\n".join(result.details)
+
+
+def test_check_backup_health_fails_when_checksum_does_not_match(monkeypatch, tmp_path):
+    home = tmp_path
+    monkeypatch.setattr(Path, "home", lambda: home)
+    monkeypatch.setattr(
+        doctor.shutil,
+        "which",
+        lambda name: "/opt/homebrew/bin/age" if name == "age" else f"/usr/bin/{name}",
+    )
+
+    dest = tmp_path / "archive" / "backups"
+    dest.mkdir(parents=True)
+    _write_backup_archive(dest, "backup-neo-2026-05-14-20-48-00.tar.gz", b"plain-archive")
+    (dest / "backup-neo-2026-05-14-20-48-00.tar.gz.manifest.json").write_text(
+        json.dumps(
+            {
+                "name": "test",
+                "encrypted": False,
+                "sha256": "deadbeef",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    plain = doctor.backup_cmd.BackupSet(
+        name="neo",
+        sources=[str(tmp_path / "dev")],
+        destinations=[str(dest)],
+        file_excludes=[],
+        folder_excludes=[],
+    )
+    monkeypatch.setattr(doctor.backup_cmd, "load_backup_settings", lambda: [plain])
+
+    result = doctor._check_backup_health()
+
+    assert result.status == "fail"
+    assert "checksum mismatch" in "\n".join(result.details)

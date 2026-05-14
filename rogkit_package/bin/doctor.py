@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import os
 import shutil
@@ -13,6 +14,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from ..settings import root_dir
+from . import backup as backup_cmd
 from .tomlr import get_rogkit_secrets_path, get_rogkit_toml_path, load_rogkit_toml
 
 try:  # optional rich formatting
@@ -233,6 +235,133 @@ def _check_binaries() -> CheckResult:
     )
 
 
+def _sha256_file(path: Path) -> str:
+    digest = hashlib.sha256()
+    with path.open("rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _archive_pattern(setting) -> str:
+    suffix = ".tar.gz.age" if setting.encrypted else ".tar.gz"
+    return f"backup-{backup_cmd._slugify(setting.name)}-*{suffix}"
+
+
+def _check_backup_health() -> CheckResult:
+    details: list[str] = []
+    try:
+        backup_sets = backup_cmd.load_backup_settings()
+    except Exception as exc:  # pragma: no cover - defensive guard
+        return CheckResult(
+            name="backup",
+            status="fail",
+            summary=f"Backup settings could not be loaded: {exc}",
+        )
+
+    if not backup_sets:
+        return CheckResult(
+            name="backup",
+            status="warn",
+            summary="No backup sets are configured.",
+            details=["No `[[backup.set]]` or `[[backup.encrypted_set]]` entries were found."],
+        )
+
+    failures: list[str] = []
+    warnings: list[str] = []
+    local_identity = Path.home() / ".config" / "rogkit" / "backup-age-identity.txt"
+
+    for setting in backup_sets:
+        set_details = [
+            f"set: {setting.name}",
+            f"encrypted: {setting.encrypted}",
+        ]
+        if not setting.destinations:
+            failures.append(f"{setting.name}: no destinations configured")
+            set_details.append("no destinations configured")
+            details.extend(set_details)
+            continue
+
+        found_archive = False
+        for destination in setting.destinations:
+            destination_path = Path(destination)
+            if not destination_path.is_dir():
+                warnings.append(f"{setting.name}: destination missing: {destination_path}")
+                set_details.append(f"destination missing: {destination_path}")
+                continue
+
+            archives = sorted(
+                destination_path.glob(_archive_pattern(setting)),
+                key=lambda path: path.stat().st_mtime,
+                reverse=True,
+            )
+            if not archives:
+                warnings.append(f"{setting.name}: no archives in {destination_path}")
+                set_details.append(f"no archives in: {destination_path}")
+                continue
+
+            latest = archives[0]
+            found_archive = True
+            manifest = Path(str(latest) + ".manifest.json")
+            if not manifest.exists():
+                failures.append(f"{setting.name}: missing manifest for {latest}")
+                set_details.append(f"missing manifest: {manifest}")
+                continue
+
+            try:
+                payload = json.loads(manifest.read_text(encoding="utf-8"))
+            except json.JSONDecodeError as exc:
+                failures.append(f"{setting.name}: malformed manifest for {latest}")
+                set_details.append(f"manifest parse failed: {exc}")
+                continue
+
+            expected_sha = payload.get("sha256")
+            actual_sha = _sha256_file(latest)
+            if expected_sha != actual_sha:
+                failures.append(f"{setting.name}: sha256 mismatch for {latest}")
+                set_details.append("checksum mismatch")
+            else:
+                set_details.append(f"archive verified: {latest}")
+
+            if setting.encrypted:
+                if shutil.which("age") is None:
+                    failures.append(f"{setting.name}: age is not installed")
+                    set_details.append("age binary missing")
+                if not setting.recipients_file or not Path(setting.recipients_file).exists():
+                    failures.append(f"{setting.name}: recipients file missing")
+                    set_details.append("recipients file missing")
+                if not local_identity.exists():
+                    failures.append(f"{setting.name}: local age identity missing")
+                    set_details.append(f"local identity missing: {local_identity}")
+
+        if not found_archive:
+            failures.append(f"{setting.name}: no backup archives found")
+
+        details.extend(set_details)
+
+    if failures:
+        summary = f"Backup health found {len(failures)} problem(s)."
+        details[:0] = [f"failures: {', '.join(failures)}"]
+        if warnings:
+            details[:0] = [f"warnings: {', '.join(warnings)}"]
+        return CheckResult(name="backup", status="fail", summary=summary, details=details)
+
+    if warnings:
+        return CheckResult(
+            name="backup",
+            status="warn",
+            summary="Backup configuration is present, but some destinations or archives need attention.",
+            details=[f"warnings: {', '.join(warnings)}", *details],
+        )
+
+    return CheckResult(
+        name="backup",
+        status="ok",
+        summary="Backup archives, manifests, and encryption prerequisites look healthy.",
+        details=details,
+    )
+
+
 def _check_media() -> CheckResult:
     try:
         from ..media.daemon import ping_daemon
@@ -319,6 +448,7 @@ def run_checks() -> list[CheckResult]:
         _check_config(),
         _check_shell_setup(),
         _check_binaries(),
+        _check_backup_health(),
         _check_media(),
     ]
 
