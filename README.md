@@ -98,7 +98,7 @@ underlying Python modules may use disambiguated names such as `jsonr.py` and
 
 | Tool | What it does |
 |------|-------------|
-| `backup` | Archive files/folders with compression; per-set secrets exclusion for cloud vs local destinations |
+| `backup` | Archive files/folders with compression, dry-run plans, manifests, and optional `age`-encrypted sets |
 | `archive` | Inspect archive contents or extract them safely |
 | `clean` | Translation file cleaner — removes unused keys from `.po`/`.pot` files |
 | `collate` | Merge files from multiple locations into one directory |

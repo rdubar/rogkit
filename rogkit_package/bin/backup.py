@@ -32,6 +32,13 @@ Example per-set config:
     destinations = ["~/Archive/Backups"]
     paths = ["~/.ssh", "~/.config/", "~/dev", "~/.env"]
 
+    # Encrypted — secrets safe for Pi/off-machine storage
+    [[backup.encrypted_set]]
+    name = "Secrets"
+    recipients_file = "~/.config/rogkit/backup-recipients.txt"
+    destinations = ["~/Archive/Backups/encrypted"]
+    paths = ["~/.ssh", "~/.config", "~/life/medical", "~/life/household"]
+
 Optional global overrides (shared by all sets):
 
     [backup]
@@ -51,6 +58,8 @@ are defined:
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
 import os
 import shutil
 import subprocess
@@ -180,6 +189,12 @@ CONFIG_HELP = dedent(
         destinations = ["~/Archive/Backups"]
         paths = ["~/.ssh", "~/.config/", "~/dev", "~/.env"]
 
+        [[backup.encrypted_set]]
+        name = "Secrets"
+        recipients_file = "~/.config/rogkit/backup-recipients.txt"
+        destinations = ["~/Archive/Backups/encrypted"]
+        paths = ["~/.ssh", "~/.config", "~/life/medical"]
+
     Optional global overrides:
 
         [backup]
@@ -205,6 +220,21 @@ class BackupSet:
     file_excludes: List[str]
     folder_excludes: List[str]
     secrets_excluded: bool = False
+    encrypted: bool = False
+    recipients: List[str] | None = None
+    recipients_file: str | None = None
+
+
+@dataclass
+class BackupPlan:
+    settings: BackupSet
+    valid_destinations: List[str]
+    source_files: List[str]
+    source_folders: List[str]
+    missing_sources: List[str]
+    included_files: List[str]
+    skipped_count: int
+    total_file_size: int
 
 
 def _as_list(value: object) -> List[str]:
@@ -281,6 +311,40 @@ def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
                 secrets_excluded=secrets_excluded,
             )
         )
+
+    encrypted_sets_raw = backup_config.get("encrypted_set") or []
+    if isinstance(encrypted_sets_raw, list):
+        for entry in encrypted_sets_raw:
+            if not isinstance(entry, dict):
+                continue
+            name = entry.get("name") or "encrypted"
+            sources_raw = _as_list(entry.get("paths") or entry.get("sources") or base_sources)
+            destinations_raw = _as_list(entry.get("destinations") or base_destinations)
+
+            file_excludes = base_file_excludes + _as_list(entry.get("file_excludes"))
+            folder_excludes = base_folder_excludes + _as_list(entry.get("folder_excludes"))
+            include_secrets = bool(entry.get("include_secrets", True))
+            secrets_excluded = bool(secret_patterns) and not include_secrets
+            if secrets_excluded:
+                file_excludes = file_excludes + secret_patterns
+
+            backup_sets.append(
+                BackupSet(
+                    name=str(name),
+                    sources=[_normalize_path(path) for path in sources_raw],
+                    destinations=[_normalize_path(path) for path in destinations_raw],
+                    file_excludes=file_excludes,
+                    folder_excludes=folder_excludes,
+                    secrets_excluded=secrets_excluded,
+                    encrypted=True,
+                    recipients=_as_list(entry.get("recipients")),
+                    recipients_file=(
+                        _normalize_path(str(entry["recipients_file"]))
+                        if entry.get("recipients_file")
+                        else None
+                    ),
+                )
+            )
     return backup_sets
 
 
@@ -351,24 +415,7 @@ def _matches_any(value: str, patterns: Iterable[str]) -> bool:
     return False
 
 
-def create_backup(settings: BackupSet, *, verbose: bool = False) -> int:
-    """Create a new backup for a single set."""
-    if not settings.destinations:
-        _print_message(f"[{settings.name}] No backup destinations configured.", "bold red")
-        print(CONFIG_HELP)
-        return 1
-
-    if not settings.sources:
-        _print_message(f"[{settings.name}] No backup source folders configured.", "bold red")
-        print(CONFIG_HELP)
-        return 1
-
-    valid_destinations = _resolve_existing_directories(settings.destinations, create=True)
-    if not valid_destinations:
-        _print_message(f"[{settings.name}] No usable backup destinations were found or could be created.", "bold red")
-        print(CONFIG_HELP)
-        return 1
-
+def _collect_sources(settings: BackupSet) -> tuple[List[str], List[str], List[str]]:
     ordered_sources = list(dict.fromkeys(settings.sources))
     source_files: List[str] = []
     source_folders: List[str] = []
@@ -382,12 +429,197 @@ def create_backup(settings: BackupSet, *, verbose: bool = False) -> int:
         else:
             missing_sources.append(path)
 
-    if missing_sources:
+    return source_files, source_folders, missing_sources
+
+
+def _collect_included_files(settings: BackupSet, source_files: list[str], source_folders: list[str]) -> tuple[List[str], int, int]:
+    included_files: List[str] = []
+    skipped_count = 0
+    total_file_size = 0
+
+    for file_path in source_files:
+        if _matches_any(file_path, settings.file_excludes):
+            skipped_count += 1
+            continue
+        if not os.path.isfile(file_path):
+            skipped_count += 1
+            continue
+        included_files.append(file_path)
+        try:
+            total_file_size += os.path.getsize(file_path)
+        except (FileNotFoundError, PermissionError):
+            skipped_count += 1
+
+    for folder in source_folders:
+        if _matches_any(folder, settings.folder_excludes):
+            skipped_count += 1
+            continue
+        for root, dirs, files in os.walk(folder):
+            kept_dirs = []
+            for directory in dirs:
+                if _matches_any(os.path.join(root, directory), settings.folder_excludes):
+                    skipped_count += 1
+                else:
+                    kept_dirs.append(directory)
+            dirs[:] = kept_dirs
+            for file_name in files:
+                file_path = os.path.join(root, file_name)
+                if not os.path.isfile(file_path):
+                    skipped_count += 1
+                    continue
+                if _matches_any(file_path, settings.file_excludes) or _matches_any(file_name, settings.file_excludes):
+                    skipped_count += 1
+                    continue
+                included_files.append(file_path)
+                try:
+                    total_file_size += os.path.getsize(file_path)
+                except (FileNotFoundError, PermissionError):
+                    skipped_count += 1
+
+    return included_files, skipped_count, total_file_size
+
+
+def build_backup_plan(settings: BackupSet, *, create_destinations: bool = False) -> BackupPlan:
+    """Build a backup plan without creating an archive."""
+    valid_destinations = _resolve_existing_directories(settings.destinations, create=create_destinations)
+    source_files, source_folders, missing_sources = _collect_sources(settings)
+    included_files, skipped_count, total_file_size = _collect_included_files(settings, source_files, source_folders)
+
+    return BackupPlan(
+        settings=settings,
+        valid_destinations=valid_destinations,
+        source_files=source_files,
+        source_folders=source_folders,
+        missing_sources=missing_sources,
+        included_files=included_files,
+        skipped_count=skipped_count,
+        total_file_size=total_file_size,
+    )
+
+
+def _render_plan(plan: BackupPlan) -> None:
+    mode = "Encrypted backup" if plan.settings.encrypted else "Backup"
+    _print_rule(f"{mode} Plan: {plan.settings.name}")
+    _print_paths("Destinations", plan.valid_destinations, "green") if plan.valid_destinations else _print_message("No usable destinations found.", "yellow")
+    _print_paths("Folders", plan.source_folders, "cyan") if plan.source_folders else _print_message("No folder entries in whitelist.", "yellow")
+    if plan.source_files:
+        _print_paths("Files", plan.source_files, "magenta")
+    if plan.missing_sources:
+        _print_paths("Missing sources", plan.missing_sources, "yellow")
+    if plan.settings.secrets_excluded:
+        _print_message("Secrets excluded (set include_secrets = true to include)", "bold yellow")
+    if plan.settings.encrypted:
+        recipient_count = len(plan.settings.recipients or [])
+        recipient_note = f"{recipient_count} inline recipient(s)"
+        if plan.settings.recipients_file:
+            recipient_note += f", recipients file: {plan.settings.recipients_file}"
+        _print_message(f"Encryption: age ({recipient_note})", "bold blue")
+    _print_message(
+        f"Would archive {len(plan.included_files):,} files ({byte_size(plan.total_file_size)}). "
+        f"Skipped {plan.skipped_count:,}.",
+        "bold",
+    )
+
+
+def _sha256_file(path: str) -> str:
+    digest = hashlib.sha256()
+    with open(path, "rb") as handle:
+        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def _write_manifest(settings: BackupSet, archive_path: str, plan: BackupPlan) -> str:
+    manifest_path = archive_path + ".manifest.json"
+    payload = {
+        "name": settings.name,
+        "created_at": datetime.now().isoformat(timespec="seconds"),
+        "encrypted": settings.encrypted,
+        "archive": archive_path,
+        "sha256": _sha256_file(archive_path),
+        "file_count": len(plan.included_files),
+        "skipped_count": plan.skipped_count,
+        "total_file_size": plan.total_file_size,
+        "sources": settings.sources,
+        "destinations": settings.destinations,
+        "secrets_excluded": settings.secrets_excluded,
+    }
+    Path(manifest_path).write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    return manifest_path
+
+
+def _copy_to_extra_destinations(primary_archive_path: str, extra_destinations: list[str]) -> None:
+    related_paths = [primary_archive_path]
+    manifest_path = primary_archive_path + ".manifest.json"
+    if os.path.exists(manifest_path):
+        related_paths.append(manifest_path)
+
+    for extra_path in extra_destinations:
+        try:
+            os.makedirs(extra_path, exist_ok=True)
+            for path in related_paths:
+                shutil.copy2(path, os.path.join(extra_path, os.path.basename(path)))
+            _print_message(f"Backup copied to {extra_path}", "green")
+        except OSError as exc:
+            _print_message(f"Error copying backup to {extra_path}: {exc}", "bold red")
+
+
+def _age_command(settings: BackupSet, source_path: str, output_path: str) -> list[str]:
+    if shutil.which("age") is None:
+        raise FileNotFoundError("age")
+
+    command = ["age"]
+    recipients = settings.recipients or []
+    for recipient in recipients:
+        command.extend(["-r", recipient])
+    if settings.recipients_file:
+        command.extend(["-R", settings.recipients_file])
+    command.extend(["-o", output_path, source_path])
+    return command
+
+
+def _validate_encryption_settings(settings: BackupSet) -> bool:
+    if not settings.encrypted:
+        return True
+    if not settings.recipients and not settings.recipients_file:
+        _print_message(f"[{settings.name}] No age recipients configured.", "bold red")
+        return False
+    if settings.recipients_file and not os.path.isfile(settings.recipients_file):
+        _print_message(f"[{settings.name}] Recipients file not found: {settings.recipients_file}", "bold red")
+        return False
+    if shutil.which("age") is None:
+        _print_message("age is required for encrypted backups but was not found in PATH.", "bold red")
+        return False
+    return True
+
+
+def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool = False) -> int:
+    """Create a new backup for a single set."""
+    if not settings.destinations:
+        _print_message(f"[{settings.name}] No backup destinations configured.", "bold red")
+        print(CONFIG_HELP)
+        return 1
+
+    if not settings.sources:
+        _print_message(f"[{settings.name}] No backup source folders configured.", "bold red")
+        print(CONFIG_HELP)
+        return 1
+
+    if not _validate_encryption_settings(settings):
+        return 1
+
+    plan = build_backup_plan(settings, create_destinations=not dry_run)
+    if not plan.valid_destinations:
+        _print_message(f"[{settings.name}] No usable backup destinations were found or could be created.", "bold red")
+        print(CONFIG_HELP)
+        return 1
+
+    if plan.missing_sources:
         _print_message(f"[{settings.name}] Skipped paths that do not exist:", "bold yellow")
-        for path in missing_sources:
+        for path in plan.missing_sources:
             _print_message(f"  - {path}", "yellow")
 
-    if not source_files and not source_folders:
+    if not plan.source_files and not plan.source_folders:
         _print_message(
             f"[{settings.name}] No valid whitelist entries were found. Configure ~/.config/rogkit/backup.txt or backup.set entries.",
             "bold red",
@@ -395,63 +627,26 @@ def create_backup(settings: BackupSet, *, verbose: bool = False) -> int:
         print(CONFIG_HELP)
         return 1
 
+    if dry_run:
+        _render_plan(plan)
+        return 0
+
     start_time = perf_counter()
     current_date = datetime.today().strftime('%Y-%m-%d-%H-%M')
     backup_filename = f'backup-{_slugify(settings.name)}-{current_date}.tar.gz'
+    if settings.encrypted:
+        backup_filename += ".age"
 
-    primary_archive_path = valid_destinations[0]
+    primary_archive_path = plan.valid_destinations[0]
     backup_file_path = os.path.join(primary_archive_path, backup_filename)
 
-    _print_rule(f"Backup Plan: {settings.name}")
-    _print_paths("Folders", source_folders, "cyan") if source_folders else _print_message("No folder entries in whitelist.", "yellow")
-    if source_files:
-        _print_paths("Files", source_files, "magenta")
-    if settings.secrets_excluded:
-        _print_message("Secrets excluded (set include_secrets = true to include)", "bold yellow")
+    _render_plan(plan)
 
     _print_message(f"Primary backup destination: {backup_file_path}", "bold blue")
 
-    file_count = 0
-    total_file_size = 0
-    skipped_count = 0
-
     with tempfile.NamedTemporaryFile(mode='w+', delete=False) as file_list:
-        for file_path in source_files:
-            if _matches_any(file_path, settings.file_excludes):
-                skipped_count += 1
-                continue
-            if not os.path.isfile(file_path):
-                skipped_count += 1
-                continue
+        for file_path in plan.included_files:
             file_list.write(file_path + '\n')
-            file_count += 1
-            try:
-                total_file_size += os.path.getsize(file_path)
-            except (FileNotFoundError, PermissionError):
-                skipped_count += 1
-
-        for folder in source_folders:
-            if _matches_any(folder, settings.folder_excludes):
-                continue
-            for root, dirs, files in os.walk(folder):
-                dirs[:] = [
-                    directory for directory in dirs
-                    if not _matches_any(os.path.join(root, directory), settings.folder_excludes)
-                ]
-                for file_name in files:
-                    file_path = os.path.join(root, file_name)
-                    if not os.path.isfile(file_path):
-                        skipped_count += 1
-                        continue
-                    if _matches_any(file_path, settings.file_excludes) or _matches_any(file_name, settings.file_excludes):
-                        skipped_count += 1
-                        continue
-                    file_list.write(file_path + '\n')
-                    file_count += 1
-                    try:
-                        total_file_size += os.path.getsize(file_path)
-                    except (FileNotFoundError, PermissionError):
-                        skipped_count += 1
 
     if verbose:
         with open(file_list.name, 'r', encoding='utf-8') as fh:
@@ -460,40 +655,49 @@ def create_backup(settings: BackupSet, *, verbose: bool = False) -> int:
 
     elapsed_time = convert_seconds(perf_counter() - start_time)
     _print_message(
-        f"[{settings.name}] Queued {file_count:,} files for backup ({byte_size(total_file_size)}). "
-        f"Skipped {skipped_count:,}. Elapsed time: {elapsed_time}.",
+        f"[{settings.name}] Queued {len(plan.included_files):,} files for backup ({byte_size(plan.total_file_size)}). "
+        f"Skipped {plan.skipped_count:,}. Elapsed time: {elapsed_time}.",
         "bold",
     )
 
-    temp_backup_path = backup_file_path + '.tmp'
     try:
-        subprocess.run(
-            ["tar", "-czf", temp_backup_path, "-T", file_list.name],
-            check=True,
-        )
+        if settings.encrypted:
+            with tempfile.TemporaryDirectory() as temp_dir:
+                plaintext_archive = os.path.join(temp_dir, "backup.tar.gz")
+                encrypted_temp_path = backup_file_path + ".tmp"
+                subprocess.run(["tar", "-czf", plaintext_archive, "-T", file_list.name], check=True)
+                subprocess.run(_age_command(settings, plaintext_archive, encrypted_temp_path), check=True)
+                os.replace(encrypted_temp_path, backup_file_path)
+        else:
+            temp_backup_path = backup_file_path + '.tmp'
+            subprocess.run(["tar", "-czf", temp_backup_path, "-T", file_list.name], check=True)
+            os.replace(temp_backup_path, backup_file_path)
     except subprocess.CalledProcessError as exc:
         _print_message(f"[{settings.name}] Error while creating archive: {exc}", "bold red")
-        os.unlink(temp_backup_path)
+        if os.path.exists(backup_file_path + ".tmp"):
+            os.unlink(backup_file_path + ".tmp")
         return 1
     finally:
         os.unlink(file_list.name)
 
-    os.replace(temp_backup_path, backup_file_path)
     _print_message(f"[{settings.name}] Backup saved to {backup_file_path}", "green")
+    manifest_path = _write_manifest(settings, backup_file_path, plan)
+    _print_message(f"[{settings.name}] Manifest saved to {manifest_path}", "green")
 
-    extra_destinations = valid_destinations[1:]
-    for extra_path in extra_destinations:
-        try:
-            os.makedirs(extra_path, exist_ok=True)
-            shutil.copy2(backup_file_path, os.path.join(extra_path, backup_filename))
-            _print_message(f"[{settings.name}] Backup copied to {extra_path}", "green")
-        except OSError as exc:
-            _print_message(f"[{settings.name}] Error copying backup to {extra_path}: {exc}", "bold red")
+    extra_destinations = plan.valid_destinations[1:]
+    _copy_to_extra_destinations(backup_file_path, extra_destinations)
 
     total_elapsed = convert_seconds(perf_counter() - start_time)
     archive_size = os.path.getsize(backup_file_path)
-    _render_backup_summary(file_count, skipped_count, archive_size, total_elapsed)
+    _render_backup_summary(len(plan.included_files), plan.skipped_count, archive_size, total_elapsed)
     _print_message(f"[{settings.name}] Primary backup path: {backup_file_path}", "bold cyan")
+    return 0
+
+
+def plan_backup(settings: BackupSet) -> int:
+    """Print the backup plan for a single set."""
+    plan = build_backup_plan(settings, create_destinations=False)
+    _render_plan(plan)
     return 0
 
 
@@ -516,7 +720,7 @@ def list_backups(settings: BackupSet) -> int:
         try:
             backups = [
                 entry for entry in os.listdir(location)
-                if entry.startswith('backup-') and entry.endswith('.tar.gz')
+                if entry.startswith('backup-') and (entry.endswith('.tar.gz') or entry.endswith('.tar.gz.age'))
             ]
             if backups:
                 rows: list[tuple[str, str]] = []
@@ -539,9 +743,12 @@ def list_backups(settings: BackupSet) -> int:
 
 
 def main() -> int:
-    parser = argparse.ArgumentParser(description='Backup and list backups')
+    parser = argparse.ArgumentParser(description='Backup, plan, and list backups')
     parser.add_argument('-b', '--backup', action='store_true', help='Create a new backup')
     parser.add_argument('-l', '--list', action='store_true', help='List existing backups')
+    parser.add_argument('--plan', action='store_true', help='Show what would be backed up without creating archives')
+    parser.add_argument('--dry-run', action='store_true', help='Alias for --plan when creating backups')
+    parser.add_argument('--encrypted', action='store_true', help='Only select encrypted backup sets')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
     parser.add_argument(
         '--set',
@@ -556,7 +763,10 @@ def main() -> int:
     )
     args = parser.parse_args()
 
-    if not any(value for key, value in vars(args).items() if key != "verbose"):
+    if args.dry_run and not args.backup:
+        args.plan = True
+
+    if not any((args.backup, args.list, args.plan, args.list_sets)):
         parser.print_help()
         return 0
 
@@ -583,15 +793,25 @@ def main() -> int:
             return 1
         selected_sets = filtered
 
+    if args.encrypted:
+        selected_sets = [setting for setting in selected_sets if setting.encrypted]
+        if not selected_sets:
+            _print_message("No encrypted backup sets selected.", "bold red")
+            return 1
+
     exit_code = 0
 
+    if args.plan:
+        for setting in selected_sets:
+            plan_code = plan_backup(setting)
+            exit_code = plan_code if plan_code else exit_code
     if args.list:
         for setting in selected_sets:
             list_code = list_backups(setting)
             exit_code = list_code if list_code else exit_code
     if args.backup:
         for setting in selected_sets:
-            backup_code = create_backup(setting, verbose=args.verbose)
+            backup_code = create_backup(setting, verbose=args.verbose, dry_run=args.dry_run)
             exit_code = backup_code if backup_code else exit_code
 
     return exit_code

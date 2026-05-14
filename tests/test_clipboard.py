@@ -36,6 +36,7 @@ def test_copy_to_clipboard_returns_false_on_backend_failure(monkeypatch, capsys)
 
     monkeypatch.setattr(clipboard, "PYCLIP_AVAILABLE", True)
     monkeypatch.setattr(clipboard, "pyclip", FakePyclip)
+    monkeypatch.setattr(clipboard.sys, "platform", "linux")
 
     assert clipboard.copy_to_clipboard("secret", verbose=False) is False
 
