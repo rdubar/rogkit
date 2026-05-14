@@ -11,7 +11,7 @@ folders = [
     "/srv/media/Media/",
 ]
 # Optional overrides (fallbacks: media.remote_host / media.remote_user)
-server = "pi5"
+server = "pi5-1.taila7668c.ts.net"
 user = "rog"
 # password is currently unused (SSH keys preferred)
 # password = ""
@@ -277,7 +277,7 @@ def _resolve_remote_settings(args_server: Optional[str], args_user: Optional[str
     config_server = get_config_value("media_files", "server") or get_config_value("media", "remote_host")
     config_user = get_config_value("media_files", "user") or get_config_value("media", "remote_user")
 
-    server = args_server or (config_server if isinstance(config_server, str) and config_server else "pi5")
+    server = args_server or (config_server if isinstance(config_server, str) and config_server else "pi5-1.taila7668c.ts.net")
     user = args_user or (config_user if isinstance(config_user, str) and config_user else "rog")
     return server, user
 

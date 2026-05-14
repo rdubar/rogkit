@@ -46,7 +46,7 @@ DEFAULT_ROGKIT_TOML = {
         ],
     },
     "media": {
-        "remote_host": "192.168.0.50",
+        "remote_host": "pi5-1.taila7668c.ts.net",
         "remote_user": "rog",
         "remote_password": "",
         "remote_folders": ["/mnt/media1/Media/Movies"],

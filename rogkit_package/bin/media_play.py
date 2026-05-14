@@ -20,7 +20,7 @@ else:
 
 # Configuration
 REMOTE_USER = "rog"
-REMOTE_HOST = "192.168.0.50"
+REMOTE_HOST = "pi5-1.taila7668c.ts.net"
 SSH_PORT = 22
 LOCAL_PLAY_CMD = "/Applications/VLC.app/Contents/MacOS/VLC"  # Command to play video locally (e.g., 'vlc', 'mpv')
 DATA_DIR = package_data_dir

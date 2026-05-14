@@ -52,7 +52,7 @@ def load_remote_config() -> Optional[RemoteConfig]:
         remote_section.get("host")
         or plex_section.get("remote_host")
         or media_files.get("server")
-        or "192.168.0.50"
+        or "pi5-1.taila7668c.ts.net"
     )
     username = (
         remote_section.get("user")
