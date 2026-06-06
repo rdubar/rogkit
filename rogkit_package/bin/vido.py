@@ -27,14 +27,23 @@ Usage:
 - If no arguments are provided, the script will prompt for input.
 """
 
+import argparse
+import datetime
+import json
 import os
+import shutil
+import subprocess
 import sys
 import tempfile
-import argparse
 import time
-import datetime
+import urllib.request
+from importlib import metadata
+from pathlib import Path
+
 import toml  # type: ignore
 from yt_dlp import YoutubeDL  # type: ignore
+
+from ..settings import root_dir
 
 try:  # optional rich formatting
     from rich.console import Console
@@ -172,12 +181,8 @@ def get_movies(search, config):
     process_lines(lines, config)
     _print_message(f"Completed task in {showtime(time.perf_counter() - clock)}.", style="cyan")
     
-def update_yt_dlp():
-    """Report whether a newer yt_dlp exists and how to upgrade (no installs)."""
-    from importlib import metadata
-    import json
-    import urllib.request
-
+def get_installed_yt_dlp_version() -> str:
+    """Return the installed yt-dlp distribution version."""
     current_version = "unknown"
     try:
         current_version = metadata.version("yt_dlp")
@@ -185,49 +190,108 @@ def update_yt_dlp():
         _print_message("yt_dlp is not currently installed in this environment.", style="magenta")
     except Exception as e:
         _print_message(f"Could not determine installed yt_dlp version: {e}", style="magenta")
+    return current_version
 
-    latest_version = None
+
+def get_latest_yt_dlp_version() -> str | None:
+    """Fetch the latest yt-dlp version published on PyPI."""
     try:
         with urllib.request.urlopen("https://pypi.org/pypi/yt-dlp/json", timeout=5) as resp:
             data = json.load(resp)
-            latest_version = data["info"]["version"]
+            return data["info"]["version"]
     except Exception as e:
         _print_message(f"Unable to check PyPI for the latest yt_dlp release: {e}", style="magenta")
         _print_message(
-            "You can manually check with `uv pip index versions yt-dlp` or visit https://pypi.org/project/yt-dlp/.",
+            "You can manually check with `uv lock --upgrade-package yt-dlp --dry-run` "
+            "or visit https://pypi.org/project/yt-dlp/.",
             style="cyan",
         )
-        return
+        return None
 
-    _print_message(f"Installed yt_dlp version: {current_version}", style="cyan")
-    _print_message(f"Latest    yt_dlp version: {latest_version}", style="cyan")
 
-    def parse_version(v):
-        try:
-            from packaging.version import Version
-            return Version(v)
-        except Exception:
-            return None
+def _parse_version(version: str):
+    """Parse a package version when packaging is available."""
+    try:
+        from packaging.version import Version
 
-    parsed_installed = parse_version(current_version)
-    parsed_latest = parse_version(latest_version)
+        return Version(version)
+    except Exception:
+        return None
 
-    needs_upgrade = False
+
+def yt_dlp_needs_upgrade(current_version: str, latest_version: str | None) -> bool:
+    """Return True when PyPI reports a newer yt-dlp than the installed one."""
+    if latest_version is None:
+        return False
+
+    parsed_installed = _parse_version(current_version)
+    parsed_latest = _parse_version(latest_version)
+
     if parsed_installed and parsed_latest:
-        needs_upgrade = parsed_latest > parsed_installed
-    elif current_version != "unknown" and latest_version:
-        needs_upgrade = current_version != latest_version
+        return parsed_latest > parsed_installed
+    return current_version != "unknown" and current_version != latest_version
 
+
+def report_yt_dlp_versions() -> tuple[str, str | None, bool]:
+    """Print installed/latest yt-dlp versions and whether an upgrade is available."""
+    current_version = get_installed_yt_dlp_version()
+    latest_version = get_latest_yt_dlp_version()
+    _print_message(f"Installed yt_dlp version: {current_version}", style="cyan")
+    if latest_version is not None:
+        _print_message(f"Latest    yt_dlp version: {latest_version}", style="cyan")
+
+    needs_upgrade = yt_dlp_needs_upgrade(current_version, latest_version)
     if needs_upgrade:
         _print_message(f"Update available: {current_version} -> {latest_version}", style="yellow")
-        _print_message("Upgrade steps (uv-managed project):", style="cyan")
-        print("  uv add -U yt-dlp")
-        print("  uv export -o requirements.txt")
-        print("  uv sync --all-extras")
-    else:
+    elif latest_version is not None:
         _print_message("yt_dlp is up to date.", style="green")
+    return current_version, latest_version, needs_upgrade
 
-def main():
+
+def run_uv_command(args: list[str], *, cwd: Path | None = None) -> int:
+    """Run a uv command and return its exit code."""
+    uv_path = shutil.which("uv")
+    if uv_path is None:
+        _print_message("Error: `uv` is required to update yt-dlp.", style="magenta")
+        return 1
+
+    command = [uv_path, *args]
+    _print_message(f"Running: {' '.join(command)}", style="cyan")
+    result = subprocess.run(command, cwd=cwd or Path(root_dir), check=False)
+    return result.returncode
+
+
+def update_yt_dlp(*, check_only: bool = False) -> int:
+    """Update the uv-managed yt-dlp lock and environment."""
+    report_yt_dlp_versions()
+    project_root = Path(root_dir)
+
+    if check_only:
+        _print_message("Dry run: checking what uv would update.", style="cyan")
+        return run_uv_command(["lock", "--upgrade-package", "yt-dlp", "--dry-run"], cwd=project_root)
+
+    lock_rc = run_uv_command(["lock", "--upgrade-package", "yt-dlp"], cwd=project_root)
+    if lock_rc != 0:
+        _print_message("yt-dlp lockfile update failed.", style="magenta")
+        return lock_rc
+
+    sync_rc = run_uv_command(["sync", "--all-extras", "--reinstall-package", "yt-dlp"], cwd=project_root)
+    if sync_rc != 0:
+        _print_message("yt-dlp lockfile updated, but environment sync failed.", style="magenta")
+        return sync_rc
+
+    current_version, latest_version, _ = report_yt_dlp_versions()
+    if latest_version is not None and current_version != latest_version:
+        _print_message(
+            "yt-dlp was updated for future vido runs. Restart the command if this shell still reports the old import.",
+            style="yellow",
+        )
+    else:
+        _print_message("yt-dlp update complete.", style="green")
+    return 0
+
+
+def main(argv: list[str] | None = None) -> int:
     """CLI entry point for video downloader."""
     default_config = "~/.config/rogkit/config.toml"
     parser = argparse.ArgumentParser(description="Rog's Movie Downloader")
@@ -240,13 +304,18 @@ def main():
     parser.add_argument(
         "--update", "-u",
         action="store_true",
-        help="Check for a newer yt_dlp and show how to upgrade (no install)"
+        help="Upgrade yt-dlp in the uv-managed rogkit environment and exit"
+    )
+    parser.add_argument(
+        "--check-update",
+        action="store_true",
+        help="Check the yt-dlp update path without changing the lockfile or environment"
     )
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     
-    if args.update:
-        update_yt_dlp()
+    if args.update or args.check_update:
+        return update_yt_dlp(check_only=args.check_update)
 
     # Expand ~ to full path
     args.config = os.path.expanduser(args.config)
@@ -259,7 +328,7 @@ def main():
             args.config = legacy_path
         else:
             _print_message(f"No configuration file found at {args.config} or legacy location.", style="red")
-            sys.exit(1)
+            return 1
 
     # Load and print config (example usage)
     try:
@@ -270,7 +339,7 @@ def main():
                 _print_message(toml.dumps(config_data))
     except Exception as e:
         _print_message(f"Failed to load config from {args.config}: {e}", style="red")
-        sys.exit(1)
+        return 1
 
     config = Config(args.config)
 
@@ -286,6 +355,8 @@ def main():
             get_movies(search, config)
         except Exception as e:
             _print_message(f"Error: {e}", style="magenta")
+            return 1
+    return 0
 
 if __name__ == "__main__":
-    main()
+    sys.exit(main())
