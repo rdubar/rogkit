@@ -103,7 +103,7 @@ alias renamer='rogkit_py -m rogkit_package.bin.renamer'
 alias preplacer='rogkit_py -m rogkit_package.bin.replacer'  # replaced by Go Utility
 
 # File discovery and analysis
-alias dirs='rogkit_py -m rogkit_package.bin.dirs'
+alias dsize='rogkit_py -m rogkit_package.bin.dirs'
 alias empties='rogkit_py -m rogkit_package.bin.empties'
 alias hidden='rogkit_py -m rogkit_package.bin.hidden'
 alias large='rogkit_py -m rogkit_package.bin.large'
@@ -232,7 +232,7 @@ alias yout='rogkit_py -m rogkit_package.bin.vido'
 # Information & Reference
 # ------------------------------------------------------------------------------
 alias wikipedia='rogkit_py -m rogkit_package.bin.wikipedia'
-alias w='rogkit_py -m rogkit_package.bin.wikipedia'
+alias wiki='rogkit_py -m rogkit_package.bin.wikipedia'
 
 # ------------------------------------------------------------------------------
 # Time & Clocks
@@ -250,7 +250,6 @@ alias json='rogkit_py -m rogkit_package.bin.jsonr'
 alias jsonr='rogkit_py -m rogkit_package.bin.jsonr'
 alias csv='rogkit_py -m rogkit_package.bin.csvr'
 alias csvr='rogkit_py -m rogkit_package.bin.csvr'
-alias env='rogkit_py -m rogkit_package.bin.envr'
 alias envr='rogkit_py -m rogkit_package.bin.envr'
 alias enver='rogkit_py -m rogkit_package.bin.enver'
 alias procs='rogkit_py -m rogkit_package.bin.procs'
@@ -258,7 +257,7 @@ alias ports='rogkit_py -m rogkit_package.bin.ports'
 alias myip='rogkit_py -m rogkit_package.bin.myip'
 alias httpcheck='rogkit_py -m rogkit_package.bin.httpcheck'
 alias archive='rogkit_py -m rogkit_package.bin.archive'
-alias hash='rogkit_py -m rogkit_package.bin.hash'
+alias rhash='rogkit_py -m rogkit_package.bin.hash'
 alias url='rogkit_py -m rogkit_package.bin.url'
 alias ts='rogkit_py -m rogkit_package.bin.ts'
 alias serve='rogkit_py -m rogkit_package.bin.serve'
