@@ -193,6 +193,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `mongo` | MongoDB query helper and logger |
 | `multical` | Multi-calendar date conversion |
 | `nose` | Odoo/OpenERP nosetests wrapper |
+| `pgscratch` | Disposable Postgres container (Apple `container`/Docker) for throwaway DB work |
 | `pw` | Cryptographically secure password generator with strength analysis |
 | `pyinfo` | Python environment info and CPU benchmark |
 | `tomlr` | TOML config file manager (`~/.config/rogkit/config.toml`) |

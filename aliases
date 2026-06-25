@@ -197,6 +197,7 @@ alias spot='rogkit_py -m rogkit_package.bin.spot'
 # Database & Storage
 # ------------------------------------------------------------------------------
 alias mongo='rogkit_py -m rogkit_package.bin.mongo'
+alias pgscratch='rogkit_py -m rogkit_package.bin.pgscratch'
 
 # ------------------------------------------------------------------------------
 # Development Tools
