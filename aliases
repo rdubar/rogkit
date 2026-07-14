@@ -259,6 +259,7 @@ alias myip='rogkit_py -m rogkit_package.bin.myip'
 alias httpcheck='rogkit_py -m rogkit_package.bin.httpcheck'
 alias archive='rogkit_py -m rogkit_package.bin.archive'
 alias rhash='rogkit_py -m rogkit_package.bin.hash'
+alias filehash='$ROGKIT/rust/target/release/filehash'  # Rust/asm hasher: try `-a sha256-asm` or `-a crc32c-asm`
 alias url='rogkit_py -m rogkit_package.bin.url'
 alias ts='rogkit_py -m rogkit_package.bin.ts'
 alias serve='rogkit_py -m rogkit_package.bin.serve'
