@@ -178,8 +178,8 @@ alias loc='rogkit_py -m rogkit_package.bin.location'
 alias space='rogkit_py -m rogkit_package.bin.space'
 alias mapper='rogkit_py -m rogkit_package.bin.mapper'
 
-alias syscheck='rogkit_py -m rogkit_package.bin.syscheck'
-alias sys='rogkit_py -m rogkit_package.bin.syscheck'
+alias syscheck='$ROGKIT_GO_BIN/sysreboot'
+alias sys='$ROGKIT_GO_BIN/sysreboot'
 alias system='rogkit_py -m rogkit_package.bin.system'
 alias pyinfo='rogkit_py -m rogkit_package.bin.pyinfo'
 

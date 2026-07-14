@@ -1,0 +1,20 @@
+[package]
+name = "asmhash"
+version.workspace = true
+edition.workspace = true
+authors.workspace = true
+license.workspace = true
+description = "Hand-written ARM64 assembly hash/checksum primitives for Apple Silicon"
+repository = "https://github.com/rdubar/rogkit"
+keywords = ["arm64", "assembly", "crc32", "sha256", "apple-silicon"]
+categories = ["algorithms", "hardware-support"]
+
+[lib]
+name = "asmhash"
+path = "src/lib.rs"
+
+[build-dependencies]
+cc = "1.1"
+
+[dev-dependencies]
+sha2 = { workspace = true }

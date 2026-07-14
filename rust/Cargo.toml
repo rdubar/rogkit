@@ -1,5 +1,5 @@
 [workspace]
-members = ["filehash"]
+members = ["filehash", "asmhash"]
 resolver = "2"
 
 [workspace.package]
@@ -19,7 +19,8 @@ walkdir = "2.5"
 # Hashing algorithms
 blake3 = "1.5"
 md5 = "0.7"
-sha2 = "0.10"
+sha2 = { version = "0.10", features = ["asm"] }
+asmhash = { path = "asmhash" }
 
 # File I/O
 memmap2 = "0.9"

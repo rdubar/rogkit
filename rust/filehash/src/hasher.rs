@@ -17,6 +17,13 @@ pub enum HashAlgorithm {
     Sha256,
     /// MD5 - legacy, not cryptographically secure
     Md5,
+    /// SHA-256 via hand-written ARM64 crypto-extension assembly (same
+    /// digest as `Sha256` — benchmark comparison target for asmhash)
+    Sha256Asm,
+    /// CRC-32C (Castagnoli) via hand-written ARM64 assembly — not a
+    /// cryptographic hash, but a real checksum option and a clean
+    /// hardware-instruction-vs-software-loop comparison
+    Crc32cAsm,
 }
 
 /// Result of hashing a file
@@ -80,6 +87,13 @@ pub fn hash_file(path: &Path, algorithm: HashAlgorithm) -> Result<HashResult> {
         HashAlgorithm::Md5 => {
             let digest = md5::compute(&mmap);
             format!("{:x}", digest)
+        }
+        HashAlgorithm::Sha256Asm => {
+            let digest = asmhash::sha256(&mmap);
+            digest.iter().map(|b| format!("{b:02x}")).collect()
+        }
+        HashAlgorithm::Crc32cAsm => {
+            format!("{:08x}", asmhash::crc32c(&mmap))
         }
     };
 

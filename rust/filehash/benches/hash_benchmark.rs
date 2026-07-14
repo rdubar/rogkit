@@ -55,5 +55,54 @@ fn benchmark_hash_algorithms(c: &mut Criterion) {
     group.finish();
 }
 
-criterion_group!(benches, benchmark_hash_algorithms);
+/// Direct comparison: does hand-written ARM64 crypto-extension assembly
+/// beat the `sha2` crate (which itself already uses the same hardware
+/// SHA2 instructions via runtime feature detection on aarch64)? This is
+/// the core question the asmhash crate exists to answer — see
+/// notes/arm64-asm-utility-brainstorm.md.
+fn benchmark_sha256_asm_vs_library(c: &mut Criterion) {
+    let mut group = c.benchmark_group("sha256_asm_vs_library");
+
+    for size in [4 * 1024, 1024 * 1024, 16 * 1024 * 1024] {
+        let (_temp, paths) = create_test_files(1, size);
+        let path = &paths[0];
+        let label = format!("{}KB", size / 1024);
+
+        group.bench_with_input(BenchmarkId::new("sha2_crate", &label), path, |b, path| {
+            b.iter(|| hash_file(black_box(path), HashAlgorithm::Sha256).unwrap())
+        });
+
+        group.bench_with_input(BenchmarkId::new("asmhash", &label), path, |b, path| {
+            b.iter(|| hash_file(black_box(path), HashAlgorithm::Sha256Asm).unwrap())
+        });
+    }
+
+    group.finish();
+}
+
+/// CRC-32C has no existing implementation in filehash to compare
+/// against — this records the hand-written asm's raw throughput using
+/// the FEAT_CRC32 hardware instructions Clang won't emit unprompted.
+fn benchmark_crc32c_asm(c: &mut Criterion) {
+    let mut group = c.benchmark_group("crc32c_asm");
+
+    for size in [4 * 1024, 1024 * 1024, 16 * 1024 * 1024] {
+        let (_temp, paths) = create_test_files(1, size);
+        let path = &paths[0];
+        let label = format!("{}KB", size / 1024);
+
+        group.bench_with_input(BenchmarkId::new("asmhash", &label), path, |b, path| {
+            b.iter(|| hash_file(black_box(path), HashAlgorithm::Crc32cAsm).unwrap())
+        });
+    }
+
+    group.finish();
+}
+
+criterion_group!(
+    benches,
+    benchmark_hash_algorithms,
+    benchmark_sha256_asm_vs_library,
+    benchmark_crc32c_asm
+);
 criterion_main!(benches);

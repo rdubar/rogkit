@@ -54,6 +54,10 @@ enum HashAlgorithmArg {
     Sha256,
     /// MD5 (legacy, not secure)
     Md5,
+    /// SHA-256 via hand-written ARM64 crypto-extension assembly
+    Sha256Asm,
+    /// CRC-32C via hand-written ARM64 assembly (not cryptographic)
+    Crc32cAsm,
 }
 
 impl From<HashAlgorithmArg> for HashAlgorithm {
@@ -62,6 +66,8 @@ impl From<HashAlgorithmArg> for HashAlgorithm {
             HashAlgorithmArg::Blake3 => HashAlgorithm::Blake3,
             HashAlgorithmArg::Sha256 => HashAlgorithm::Sha256,
             HashAlgorithmArg::Md5 => HashAlgorithm::Md5,
+            HashAlgorithmArg::Sha256Asm => HashAlgorithm::Sha256Asm,
+            HashAlgorithmArg::Crc32cAsm => HashAlgorithm::Crc32cAsm,
         }
     }
 }

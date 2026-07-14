@@ -16,7 +16,7 @@ COMMAND_GROUPS: dict[str, tuple[str, ...]] = {
     "Top-level": ("doctor", "setup", "update", "--version", "--credits", "--help"),
     "AI & LLM": ("aish", "chat", "clu", "lm"),
     "Files": ("archive", "backup", "dedupe", "delete", "json", "purge", "serve"),
-    "System": ("doctor", "httpcheck", "myip", "ports", "procs", "syscheck"),
+    "System": ("doctor", "httpcheck", "myip", "ports", "procs"),
     "Media": ("p", "media_files", "media_scan", "shrink", "spot", "vido"),
     "Data & text": ("bytes", "csv", "env", "hash", "note", "ts", "url"),
 }

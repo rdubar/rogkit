@@ -148,7 +148,6 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |
 | `setup` | Create rogkit config.toml if missing and wire aliases into your shell profile |
 | `speed_test` | Network speed test |
-| `syscheck` | System health report: uptime, load, memory, kernel status |
 | `system` | Enhanced system snapshot (CPU, memory, disk, network) |
 | `time_check` | System clock check and NTP sync status |
 | `venv_set` | Locate and activate virtual environments |
@@ -213,6 +212,7 @@ Six compiled Go binaries live in `go/bin/` and are built with `./scripts/build_g
 | `replacer` | Fast in-place text replacement across a file tree, with confirmation |
 | `search` | Multi-term content search with batching |
 | `ishtime` | Time zone conversion and "is it time?" helper |
+| `sysreboot` | Ultra-fast one-or-two-line reboot advisor (aliased as `sys`/`syscheck`) |
 
 Build all: `./scripts/build_go.sh`
 
@@ -223,15 +223,39 @@ finder "todo" --root ~/code          # recursive content search
 replacer --find TODO --replace DONE --write --confirm --path ./project
 search --path ./project "TODO" "FIXME" --limit 10
 ishtime --time 1530                  # convert hhmm to readable delta
+sys                                  # "✅ No reboot needed (score 12%)" + stats line
+sys -1                               # squash to one line
 ```
+
+`sysreboot` replaced the old Python `syscheck` tool: no `psutil`/Rich dependency, ~150ms→sub-10ms runtime, and on Linux it checks the canonical `/var/run/reboot-required` marker directly instead of re-deriving reboot need from `apt-cache policy` heuristics. Exit code doubles as a script-friendly signal: `0` = fine, `1` = moderate, `2` = reboot required/advised.
 
 ---
 
 ## Rust
 
-A Rust workspace lives in `rust/`. Currently contains `filehash` — a fast file hashing utility.
+A Rust workspace lives in `rust/`. Contains `filehash` — a fast file hashing utility — and `asmhash`, an experimental ARM64 assembly crate `filehash` benchmarks itself against.
 
 Build: `cargo build --release` from `rust/`.
+
+### Experimental: hand-written ARM64 assembly (`asmhash`)
+
+`rust/asmhash` is a small, Apple Silicon-only crate of hand-written ARM64 assembly for two hardware instruction families Clang won't emit from plain Rust or C without explicit intrinsics:
+
+- **CRC-32C** via the `crc32cx`/`crc32cw`/`crc32ch`/`crc32cb` instructions (FEAT_CRC32)
+- **SHA-256** compression via `sha256h`/`sha256h2`/`sha256su0`/`sha256su1` (FEAT_SHA256)
+
+Both are exposed in `filehash` as extra algorithm choices for comparison:
+
+```sh
+filehash myfile -a sha256-asm
+filehash myfile -a crc32c-asm
+```
+
+Correctness is verified against NIST test vectors and against the `sha2` crate at every padding-block boundary (`cargo test -p asmhash`); a criterion bench group (`cargo bench -p filehash`) compares throughput against the existing library implementations.
+
+The interesting finding so far wasn't "assembly beats the compiler" — it's that `sha2`'s ARM hardware path is gated behind an opt-in Cargo feature (now enabled in this workspace); with it off, the crate silently falls back to a scalar implementation ~5x slower. Once enabled, hand-written asm and `sha2`'s own ACLE intrinsics land within a few percent of each other. Full write-up and the rest of the candidate-project brainstorm: [notes/arm64-asm-utility-brainstorm.md](notes/arm64-asm-utility-brainstorm.md).
+
+This only builds on `aarch64` targets — a build on any other architecture will fail with a clear panic from `asmhash`'s `build.rs` rather than silently producing something broken.
 
 ---
 
