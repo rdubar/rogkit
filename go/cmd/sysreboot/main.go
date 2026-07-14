@@ -96,17 +96,56 @@ func rebootScore(s *Stats) int {
 }
 
 func verdict(score int, rebootRequired bool) (emoji, label string) {
+	ok, warn, crit := "✅", "⚠️ ", "🔴"
+	if !utf8Locale() {
+		ok, warn, crit = "[OK]", "[!] ", "[X]"
+	}
+
 	if rebootRequired {
-		return "🔴", "REBOOT REQUIRED"
+		return crit, "REBOOT REQUIRED"
 	}
 	switch {
 	case score < 30:
-		return "✅", "No reboot needed"
+		return ok, "No reboot needed"
 	case score < 70:
-		return "⚠️ ", "Reboot optional"
+		return warn, "Reboot optional"
 	default:
-		return "🔴", "Reboot advised"
+		return crit, "Reboot advised"
 	}
+}
+
+// separator returns the stats-line joiner: a middle dot when the locale
+// can render it, a plain hyphen otherwise (common on minimal headless
+// installs where LANG is left at "C"/"POSIX").
+func separator() string {
+	if utf8Locale() {
+		return " · "
+	}
+	return " - "
+}
+
+// dash separates a verdict from its detail reason (e.g. "REBOOT REQUIRED —
+// pending kernel update"). Same ASCII fallback as separator, but kept
+// distinct so the UTF-8 output can still visually tell the two apart.
+func dash() string {
+	if utf8Locale() {
+		return " — "
+	}
+	return " - "
+}
+
+// utf8Locale checks LC_ALL/LC_CTYPE/LANG in POSIX priority order for a
+// UTF-8 locale. Not foolproof (a UTF-8-capable terminal with a non-UTF-8
+// LANG will still get the ASCII fallback), but matches what most CLI
+// tools (git, ripgrep, htop) already use to make this call.
+func utf8Locale() bool {
+	for _, key := range []string{"LC_ALL", "LC_CTYPE", "LANG"} {
+		if v := os.Getenv(key); v != "" {
+			return strings.Contains(strings.ToUpper(v), "UTF-8") ||
+				strings.Contains(strings.ToUpper(v), "UTF8")
+		}
+	}
+	return false
 }
 
 func exitCode(score int, rebootRequired bool) int {
@@ -121,22 +160,24 @@ func exitCode(score int, rebootRequired bool) int {
 }
 
 func printReport(s *Stats, score int, emoji, label string, oneline bool) {
+	sep := separator()
+
 	headline := fmt.Sprintf("%s %s (score %d%%)", emoji, label, score)
 	if s.RebootRequired && s.RebootReason != "" {
-		headline = fmt.Sprintf("%s %s — %s", emoji, label, s.RebootReason)
+		headline = fmt.Sprintf("%s %s%s%s", emoji, label, dash(), s.RebootReason)
 	}
 
 	stats := fmt.Sprintf(
-		"up %s · load %.2f/%.2f/%.2f (%d cores) · mem %d%% free%s",
-		formatDuration(s.UptimeSeconds),
+		"up %s%sload %.2f/%.2f/%.2f (%d cores)%smem %d%% free%s",
+		formatDuration(s.UptimeSeconds), sep,
 		s.Load1, s.Load5, s.Load15,
-		s.Cores,
+		s.Cores, sep,
 		freePercent(s.MemAvailable, s.MemTotal),
 		swapSuffix(s.SwapUsed, s.SwapTotal),
 	)
 
 	if oneline {
-		fmt.Printf("%s · %s\n", headline, stats)
+		fmt.Printf("%s%s%s\n", headline, sep, stats)
 		return
 	}
 	fmt.Println(headline)
@@ -175,7 +216,7 @@ func swapSuffix(used, total uint64) string {
 	if total == 0 {
 		return ""
 	}
-	return fmt.Sprintf(" · swap %d%% used", int(float64(used)/float64(total)*100))
+	return fmt.Sprintf("%sswap %d%% used", separator(), int(float64(used)/float64(total)*100))
 }
 
 func formatDuration(seconds float64) string {

@@ -108,7 +108,11 @@ func readRebootRequiredPkgs() string {
 		return ""
 	}
 	if len(pkgs) > 3 {
-		return strings.Join(pkgs[:3], ", ") + ", …"
+		ellipsis := "…"
+		if !utf8Locale() {
+			ellipsis = "..."
+		}
+		return strings.Join(pkgs[:3], ", ") + ", " + ellipsis
 	}
 	return strings.Join(pkgs, ", ")
 }
