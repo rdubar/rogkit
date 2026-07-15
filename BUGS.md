@@ -14,6 +14,7 @@ Standard maintenance backlog for issues found during review or day-to-day use.
 
 - Many utilities assume macOS or a Unix-like environment for subprocesses, filesystem layout, or external tools.
 - Media utilities have more machine-specific behavior than the simpler text/data helpers and may depend on local paths or optional binaries.
+- `go/cmd/sysreboot`: the authoritative reboot-required signal is Linux-only (`/run/reboot-required` / `/var/run/reboot-required`, written by apt/unattended-upgrades). `platform_darwin.go` has no equivalent check, so on macOS `sys`/`sysreboot` is pure heuristic (uptime/load/mem/swap) and won't reliably flag a reboot needed after a macOS Software Update. Known and accepted — the tool is mainly used against Linux servers/the Pi, where the authoritative signal exists.
 
 ## Feature Ideas
 
