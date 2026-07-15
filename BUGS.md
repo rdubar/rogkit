@@ -6,17 +6,9 @@ Standard maintenance backlog for issues found during review or day-to-day use.
 
 ### 2026-07-15 — sysreboot uncommitted changes (code review)
 
-- [P1] `go/cmd/sysreboot/main_test.go` has no build tag but references Linux-only symbols (`rebootMarkerPaths`, `readRebootMarkerPath`, `readRebootRequiredPkgs`, `estimateMemAvailable`) declared only in `platform_linux.go` (`//go:build linux`). Breaks `go build`/`go vet`/`go test ./...` on any non-Linux GOOS — confirmed: `GOOS=darwin GOARCH=arm64 go vet ./...` fails with `undefined: rebootMarkerPaths`. Fix: move `TestReadRebootMarkerPath`, `TestReadRebootRequiredPkgs`, `TestEstimateMemAvailable` into a new `platform_linux_test.go` with `//go:build linux`.
-
-- [P1] `go/cmd/sysreboot/platform_darwin.go`: `readLoadAvg`/`readSwapUsage` switched from shelling out to `sysctl -n vm.loadavg`/`vm.swapusage` (the CLI tool, which formats the struct as text) to `unix.Sysctl(...)` (raw syscall wrapper). Both OIDs are `CTLTYPE_STRUCT` (`struct loadavg`, `struct xsw_usage`) — the raw syscall returns binary struct bytes, not the `{ 1.20 1.15 1.10 }` / `total = 16.00M used = ...` text the CLI synthesizes. On real macOS this silently zeroes Load1/Load5/Load15 and SwapTotal/SwapUsed (parse failures are discarded via `_` / `ok=false`), with no error surfaced — load- and swap-based scoring is disabled without anyone noticing. Fix: decode via `unix.SysctlRaw` + a proper struct layout, the same depth already correctly applied to `kern.boottime` via `unix.SysctlTimeval`.
-
 - [P3] `go/cmd/sysreboot/platform_linux.go`: `estimateMemAvailable` fallback fires on `s.MemAvailable == 0`, which conflates "field absent" (pre-3.14 kernel) with "field present and genuinely zero" (severe memory pressure) — under real OOM conditions the heuristic could paper over a legitimate 0 and understate severity.
 
 - [P3] `go/cmd/sysreboot/platform_linux.go`: `readRebootMarkerPath` stats both `/run/reboot-required` and `/var/run/reboot-required` every run; `/var/run` is a standard symlink to `/run` on the tool's own stated target distros (Debian/Ubuntu/Raspberry Pi OS), so the second stat is redundant work rather than real robustness.
-
-- [P4] `go/cmd/sysreboot/platform_darwin.go:37`: comment above `readUptimeSysctl` ("read the raw bytes rather than modeling the full struct") is stale — the function now uses `unix.SysctlTimeval`, not manual byte decoding.
-
-- [P4] `go/cmd/sysreboot/platform_linux.go`: `rebootMarkerPaths` is a mutable package-level var that `main_test.go` reassigns/restores via `t.Cleanup`; would race under `t.Parallel()`. Prefer passing candidate paths as a function parameter instead of a shared global.
 
 ## Known Platform Quirks
 
@@ -55,6 +47,16 @@ Standard maintenance backlog for issues found during review or day-to-day use.
   - Becoming a rewrite of `clu` — migrate clu's logic in, don't break clu users.
 
 ## Fixed
+
+### 2026-07-15
+
+- [P1] `go/cmd/sysreboot/main_test.go` had no build tag but referenced Linux-only symbols declared only in `platform_linux.go` (`//go:build linux`), breaking `go build`/`go vet`/`go test ./...` on any non-Linux GOOS — `TestReadRebootMarkerPath`, `TestReadRebootRequiredPkgs`, `TestEstimateMemAvailable` moved into a new `platform_linux_test.go` with `//go:build linux`.
+
+- [P1] `go/cmd/sysreboot/platform_darwin.go`: `readLoadAvg`/`readSwapUsage` had switched to `unix.Sysctl(...)` (raw syscall wrapper) on OIDs that are `CTLTYPE_STRUCT` (`struct loadavg`, `struct xsw_usage`) — the raw syscall returns binary struct bytes, not the formatted text the CLI synthesizes, so this silently zeroed Load1/Load5/Load15 and SwapTotal/SwapUsed with no error surfaced. Fixed by decoding via `unix.SysctlRaw` against the real struct layout (with a text-format fallback), matching the approach already used for `kern.boottime` via `unix.SysctlTimeval`.
+
+- [P4] `go/cmd/sysreboot/platform_darwin.go:37`: stale comment above `readUptimeSysctl` updated to reflect that it uses `unix.SysctlTimeval`, not manual byte decoding.
+
+- [P4] `go/cmd/sysreboot/platform_linux.go`: removed the mutable package-level `rebootMarkerPaths` var in favor of passing candidate paths as a function parameter to `readRebootMarkerPath`, avoiding a `t.Parallel()` race.
 
 ### 2026-04-19
 
