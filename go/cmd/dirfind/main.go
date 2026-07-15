@@ -217,7 +217,7 @@ func printResults(results []string, all bool) {
 }
 
 func printUsage() {
-	fmt.Println(`dirfind <pattern> [options]
+	fmt.Fprintln(os.Stdout, `dirfind <pattern> [options]
 Experimental directory locator built with fd + Go + fuzzy ranking.
 
 Options:
@@ -227,8 +227,7 @@ Options:
   -r, --root  Search this root instead of the user home directory
   -h, --hidden Include hidden directories in the search
   -c, --cache  Display cached entries and exit
-      --clear-cache Clear cached entries and exit
-`)
+      --clear-cache Clear cached entries and exit`)
 }
 
 func main() {
