@@ -175,7 +175,7 @@ alias bmi='rogkit_py -m rogkit_package.bin.bmi_calc'
 alias location='rogkit_py -m rogkit_package.bin.location'
 alias loc='rogkit_py -m rogkit_package.bin.location'
 
-alias space='rogkit_py -m rogkit_package.bin.space'
+alias space='$ROGKIT_GO_BIN/space'
 alias mapper='rogkit_py -m rogkit_package.bin.mapper'
 
 alias syscheck='$ROGKIT_GO_BIN/sysreboot'

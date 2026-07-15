@@ -113,7 +113,6 @@ underlying Python modules may use disambiguated names such as `jsonr.py` and
 | `purge` | Remove junk files (`.DS_Store`, `__pycache__`, etc.) by pattern |
 | `renamer` | Bulk file rename with pattern matching and preview |
 | `serve` | Serve a local directory over HTTP for quick previews |
-| `space` | Disk usage summary, sorted by size |
 
 ### Media
 
@@ -202,7 +201,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 
 ## Go tools
 
-Seven compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
+Eight compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
 
 | Binary | What it does |
 |--------|-------------|
@@ -213,6 +212,7 @@ Seven compiled Go binaries live in `go/bin/` and are built with `./scripts/build
 | `search` | Multi-term content search with batching |
 | `ishtime` | Time zone conversion and "is it time?" helper |
 | `sysreboot` | Ultra-fast one-or-two-line reboot advisor (aliased as `sys`/`syscheck`) |
+| `space` | Disk usage summary with a colored table, sortable by size |
 
 Build all: `./scripts/build_go.sh`
 
@@ -225,9 +225,14 @@ search --path ./project "TODO" "FIXME" --limit 10
 ishtime --time 1530                  # convert hhmm to readable delta
 sys                                  # "✅ No reboot needed (score 12%)" + stats line
 sys -1                               # squash to one line
+space                                # colored table: mount, total, used, free, usage
+space -s -t                          # sorted by size, plus a combined totals row
+space -q                             # plain pipe-delimited output, no color
 ```
 
 `sysreboot` replaced the old Python `syscheck` tool: no `psutil`/Rich dependency, ~150ms→sub-10ms runtime, and on Linux it checks the canonical reboot marker directly (`/run/reboot-required`, with `/var/run` as a compatibility alias) instead of re-deriving reboot need from `apt-cache policy` heuristics. macOS stays native too: uptime, load, and swap come from sysctls, with only `vm_stat` left for the memory-pressure page counters. Exit code doubles as a script-friendly signal: `0` = fine, `1` = moderate, `2` = reboot required/advised.
+
+`space` replaced the old Python `space` tool for the same reason: no `rich` import cost, disk stats come straight from `statfs(2)` (`Frsize` on Linux, `Bsize` on macOS — mirroring `os.statvfs()`'s `f_frsize` semantics on each). The colored table and `-q` plain fallback are hand-rolled ANSI/box-drawing, with the same UTF-8-locale ASCII fallback `sysreboot` uses. Mount dedup uses `stat(2)`'s device id rather than `statfs`'s `Fsid`, since macOS APFS firmlinks (e.g. `/` and `/System/Volumes/Data`) share one device but report different `Fsid` values.
 
 Support matrix:
 
