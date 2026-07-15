@@ -6,6 +6,13 @@
 # Use --full for more aggressive upgrades (dist-upgrade on Debian,
 # --greedy casks + App Store on macOS).
 #
+# Also pulls the rogkit repo itself and rebuilds the Go binaries if the
+# pull brought in changes — `go install` is incremental/cached, so
+# rebuilding after a no-op pull costs nothing.
+#
+
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 
 # --- Args ---
 DO_FULL=0
@@ -21,6 +28,9 @@ Options:
                   macOS:  also upgrades auto-updating casks and App Store apps
   -y, --yes     Skip confirmation prompts
   -h, --help    Show this help
+
+Also pulls the rogkit repo (fast-forward only) and rebuilds Go binaries
+via scripts/build_go.sh when the pull brings in changes.
 
 Platforms supported: Debian/Ubuntu/Raspberry Pi OS, macOS (Homebrew)
 EOF
@@ -42,6 +52,58 @@ confirm() {
     [[ $AUTO_YES -eq 1 ]] && return 0
     read -r -p "$1 [y/N] " reply
     [[ $reply =~ ^[Yy]$ ]]
+}
+
+# --- RogKit repo itself ---
+update_self() {
+    section "Checking rogkit repo for updates..."
+
+    if [[ ! -d "$REPO_ROOT/.git" ]]; then
+        echo "  $REPO_ROOT is not a git checkout — skipping"
+        return
+    fi
+    if ! command -v git &>/dev/null; then
+        echo "  git not found — skipping"
+        return
+    fi
+
+    if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
+        echo "  Uncommitted changes in $REPO_ROOT — skipping (commit or stash first)"
+        return
+    fi
+
+    local upstream
+    upstream=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null) || {
+        echo "  No upstream tracking branch configured — skipping"
+        return
+    }
+
+    git -C "$REPO_ROOT" fetch --quiet
+
+    local incoming
+    incoming=$(git -C "$REPO_ROOT" log --oneline "HEAD..$upstream")
+    if [[ -z "$incoming" ]]; then
+        echo "  (up to date)"
+        return
+    fi
+
+    echo "Commits available:"
+    echo "$incoming"
+    echo
+    confirm "Pull and rebuild?" || { echo "Skipped."; return; }
+
+    section "Pulling..."
+    git -C "$REPO_ROOT" pull --ff-only
+
+    if [[ ! -x "$REPO_ROOT/scripts/build_go.sh" ]]; then
+        return
+    fi
+    if ! command -v go &>/dev/null; then
+        echo "  Go toolchain not found — skipping Go rebuild"
+        return
+    fi
+    section "Rebuilding Go binaries..."
+    "$REPO_ROOT/scripts/build_go.sh"
 }
 
 # --- Debian/Ubuntu/Raspberry Pi OS ---
@@ -149,6 +211,8 @@ if [[ $DO_FULL -eq 1 ]]; then
 else
     echo "Mode: cautious (default — use --full for more aggressive upgrades)"
 fi
+
+update_self
 
 case "$(uname -s)" in
     Linux)
