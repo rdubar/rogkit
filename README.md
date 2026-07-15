@@ -202,7 +202,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 
 ## Go tools
 
-Six compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
+Seven compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
 
 | Binary | What it does |
 |--------|-------------|
@@ -227,7 +227,15 @@ sys                                  # "✅ No reboot needed (score 12%)" + stat
 sys -1                               # squash to one line
 ```
 
-`sysreboot` replaced the old Python `syscheck` tool: no `psutil`/Rich dependency, ~150ms→sub-10ms runtime, and on Linux it checks the canonical `/var/run/reboot-required` marker directly instead of re-deriving reboot need from `apt-cache policy` heuristics. Exit code doubles as a script-friendly signal: `0` = fine, `1` = moderate, `2` = reboot required/advised.
+`sysreboot` replaced the old Python `syscheck` tool: no `psutil`/Rich dependency, ~150ms→sub-10ms runtime, and on Linux it checks the canonical reboot marker directly (`/run/reboot-required`, with `/var/run` as a compatibility alias) instead of re-deriving reboot need from `apt-cache policy` heuristics. macOS stays native too: uptime, load, and swap come from sysctls, with only `vm_stat` left for the memory-pressure page counters. Exit code doubles as a script-friendly signal: `0` = fine, `1` = moderate, `2` = reboot required/advised.
+
+Support matrix:
+
+| Platform | Status | Notes |
+|----------|--------|-------|
+| Linux | Supported | `/run/reboot-required` is the authoritative reboot signal; `/var/run` is accepted as a compatibility path. |
+| macOS | Supported | Uses native `sysctl` plus a tiny `vm_stat` parse for page counters. |
+| Windows | Not supported yet | Explicitly out of scope for now. |
 
 ---
 

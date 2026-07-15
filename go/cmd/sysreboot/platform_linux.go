@@ -24,10 +24,13 @@ func gather() (*Stats, error) {
 	}
 	readMemInfo(s)
 
-	if _, err := os.Stat("/var/run/reboot-required"); err == nil {
+	if markerPath, ok := readRebootMarkerPath([]string{
+		"/run/reboot-required",
+		"/var/run/reboot-required",
+	}); ok {
 		s.RebootRequired = true
 		s.RebootReason = "pending kernel/library update"
-		if pkgs := readRebootRequiredPkgs(); pkgs != "" {
+		if pkgs := readRebootRequiredPkgs(markerPath); pkgs != "" {
 			s.RebootReason += " (" + pkgs + ")"
 		}
 	}
@@ -91,6 +94,9 @@ func readMemInfo(s *Stats) {
 
 	s.MemTotal = values["MemTotal"]
 	s.MemAvailable = values["MemAvailable"]
+	if s.MemAvailable == 0 {
+		s.MemAvailable = estimateMemAvailable(values)
+	}
 	s.SwapTotal = values["SwapTotal"]
 	swapFree := values["SwapFree"]
 	if s.SwapTotal > swapFree {
@@ -98,8 +104,27 @@ func readMemInfo(s *Stats) {
 	}
 }
 
-func readRebootRequiredPkgs() string {
-	data, err := os.ReadFile("/var/run/reboot-required.pkgs")
+func estimateMemAvailable(values map[string]uint64) uint64 {
+	available := values["MemFree"] + values["Buffers"] + values["Cached"] + values["SReclaimable"]
+	if shmem := values["Shmem"]; available > shmem {
+		available -= shmem
+	} else {
+		available = 0
+	}
+	return available
+}
+
+func readRebootMarkerPath(paths []string) (string, bool) {
+	for _, path := range paths {
+		if _, err := os.Stat(path); err == nil {
+			return path, true
+		}
+	}
+	return "", false
+}
+
+func readRebootRequiredPkgs(markerPath string) string {
+	data, err := os.ReadFile(markerPath + ".pkgs")
 	if err != nil {
 		return ""
 	}

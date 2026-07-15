@@ -47,8 +47,9 @@ func main() {
 	os.Exit(exitCode(score, stats.RebootRequired))
 }
 
-// rebootScore mirrors the old syscheck.py heuristic (0-100): uptime up to
-// 25, load up to 25, memory/swap up to 30. Kept deliberately simple —
+// rebootScore mirrors the old syscheck.py heuristic. The current weighting
+// caps out around 80 points under normal conditions: uptime up to 25, load
+// up to 25, memory up to 20, swap up to 10. Kept deliberately simple —
 // this is a fallback for when there's no authoritative signal, not a
 // precision instrument.
 func rebootScore(s *Stats) int {
