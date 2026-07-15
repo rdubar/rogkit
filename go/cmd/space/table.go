@@ -2,17 +2,67 @@ package main
 
 import (
 	"fmt"
+	"os"
 	"strings"
 )
 
-const (
-	colorReset    = "\x1b[0m"
-	colorGreen    = "\x1b[32m"
-	colorYellow   = "\x1b[33m"
-	colorRedBold  = "\x1b[1;31m"
-	colorCyanBold = "\x1b[1;36m"
-	colorMagenta  = "\x1b[35m"
-)
+const colorReset = "\x1b[0m"
+
+// colors are 24-bit ANSI codes matching the exact hex values the Python
+// tool's Rich theme used (Theme({"magenta": "bold #ff80bf", "green":
+// "#4ecdc4", "yellow": "#f4d35e", "red": "#ff6b6b"})) — the standard
+// 16-color ANSI names (plain green/yellow/red/magenta) are a much harsher
+// palette and were reported hard to read next to the original.
+type colors struct {
+	path, ok, warn, crit, header string
+}
+
+func trueColorPalette() colors {
+	return colors{
+		path:   "\x1b[1;38;2;255;128;191m", // bold #ff80bf
+		ok:     "\x1b[38;2;78;205;196m",    // #4ecdc4
+		warn:   "\x1b[38;2;244;211;94m",    // #f4d35e
+		crit:   "\x1b[1;38;2;255;107;107m", // bold #ff6b6b
+		header: "\x1b[1;36m",               // bold cyan, unchanged from Rich's default header_style
+	}
+}
+
+// basicPalette is the fallback for terminals that can't do 24-bit color
+// (e.g. the Pi's raw TERM=linux console) — closest standard ANSI colors,
+// still distinct from each other even if less true to the original hues.
+func basicPalette() colors {
+	return colors{
+		path:   "\x1b[1;35m",
+		ok:     "\x1b[32m",
+		warn:   "\x1b[33m",
+		crit:   "\x1b[1;31m",
+		header: "\x1b[1;36m",
+	}
+}
+
+// supportsTrueColor mirrors the common COLORTERM/TERM heuristic (bat,
+// delta, starship): trust an explicit COLORTERM=truecolor/24bit, then
+// assume yes except on the raw Linux console or a dumb terminal, both of
+// which cap out at the standard 16-color palette.
+func supportsTrueColor() bool {
+	ct := strings.ToLower(os.Getenv("COLORTERM"))
+	if ct == "truecolor" || ct == "24bit" {
+		return true
+	}
+	switch os.Getenv("TERM") {
+	case "linux", "dumb", "":
+		return false
+	default:
+		return true
+	}
+}
+
+func activePalette() colors {
+	if supportsTrueColor() {
+		return trueColorPalette()
+	}
+	return basicPalette()
+}
 
 // tableRow is one rendered line: five formatted cells plus a parallel
 // ANSI style to apply per cell (empty string means no color).
@@ -21,33 +71,35 @@ type tableRow struct {
 	cellStyles []string
 }
 
-var headerRow = tableRow{
-	cells:      []string{"Path", "Total", "Used", "Free", "Usage"},
-	cellStyles: []string{colorCyanBold, colorCyanBold, colorCyanBold, colorCyanBold, colorCyanBold},
+func newHeaderRow(c colors) tableRow {
+	return tableRow{
+		cells:      []string{"Path", "Total", "Used", "Free", "Usage"},
+		cellStyles: []string{c.header, c.header, c.header, c.header, c.header},
+	}
 }
 
 var rightAlign = []bool{false, true, true, true, true}
 
-func formatRow(path string, total, free uint64) tableRow {
+func formatRow(c colors, path string, total, free uint64) tableRow {
 	used := total - free
 	pct := percentOf(used, total)
-	severity := colorGreen
+	severity := c.ok
 	switch {
 	case pct >= 95:
-		severity = colorRedBold
+		severity = c.crit
 	case pct >= 80:
-		severity = colorYellow
+		severity = c.warn
 	}
 	return tableRow{
 		cells:      []string{path, byteSize(total), byteSize(used), byteSize(free), fmt.Sprintf("%.2f%%", pct)},
-		cellStyles: []string{colorMagenta, severity, severity, severity, severity},
+		cellStyles: []string{c.path, severity, severity, severity, severity},
 	}
 }
 
-func formatTotalRow(path string, total, free uint64) tableRow {
-	tr := formatRow(path, total, free)
+func formatTotalRow(c colors, path string, total, free uint64) tableRow {
+	tr := formatRow(c, path, total, free)
 	for i := range tr.cellStyles {
-		tr.cellStyles[i] = colorCyanBold
+		tr.cellStyles[i] = c.header
 	}
 	return tr
 }
@@ -112,9 +164,9 @@ func dataLine(tr tableRow, widths []int, vert string) string {
 	return b.String()
 }
 
-func columnWidths(rows []tableRow) []int {
-	widths := make([]int, len(headerRow.cells))
-	for i, c := range headerRow.cells {
+func columnWidths(header tableRow, rows []tableRow) []int {
+	widths := make([]int, len(header.cells))
+	for i, c := range header.cells {
 		widths[i] = len([]rune(c))
 	}
 	for _, tr := range rows {
@@ -128,19 +180,22 @@ func columnWidths(rows []tableRow) []int {
 }
 
 func printTable(rows []row, totalRow *row) {
+	c := activePalette()
+
 	trs := make([]tableRow, 0, len(rows)+1)
 	for _, r := range rows {
-		trs = append(trs, formatRow(r.path, r.total, r.free))
+		trs = append(trs, formatRow(c, r.path, r.total, r.free))
 	}
 	if totalRow != nil {
-		trs = append(trs, formatTotalRow(totalRow.path, totalRow.total, totalRow.free))
+		trs = append(trs, formatTotalRow(c, totalRow.path, totalRow.total, totalRow.free))
 	}
 
-	widths := columnWidths(trs)
+	header := newHeaderRow(c)
+	widths := columnWidths(header, trs)
 	b := newBoxSet(utf8Locale())
 
 	fmt.Println(horizontalLine(widths, b.topL, b.topM, b.topR, b.topH))
-	fmt.Println(dataLine(headerRow, widths, b.vert))
+	fmt.Println(dataLine(header, widths, b.vert))
 	fmt.Println(horizontalLine(widths, b.headL, b.headM, b.headR, b.headH))
 
 	for i, tr := range trs {
