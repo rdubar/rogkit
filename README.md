@@ -201,7 +201,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 
 ## Go tools
 
-Eight compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
+Nine compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
 
 | Binary | What it does |
 |--------|-------------|
@@ -213,6 +213,7 @@ Eight compiled Go binaries live in `go/bin/` and are built with `./scripts/build
 | `ishtime` | Time zone conversion and "is it time?" helper |
 | `sysreboot` | Ultra-fast one-or-two-line reboot advisor (aliased as `sys`/`syscheck`) |
 | `space` | Disk usage summary with a colored table, sortable by size |
+| `mem` | Memory usage summary, grouped by app; `mem <name>` filters to matching processes plus a total |
 
 Build all: `./scripts/build_go.sh`
 
@@ -228,11 +229,16 @@ sys -1                               # squash to one line
 space                                # colored table: mount, total, used, free, usage
 space -s -t                          # sorted by size, plus a combined totals row
 space -q                             # plain pipe-delimited output, no color
+mem                                  # top 10 apps by memory, colored table
+mem chrome                           # every matching process, plus a TOTAL row
+mem -n 5                             # top 5 apps instead of the default 10
 ```
 
 `sysreboot` replaced the old Python `syscheck` tool: no `psutil`/Rich dependency, ~150ms→sub-10ms runtime, and on Linux it checks the canonical reboot marker directly (`/run/reboot-required`, with `/var/run` as a compatibility alias) instead of re-deriving reboot need from `apt-cache policy` heuristics. macOS stays native too: uptime, load, and swap come from sysctls, with only `vm_stat` left for the memory-pressure page counters. Exit code doubles as a script-friendly signal: `0` = fine, `1` = moderate, `2` = reboot required/advised.
 
 `space` replaced the old Python `space` tool for the same reason: no `rich` import cost, disk stats come straight from `statfs(2)` (`Frsize` on Linux, `Bsize` on macOS — mirroring `os.statvfs()`'s `f_frsize` semantics on each). The colored table and `-q` plain fallback are hand-rolled ANSI/box-drawing, with the same UTF-8-locale ASCII fallback `sysreboot` uses. Mount dedup uses `stat(2)`'s device id rather than `statfs`'s `Fsid`, since macOS APFS firmlinks (e.g. `/` and `/System/Volumes/Data`) share one device but report different `Fsid` values.
+
+`mem` fills a gap the Python `procs --sort mem` tool didn't: a grouped, per-app view instead of a flat PID list. It shells out to `ps -axo pid=,rss=,comm=` once and parses every line, rather than a psutil-style per-process syscall loop. Chromium/Electron helper processes (`Google Chrome Helper (Renderer)`, `Slack Helper (Plugin)`, etc.) are rolled up under their parent app's name via a suffix-stripping heuristic, so the default summary reads like Activity Monitor's grouped view rather than a dozen near-duplicate rows. `%Mem` comes from physical RAM total (`hw.memsize` sysctl on macOS, `/proc/meminfo`'s `MemTotal` on Linux). Passing a name/substring switches to an ungrouped, per-PID view of just the matches plus a `TOTAL` row — matching processes are found by substring on the raw `ps` name, not the canonicalized one, so `mem chrome` still catches every helper.
 
 Support matrix:
 

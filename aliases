@@ -176,6 +176,7 @@ alias location='rogkit_py -m rogkit_package.bin.location'
 alias loc='rogkit_py -m rogkit_package.bin.location'
 
 alias space='$ROGKIT_GO_BIN/space'
+alias mem='$ROGKIT_GO_BIN/mem'
 alias mapper='rogkit_py -m rogkit_package.bin.mapper'
 
 alias syscheck='$ROGKIT_GO_BIN/sysreboot'

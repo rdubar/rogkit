@@ -25,7 +25,7 @@ rogkit/
 │   ├── settings.py       # get_invoking_cwd(), path helpers
 │   └── __init__.py
 ├── go/
-│   ├── cmd/              # Go CLI commands (dirfind, fastfind, finder, ishtime, replacer, search)
+│   ├── cmd/              # Go CLI commands (dirfind, fastfind, finder, ishtime, mem, replacer, search, space, sysreboot)
 │   ├── internal/         # Shared Go packages (finder, search, util)
 │   └── bin/              # Compiled Go binaries
 ├── rust/
