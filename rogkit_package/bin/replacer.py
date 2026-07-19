@@ -181,20 +181,7 @@ def main():
     """CLI entry point for text replacement utility."""
     args = get_args()
 
-    over_ride = False
-
     print('Rogkit Replacer: Search and optionally replace text in files.')
-
-    if over_ride: 
-        # defaults for testing
-        args.path = '/home/rdubar/projects/pythonProject/openerp-addons'
-        
-        # args.find_text = 'Die Lieferung ist inkl. <b>Liefertermin spätestens 48h</b>'
-        # args.replace_text = 'Die Lieferung ist inkl. <b>Liefertermin und Preisen spätestens 48h</b>'
-
-        # args.find_text = 'Delivery including the <b>delivery date</b>'
-        # args.replace_text = 'Delivery including the <b>delivery date and prices</b>'
-        args.confirm = False
 
     do_search_and_replace(args)
 
