@@ -42,6 +42,7 @@ fi
 # Core RogKit
 # ------------------------------------------------------------------------------
 alias rogkit-dev='rogkit_py -m rogkit_package.bin.rogkit'
+alias rk='rogkit_py -m rogkit_package.bin.rogkit'
 alias setup='rogkit_py -m rogkit_package.bin.rogkit setup'
 alias rsetup='rogkit_py -m rogkit_package.bin.rogkit setup'
 alias update='rogkit_py -m rogkit_package.bin.rogkit update'

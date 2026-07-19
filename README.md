@@ -50,7 +50,7 @@ rogkit --help
 rogkit --credits
 ```
 
-The packaged `rogkit` command provides the project overview, credits, help, doctor, and update entry points. Use a full checkout for the short utility commands (`json`, `pw`, `p`, `doctor`, and so on), which are provided by the repository `aliases` file.
+The packaged `rogkit` command (also installed as the short alias `rk`) provides the project overview, credits, help, doctor, and update entry points. Use a full checkout for the short utility commands (`json`, `pw`, `p`, `doctor`, and so on), which are provided by the repository `aliases` file.
 
 ### Full checkout
 
@@ -75,7 +75,7 @@ setup --apply
 
 Use `doctor` for a health check covering config, secrets, aliases, common binaries, and media connectivity. It includes remediation hints for common warnings and failures.
 
-`rogkit-dev` is the repo-local top-level command. It mirrors the packaged `rogkit` entry point while running from your checkout.
+`rogkit-dev` (short alias: `rk`) is the repo-local top-level command. It mirrors the packaged `rogkit` entry point while running from your checkout.
 
 Command naming convention:
 Short user-facing commands live in `aliases` (`json`, `csv`, `env`) while the

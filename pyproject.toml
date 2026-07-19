@@ -102,6 +102,7 @@ dev = [
 
 [project.scripts]
 rogkit = "rogkit_package.bin.rogkit:main"
+rk = "rogkit_package.bin.rogkit:main"
 
 [dependency-groups]
 cli = ["pyclip", "pyfiglet", "send2trash", "thefuzz", "sh", "spotipy", "psutil", "openai", "requests-html", "faker", "convertdate", "wikipedia"]
