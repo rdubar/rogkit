@@ -82,6 +82,10 @@ def test_run_json_returns_none_on_invalid_output(tmp_path, monkeypatch):
 def test_collect_services_reports_systemd_states(monkeypatch):
     monkeypatch.setattr("rogkit_package.bin.primer.platform.system", lambda: "Linux")
     monkeypatch.setattr("rogkit_package.bin.primer.shutil.which", lambda name: "/usr/bin/systemctl")
+    monkeypatch.setattr(
+        "rogkit_package.bin.primer.load_rogkit_toml",
+        lambda: {"primer": {"services": ["plexmediaserver", "custom.service"]}},
+    )
 
     def fake_run(cmd, **kwargs):
         status = "active\n" if cmd[-1] == "plexmediaserver" else "inactive\n"
@@ -93,9 +97,23 @@ def test_collect_services_reports_systemd_states(monkeypatch):
     assert services[1]["status"] == "inactive"
 
 
+def test_configured_list_preserves_explicit_empty_list(monkeypatch):
+    from rogkit_package.bin.primer import _configured_list
+
+    monkeypatch.setattr(
+        "rogkit_package.bin.primer.load_rogkit_toml",
+        lambda: {"primer": {"services": []}},
+    )
+    assert _configured_list("services", ("default.service",)) == []
+
+
 def test_collect_media_mounts_includes_unmounted_targets(monkeypatch):
     monkeypatch.setattr("rogkit_package.bin.primer.platform.system", lambda: "Linux")
     monkeypatch.setattr("rogkit_package.bin.primer.shutil.which", lambda name: "/usr/bin/findmnt")
+    monkeypatch.setattr(
+        "rogkit_package.bin.primer.load_rogkit_toml",
+        lambda: {"primer": {"media_mounts": ["/mnt/media1", "/mnt/archive"]}},
+    )
     monkeypatch.setattr(
         "rogkit_package.bin.primer.subprocess.run",
         lambda *a, **k: subprocess.CompletedProcess(
@@ -105,4 +123,4 @@ def test_collect_media_mounts_includes_unmounted_targets(monkeypatch):
     mounts = collect_media_mounts()
     assert mounts[0]["mounted"] is True
     assert mounts[0]["fstype"] == "exfat"
-    assert mounts[1] == {"target": "/mnt/media2", "mounted": False}
+    assert mounts[1] == {"target": "/mnt/archive", "mounted": False}

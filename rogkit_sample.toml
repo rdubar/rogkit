@@ -55,6 +55,12 @@ remote_user = "rog"
 remote_password = ""
 remote_folders = ["/mnt/media1/Media/Movies"]
 
+[primer]
+# Linux systemd services and mount points included in `primer`.
+# Override these for another machine, or set either list to [] to disable it.
+services = ["plexmediaserver", "smbd", "transmission-daemon", "wayvnc", "tailscaled"]
+media_mounts = ["/mnt/media1", "/mnt/media2", "/mnt/media3", "/mnt/media4"]
+
 [plex]
 plex_server_url = ""
 # plex_server_token → secrets.toml

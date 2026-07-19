@@ -364,6 +364,11 @@ plex_server_url = "http://192.168.1.100"
 [vido]
 download_folder = "~/Downloads/Videos"
 
+[primer]
+# Machine-specific Linux services and mounts shown by `primer`.
+services = ["plexmediaserver", "smbd", "transmission-daemon", "wayvnc", "tailscaled"]
+media_mounts = ["/mnt/media1", "/mnt/media2", "/mnt/media3", "/mnt/media4"]
+
 [backup]
 secret_patterns = ["secrets.toml", ".env"]
 

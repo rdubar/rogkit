@@ -25,6 +25,7 @@ from typing import Any
 from ..settings import root_dir
 from .note import _get_notes_file, _parse_entries
 from .ports import list_ports
+from .tomlr import load_rogkit_toml
 
 try:
     from rich.console import Console
@@ -38,14 +39,14 @@ except ModuleNotFoundError:  # pragma: no cover
 
 DEFAULT_DEV_ROOT = Path.home() / "dev"
 RECENT_NOTES = 5
-PI_SERVICES = (
+DEFAULT_SERVICES = (
     "plexmediaserver",
     "smbd",
     "transmission-daemon",
     "wayvnc",
     "tailscaled",
 )
-PI_MEDIA_MOUNTS = ("/mnt/media1", "/mnt/media2", "/mnt/media3", "/mnt/media4")
+DEFAULT_MEDIA_MOUNTS = ("/mnt/media1", "/mnt/media2", "/mnt/media3", "/mnt/media4")
 
 
 def _print(message: str, *, style: str | None = None) -> None:
@@ -155,12 +156,26 @@ def collect_drift() -> dict[str, Any] | None:
     return _run_json("drift", "--json", "-q")
 
 
+def _configured_list(key: str, default: tuple[str, ...]) -> list[str]:
+    """Return a configured primer list, preserving explicit empty lists."""
+    try:
+        config = load_rogkit_toml().get("primer", {})
+    except (AttributeError, OSError, TypeError):
+        return list(default)
+    value = config.get(key)
+    if value is None:
+        return list(default)
+    if isinstance(value, list) and all(isinstance(item, str) for item in value):
+        return value
+    return list(default)
+
+
 def collect_services() -> list[dict[str, str]]:
-    """Report the configured Pi media-server services when systemd exists."""
+    """Report configured systemd services when systemd exists."""
     if platform.system() != "Linux" or shutil.which("systemctl") is None:
         return []
     services = []
-    for name in PI_SERVICES:
+    for name in _configured_list("services", DEFAULT_SERVICES):
         try:
             result = subprocess.run(
                 ["systemctl", "is-active", name],
@@ -178,9 +193,10 @@ def collect_services() -> list[dict[str, str]]:
 
 
 def collect_media_mounts() -> list[dict[str, str | bool]]:
-    """Report the four configured cold-storage mount points on Linux."""
+    """Report configured media mount points on Linux."""
     if platform.system() != "Linux" or shutil.which("findmnt") is None:
         return []
+    configured_mounts = _configured_list("media_mounts", DEFAULT_MEDIA_MOUNTS)
     try:
         result = subprocess.run(
             ["findmnt", "-rn", "-o", "TARGET,SOURCE,FSTYPE,OPTIONS"],
@@ -194,7 +210,7 @@ def collect_media_mounts() -> list[dict[str, str | bool]]:
     mounted: dict[str, dict[str, str | bool]] = {}
     for line in result.stdout.splitlines():
         fields = line.split(None, 3)
-        if len(fields) != 4 or fields[0] not in PI_MEDIA_MOUNTS:
+        if len(fields) != 4 or fields[0] not in configured_mounts:
             continue
         mounted[fields[0]] = {
             "target": fields[0],
@@ -203,10 +219,7 @@ def collect_media_mounts() -> list[dict[str, str | bool]]:
             "options": fields[3],
             "mounted": True,
         }
-    return [
-        mounted.get(target, {"target": target, "mounted": False})
-        for target in PI_MEDIA_MOUNTS
-    ]
+    return [mounted.get(target, {"target": target, "mounted": False}) for target in configured_mounts]
 
 
 def collect_briefing() -> dict[str, Any]:
