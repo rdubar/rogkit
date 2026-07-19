@@ -1,8 +1,10 @@
 """Tests for pw.py — secure password generator."""
 
 import string
+import sys
+
 import pytest
-from rogkit_package.bin.pw import PasswordGenerator
+from rogkit_package.bin.pw import PasswordGenerator, main
 
 
 class TestPasswordGeneration:
@@ -64,3 +66,19 @@ class TestCombinations:
         pg_short = PasswordGenerator(length=8)
         pg_long = PasswordGenerator(length=16)
         assert pg_long.calculate_combinations() > pg_short.calculate_combinations()
+
+
+class TestRawAliases:
+    """--plain and -q are aliases for the existing -r/--raw behaviour, not
+    separate logic, so this checks every spelling produces the same bare,
+    single-line output (no panel, no clipboard message)."""
+
+    @pytest.mark.parametrize("flag", ["-r", "--raw", "-p", "--plain", "-q", "--quiet"])
+    def test_flag_prints_bare_password_only(self, flag, monkeypatch, capsys):
+        monkeypatch.setattr(sys, "argv", ["pw", "-l", "12", flag])
+        main()
+        out = capsys.readouterr().out.strip()
+        assert len(out.splitlines()) == 1
+        assert len(out) == 12
+        assert "Generated Password" not in out
+        assert "clipboard" not in out.lower()

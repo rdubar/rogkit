@@ -228,9 +228,11 @@ def main():
     # Additional information
     parser.add_argument('-i', '--info', action='store_true', help='Show information about the password')
     parser.add_argument(
-        '-r', '--raw',
+        '-r', '--raw', '-p', '--plain', '-q', '--quiet',
         action='store_true',
-        help='Print only the password (no formatting/clipboard) for piping',
+        dest='raw',
+        help='Print only the password (no formatting/clipboard) for piping '
+             '(aliases: --plain/-p, --quiet/-q, matching the rest of rogkit)',
     )
     args = parser.parse_args()
 
