@@ -38,6 +38,14 @@ except ModuleNotFoundError:  # pragma: no cover
 
 DEFAULT_DEV_ROOT = Path.home() / "dev"
 RECENT_NOTES = 5
+PI_SERVICES = (
+    "plexmediaserver",
+    "smbd",
+    "transmission-daemon",
+    "wayvnc",
+    "tailscaled",
+)
+PI_MEDIA_MOUNTS = ("/mnt/media1", "/mnt/media2", "/mnt/media3", "/mnt/media4")
 
 
 def _print(message: str, *, style: str | None = None) -> None:
@@ -147,6 +155,60 @@ def collect_drift() -> dict[str, Any] | None:
     return _run_json("drift", "--json", "-q")
 
 
+def collect_services() -> list[dict[str, str]]:
+    """Report the configured Pi media-server services when systemd exists."""
+    if platform.system() != "Linux" or shutil.which("systemctl") is None:
+        return []
+    services = []
+    for name in PI_SERVICES:
+        try:
+            result = subprocess.run(
+                ["systemctl", "is-active", name],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
+            )
+        except (subprocess.SubprocessError, OSError):
+            status = "unknown"
+        else:
+            status = result.stdout.strip() or "unknown"
+        services.append({"name": name, "status": status})
+    return services
+
+
+def collect_media_mounts() -> list[dict[str, str | bool]]:
+    """Report the four configured cold-storage mount points on Linux."""
+    if platform.system() != "Linux" or shutil.which("findmnt") is None:
+        return []
+    try:
+        result = subprocess.run(
+            ["findmnt", "-rn", "-o", "TARGET,SOURCE,FSTYPE,OPTIONS"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+    except (subprocess.SubprocessError, OSError):
+        return []
+    mounted: dict[str, dict[str, str | bool]] = {}
+    for line in result.stdout.splitlines():
+        fields = line.split(None, 3)
+        if len(fields) != 4 or fields[0] not in PI_MEDIA_MOUNTS:
+            continue
+        mounted[fields[0]] = {
+            "target": fields[0],
+            "source": fields[1],
+            "fstype": fields[2],
+            "options": fields[3],
+            "mounted": True,
+        }
+    return [
+        mounted.get(target, {"target": target, "mounted": False})
+        for target in PI_MEDIA_MOUNTS
+    ]
+
+
 def collect_briefing() -> dict[str, Any]:
     ports = list_ports()
     return {
@@ -156,6 +218,8 @@ def collect_briefing() -> dict[str, Any]:
         "disk": collect_disk(),
         "repos": collect_repos(),
         "ports": [{"port": p.port, "proto": p.proto, "process": p.process_name} for p in ports],
+        "services": collect_services(),
+        "media_mounts": collect_media_mounts(),
         "notes": collect_notes(),
         "drift": collect_drift(),
     }
@@ -195,6 +259,18 @@ def render_briefing(b: dict[str, Any]) -> None:
 
     ports = b["ports"]
     _print(f"\n{len(ports)} listening port(s)" + (f" — {', '.join(sorted({p['process'] for p in ports})[:6])}" if ports else ""))
+
+    services = b["services"]
+    if services:
+        _print("\nMedia services:", style="bold")
+        for service in services:
+            style = "green" if service["status"] == "active" else "yellow"
+            _print(f"  {service['name']}: {service['status']}", style=style)
+
+    mounts = b["media_mounts"]
+    if mounts:
+        mounted = sum(1 for mount in mounts if mount["mounted"])
+        _print(f"\nMedia mounts: {mounted}/{len(mounts)} mounted")
 
     notes = b["notes"]
     if notes:

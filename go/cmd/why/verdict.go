@@ -6,9 +6,10 @@ import "fmt"
 // wrong confident diagnosis is worse than no diagnosis (flagged explicitly
 // in the design brainstorm this tool came from).
 const (
-	swapNotableBytes   = 1024 * 1024 * 1024 // 1 GB
-	loadRatioThreshold = 1.5
-	memPctThreshold    = 25.0
+	swapNotableBytes         = 1024 * 1024 * 1024 // 1 GB
+	memAvailablePctThreshold = 15.0
+	loadRatioThreshold       = 1.5
+	memPctThreshold          = 25.0
 )
 
 type verdict struct {
@@ -24,8 +25,8 @@ type verdict struct {
 // implemented in v1: both need genuinely platform-specific sampling this
 // one-shot tool doesn't have a honest way to do yet.
 func diagnose(sys sysStats, sysOK bool, topMem memGroup, memOK bool, topCPU cpuProc, cpuOK bool) verdict {
-	if sysOK && sys.SwapTotal > 0 && sys.SwapUsed >= swapNotableBytes {
-		text := fmt.Sprintf("Memory-pressured: %s swap in use", byteSize(sys.SwapUsed))
+	if sysOK && swapPressure(sys) {
+		text := fmt.Sprintf("Memory-pressured: %s swap in use with low available RAM", byteSize(sys.SwapUsed))
 		if memOK {
 			text += fmt.Sprintf(" — %s using %s (%.0f%% mem)", topMem.Name, byteSize(topMem.RSSBytes), topMem.PctMem)
 		}
@@ -46,6 +47,13 @@ func diagnose(sys sysStats, sysOK bool, topMem memGroup, memOK bool, topCPU cpuP
 	}
 
 	return verdict{Text: "Nothing obviously wrong.", Culprit: false}
+}
+
+func swapPressure(sys sysStats) bool {
+	if sys.SwapTotal == 0 || sys.SwapUsed < swapNotableBytes || sys.MemTotal == 0 {
+		return false
+	}
+	return float64(sys.MemAvailable)/float64(sys.MemTotal)*100 < memAvailablePctThreshold
 }
 
 var siUnits = []string{"bytes", "KB", "MB", "GB", "TB", "PB"}

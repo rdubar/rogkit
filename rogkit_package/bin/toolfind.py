@@ -149,10 +149,27 @@ def search(index: list[ToolEntry], query: str, limit: int = 8) -> list[tuple[Too
         matches = [e for e in index if needle in e.alias.lower() or needle in e.description.lower()]
         return [(e, 100) for e in matches[:limit]]
 
+    query_lower = query.lower().strip()
+    query_tokens = set(re.findall(r"[a-z0-9]+", query_lower))
     scored = []
     for entry in index:
-        corpus = f"{entry.alias} {entry.description}"
-        score = fuzz.WRatio(query, corpus)
+        alias_lower = entry.alias.lower()
+        description_lower = entry.description.lower()
+        corpus = f"{alias_lower} {description_lower}"
+        # WRatio against a long description can bury an exact tool-name
+        # match. Combine it with token overlap and make direct name matches
+        # win, which is what an agent expects from `toolfind "disk space"`.
+        score = max(
+            fuzz.WRatio(query_lower, alias_lower),
+            fuzz.token_set_ratio(query_lower, description_lower),
+            fuzz.token_set_ratio(query_lower, corpus),
+        )
+        if query_lower == alias_lower:
+            score = 100
+        elif alias_lower in query_tokens or alias_lower in query_lower.split():
+            score = max(score, 95)
+        elif query_tokens and query_tokens.issubset(set(re.findall(r"[a-z0-9]+", corpus))):
+            score = max(score, 90)
         scored.append((entry, score))
     scored.sort(key=lambda pair: pair[1], reverse=True)
     return scored[:limit]

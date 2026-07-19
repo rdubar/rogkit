@@ -3,10 +3,18 @@ package main
 import "testing"
 
 func TestDiagnoseSwapPressureWins(t *testing.T) {
-	sys := sysStats{Cores: 4, Load1: 0.5, SwapTotal: 4 * 1024 * 1024 * 1024, SwapUsed: 2 * 1024 * 1024 * 1024}
+	sys := sysStats{Cores: 4, Load1: 0.5, MemTotal: 8 * 1024 * 1024 * 1024, MemAvailable: 512 * 1024 * 1024, SwapTotal: 4 * 1024 * 1024 * 1024, SwapUsed: 2 * 1024 * 1024 * 1024}
 	v := diagnose(sys, true, memGroup{}, false, cpuProc{}, false)
 	if !v.Culprit {
 		t.Fatalf("expected a culprit for 2GB swap used, got %+v", v)
+	}
+}
+
+func TestDiagnoseDoesNotCallSwapUsePressureWithHealthyRAM(t *testing.T) {
+	sys := sysStats{Cores: 4, Load1: 0.5, MemTotal: 8 * 1024 * 1024 * 1024, MemAvailable: 5 * 1024 * 1024 * 1024, SwapTotal: 4 * 1024 * 1024 * 1024, SwapUsed: 2 * 1024 * 1024 * 1024}
+	v := diagnose(sys, true, memGroup{}, false, cpuProc{}, false)
+	if v.Culprit {
+		t.Fatalf("expected healthy RAM to suppress stale swap-use warning, got %+v", v)
 	}
 }
 

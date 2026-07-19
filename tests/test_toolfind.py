@@ -102,3 +102,12 @@ def test_search_ranks_relevant_entries_first():
     ]
     results = search(index, "empty folders", limit=2)
     assert results[0][0].alias == "empties"
+
+
+def test_search_promotes_tool_name_in_compound_query():
+    index = [
+        ToolEntry("space", "go:space", "Disk usage summary.", "System"),
+        ToolEntry("system", "py:system", "Enhanced system snapshot.", "System"),
+    ]
+    results = search(index, "disk space", limit=2)
+    assert results[0][0].alias == "space"
