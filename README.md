@@ -4,20 +4,34 @@ Personal command-line toolkit: 85+ Python tools, a dozen Go binaries, and a smal
 
 Built and maintained by [Roger Dubar](https://github.com/rdubar).
 
+## rogkit for AI agents
+
+AI agents (Claude, Codex, and similar) are a first-class user of any machine rogkit is installed on, not just a human at a terminal — `primer`, `drift`, `squeeze`, `why`, `recall`, and `toolfind` are new tools built specifically to serve that use case. A few things worth knowing if you're an agent operating on a rogkit-equipped machine (or scripting around one):
+
+- **Start with `primer`.** It's a cold-start briefing for whatever machine you're on: uptime, disk headroom, dirty repos under `~/dev`, listening ports, recent notes, and (on Linux) the configured Pi media services plus `/mnt/media1`–`/mnt/media4` mount state. Once a baseline exists, it also includes `drift`'s summary of what changed since last time — one command instead of re-deriving all of that from scratch every session.
+- **`drift`** is the closest thing to memory across sessions: `drift --set-baseline morning` once, then `drift` any time to see what actually changed, with exit codes (`0`/`1`/`2`) usable in scripts.
+- **`mem`** gives a grouped, per-app memory view (`mem chrome` for every matching process plus a total) — and **`why`** does one-shot slowness triage by composing `sysreboot`/`mem` rather than re-reading the same syscalls.
+- **`squeeze`** is for compressing large log/output dumps before they hit a context window — `squeeze --fit 4000 some.log` distills thousands of lines to their unique templates, keeping rare and error-shaped lines even under a tight budget. See the Go tools section below for the exact algorithm.
+- **`recall`** and **`toolfind`** help with session handoff and tool discovery respectively — `recall yesterday` for "what happened since I was last here," `toolfind "empty folders"` instead of grepping this README for the right tool name.
+- **The Go system tools start instantly.** `space`, `mem`, `drift`, `squeeze`, `why`, and `sysreboot` have no `uv`/Rich import cost, and all auto-detect a non-TTY stdout and switch to plain, uncolored output on their own — piping one from a shell tool never leaks ANSI codes into an agent's context, even without `-q`.
+- **`--json` gives structured output** on `sysreboot`, `space`, `mem`, `drift`, `why` (Go) and `doctor`, `scrape`, `primer`, `toolfind`, `recall` (Python) — prefer it over parsing table output.
+- **`-q`/`--quiet`/`--plain`** forces plain output even on a real TTY: `space`, `mem`, `drift`, and `squeeze` (Go), and every Rich-table Python tool (`ports`, `procs`, `dirs`, `system`, `note`, `pyinfo`, `purge`, `backup`, and the rest — all 38 of them). Python tools without an explicit flag still auto-detect a non-TTY stdout via Rich, but Rich's own fallback only drops color, not table borders/box-drawing — so `--plain` is still the safer bet for an agent even when piping.
+
+---
+
 ## Highlights
 
-A few tools you may find immediately useful:
+A few tools you may find immediately useful, day to day:
 
 | Tool | What it does |
 |------|-------------|
 | `pw` | Cryptographically secure password generator |
-| `serve` | Serve any folder over HTTP instantly |
+| `space` | Disk usage summary with a colored table, instant startup |
+| `sys` | One-or-two-line reboot advisor — is this machine actually fine? |
 | `json` | Pretty-print and query JSON from file or stdin |
 | `dedupe` | Find duplicate files by content across a directory tree |
-| `purge` | Remove `.DS_Store`, `__pycache__`, and other junk recursively |
-| `scrape` | Extract readable text from any URL |
-| `note` | Append a timestamped note to a Markdown file; `-l` to search |
-| `myip` | Show all local interfaces and your external IP |
+| `serve` | Serve any folder over HTTP instantly |
+| `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |
 
 ---
 
@@ -85,14 +99,6 @@ underlying Python modules may use disambiguated names such as `jsonr.py` and
 ---
 
 ## Tool categories
-
-### AI & LLM
-
-| Tool | What it does |
-|------|-------------|
-| `aish` | AI-powered shell assistant — describe a task, get a shell command |
-| `chat` | ChatGPT CLI client |
-| `lm` | Local LLM chat client for LM Studio |
 
 ### File management
 
@@ -200,6 +206,16 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `tomlr` | TOML config file manager (`~/.config/rogkit/config.toml`) |
 | `xmlr` | Odoo/OpenERP XML-RPC connection manager |
 
+### AI chat clients
+
+Talking to an AI *from* the shell, as distinct from the agent-native tools above — `aish` in particular overlaps heavily with just asking a coding agent directly now.
+
+| Tool | What it does |
+|------|-------------|
+| `aish` | AI-powered shell assistant — describe a task, get a shell command |
+| `chat` | ChatGPT CLI client |
+| `lm` | Local LLM chat client for LM Studio |
+
 ---
 
 ## Go tools
@@ -265,20 +281,6 @@ Support matrix:
 | Linux | Supported | `/run/reboot-required` is the authoritative reboot signal; `/var/run` is accepted as a compatibility path. |
 | macOS | Supported | Uses native `sysctl` plus a tiny `vm_stat` parse for page counters. |
 | Windows | Not supported yet | Explicitly out of scope for now. |
-
----
-
-## rogkit for AI agents
-
-AI agents (Claude, Codex, and similar) are a first-class user of any machine rogkit is installed on, not just a human at a terminal — `primer`, `drift`, `squeeze`, `why`, `recall`, and `toolfind` exist specifically to serve that use case. A few things worth knowing if you're an agent operating on a rogkit-equipped machine (or scripting around one):
-
-- **The Go system tools start instantly.** `space`, `mem`, `drift`, `squeeze`, `why`, and `sysreboot` have no `uv`/Rich import cost, and all auto-detect a non-TTY stdout and switch to plain, uncolored output on their own — piping one from a shell tool never leaks ANSI codes into an agent's context, even without `-q`.
-- **`--json` gives structured output** on `sysreboot`, `space`, `mem`, `drift`, `why` (Go) and `doctor`, `scrape`, `primer`, `toolfind`, `recall` (Python) — prefer it over parsing table output.
-- **`-q`/`--quiet`/`--plain`** forces plain output even on a real TTY: `space`, `mem`, `drift`, and `squeeze` (Go), and every Rich-table Python tool (`ports`, `procs`, `dirs`, `system`, `note`, `pyinfo`, `purge`, `backup`, and the rest — all 38 of them). Python tools without an explicit flag still auto-detect a non-TTY stdout via Rich, but Rich's own fallback only drops color, not table borders/box-drawing — so `--plain` is still the safer bet for an agent even when piping.
-- **Start with `primer`.** It's a cold-start briefing for whatever machine you're on: uptime, disk headroom, dirty repos under `~/dev`, listening ports, recent notes, and (on Linux) the configured Pi media services plus `/mnt/media1`–`/mnt/media4` mount state. Once a baseline exists, it also includes `drift`'s summary of what changed since last time — one command instead of re-deriving all of that from scratch every session.
-- **`drift`** is the closest thing to memory across sessions: `drift --set-baseline morning` once, then `drift` any time to see what actually changed, with exit codes (`0`/`1`/`2`) usable in scripts.
-- **`squeeze`** is for compressing large log/output dumps before they hit a context window — `squeeze --fit 4000 some.log` distills thousands of lines to their unique templates, keeping rare and error-shaped lines even under a tight budget. See the Go tools section above for the exact algorithm.
-- **`recall`** and **`toolfind`** help with session handoff and tool discovery respectively — `recall yesterday` for "what happened since I was last here," `toolfind "empty folders"` instead of grepping this README for the right tool name.
 
 ---
 
