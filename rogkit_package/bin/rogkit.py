@@ -14,11 +14,13 @@ from . import setup as setup_cmd
 
 COMMAND_GROUPS: dict[str, tuple[str, ...]] = {
     "Top-level": ("doctor", "setup", "update", "--version", "--credits", "--help"),
-    "AI & LLM": ("aish", "chat", "clu", "lm"),
-    "Files": ("archive", "backup", "dedupe", "delete", "json", "purge", "serve"),
-    "System": ("doctor", "httpcheck", "myip", "ports", "procs"),
+    "AI agents": ("primer", "drift", "mem", "why", "squeeze", "toolfind", "recall"),
+    "Everyday": ("pw", "space", "sys", "json", "dedupe", "serve", "httpcheck"),
+    "Files": ("archive", "backup", "delete", "purge"),
+    "System": ("doctor", "myip", "ports", "procs", "system", "clu"),
     "Media": ("p", "media_files", "media_scan", "shrink", "spot", "vido"),
     "Data & text": ("bytes", "csv", "env", "hash", "note", "ts", "url"),
+    "AI chat clients": ("aish", "chat", "lm"),
 }
 
 
