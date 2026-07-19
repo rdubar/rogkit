@@ -1,6 +1,6 @@
 # rogkit
 
-Personal command-line toolkit: 85+ Python tools, a handful of Go binaries, and a small Rust workspace. Built for daily use on macOS; most tools also work on Linux.
+Personal command-line toolkit: 85+ Python tools, a dozen Go binaries, and a small Rust workspace. Built for daily use on macOS; most tools also work on Linux.
 
 Built and maintained by [Roger Dubar](https://github.com/rdubar).
 
@@ -144,6 +144,9 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `myip` | Show local IPv4 interfaces and your current external IP |
 | `procs` | Find running processes by name/command, with optional termination |
 | `ports` | Show listening TCP/UDP ports with the owning process |
+| `primer` | Cold-start machine briefing: uptime, disk, dirty repos, ports, notes, recent `drift` changes |
+| `toolfind` | Fuzzy-search rogkit's own tool catalogue by name or description |
+| `recall` | Unified activity timeline: git reflogs, Claude session starts, and notes, merged and filterable |
 | `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |
 | `setup` | Create rogkit config.toml if missing and wire aliases into your shell profile |
 | `speed_test` | Network speed test |
@@ -201,7 +204,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 
 ## Go tools
 
-Nine compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
+Twelve compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
 
 | Binary | What it does |
 |--------|-------------|
@@ -214,6 +217,9 @@ Nine compiled Go binaries live in `go/bin/` and are built with `./scripts/build_
 | `sysreboot` | Ultra-fast one-or-two-line reboot advisor (aliased as `sys`/`syscheck`) |
 | `space` | Disk usage summary with a colored table, sortable by size |
 | `mem` | Memory usage summary, grouped by app; `mem <name>` filters to matching processes plus a total |
+| `drift` | Snapshots disk/mem/ports/launch-agents/packages/dirty-repos and reports what changed since the last run or a named baseline |
+| `squeeze` | Distills a log stream into unique templates, with `--fit` to budget output to roughly N tokens |
+| `why` | One-shot slowness triage: swap pressure, CPU-bound, or memory-bound, with a named culprit |
 
 Build all: `./scripts/build_go.sh`
 
@@ -232,6 +238,12 @@ space -q                             # plain pipe-delimited output, no color
 mem                                  # top 10 apps by memory, colored table
 mem chrome                           # every matching process, plus a TOTAL row
 mem -n 5                             # top 5 apps instead of the default 10
+drift                                # what changed since the last snapshot/run
+drift --since 7d                     # diff against the nearest snapshot ~a week old
+drift --set-baseline morning         # name the current snapshot as a baseline
+squeeze app.log                      # cluster a log file into unique templates
+squeeze app.log --fit 4000           # budget output to ~4000 tokens, bulk noise elided first
+why                                  # "🔥 CPU-bound: load 8.1 on 4 cores — mediaanalysisd at 340% CPU"
 ```
 
 `sysreboot` replaced the old Python `syscheck` tool: no `psutil`/Rich dependency, ~150ms→sub-10ms runtime, and on Linux it checks the canonical reboot marker directly (`/run/reboot-required`, with `/var/run` as a compatibility alias) instead of re-deriving reboot need from `apt-cache policy` heuristics. macOS stays native too: uptime, load, and swap come from sysctls, with only `vm_stat` left for the memory-pressure page counters. Exit code doubles as a script-friendly signal: `0` = fine, `1` = moderate, `2` = reboot required/advised.
@@ -240,6 +252,12 @@ mem -n 5                             # top 5 apps instead of the default 10
 
 `mem` fills a gap the Python `procs --sort mem` tool didn't: a grouped, per-app view instead of a flat PID list. It shells out to `ps -axo pid=,rss=,comm=` once and parses every line, rather than a psutil-style per-process syscall loop. Chromium/Electron helper processes (`Google Chrome Helper (Renderer)`, `Slack Helper (Plugin)`, etc.) are rolled up under their parent app's name via a suffix-stripping heuristic, so the default summary reads like Activity Monitor's grouped view rather than a dozen near-duplicate rows. `%Mem` comes from physical RAM total (`hw.memsize` sysctl on macOS, `/proc/meminfo`'s `MemTotal` on Linux). Passing a name/substring switches to an ungrouped, per-PID view of just the matches plus a `TOTAL` row — matching processes are found by substring on the raw `ps` name, not the canonicalized one, so `mem chrome` still catches every helper.
 
+`drift` is the missing time axis: every other system tool above (`space`, `mem`, `sysreboot`) is a point-in-time snapshot with no memory of yesterday. It gathers disk and memory data by shelling out to `space --json`/`mem --json -n 30` — composition over a shared internal package, since a risky refactor of two already-working tools wasn't worth it just to save a couple hundred lines — and implements its own collectors for listening ports (`lsof` on macOS, `ss` on Linux), launch agents (`~/Library/LaunchAgents` filenames on macOS, enabled `systemctl --user` units on Linux), package inventory (`brew`/`dpkg-query`, whichever is present), and dirty/ahead git repos under `~/dev`. Snapshots are gzipped JSON in `~/.local/state/rogkit/drift/` (one per run, pruned after 90 days unless named as a baseline via `--set-baseline`), diffed against conservative thresholds (2GB disk, 512MB per-app memory, any new listening port or launch agent) so it stays quiet on ordinary day-to-day variance. Exit codes mirror `sysreboot`: `0` = no changes, `1` = changes, `2` = a notable one (new port, new agent, crossed 90% disk).
+
+`squeeze` masks variable fields (timestamps, UUIDs/hex IDs, IPs, paths, bare numbers) out of each line and clusters structurally identical lines into one template with a count — built for when the thing reading the output is a context window, not a scrollback buffer. `--fit N` budgets the rendered output to roughly N tokens (a documented ~4-chars-per-token estimate, not a real tokenizer): error-shaped templates and rare ones survive first, high-count bulk noise is elided, and an "N more templates elided" line accounts for what got cut.
+
+`why` answers "why is this machine slow right now?" by composing `sysreboot --json` and `mem --json` rather than re-reading the same syscalls a third time, adding only its own top-CPU-process check (`ps -axo pid=,pcpu=,comm=`). Checks run in escalating order — swap pressure, then CPU-bound (load vs. core count), then a single process dominating memory — first match wins, and a miss prints "Nothing obviously wrong" rather than guessing. Thermal and disk-I/O-wait checks are deliberately not implemented: a one-shot tool has no honest way to claim a *sustained* reading, only a snapshot, so v1 stops at checks it can back up.
+
 Support matrix:
 
 | Platform | Status | Notes |
@@ -247,6 +265,20 @@ Support matrix:
 | Linux | Supported | `/run/reboot-required` is the authoritative reboot signal; `/var/run` is accepted as a compatibility path. |
 | macOS | Supported | Uses native `sysctl` plus a tiny `vm_stat` parse for page counters. |
 | Windows | Not supported yet | Explicitly out of scope for now. |
+
+---
+
+## rogkit for AI agents
+
+AI agents (Claude, Codex, and similar) are a first-class user of any machine rogkit is installed on, not just a human at a terminal — `primer`, `drift`, `squeeze`, `why`, `recall`, and `toolfind` exist specifically to serve that use case. A few things worth knowing if you're an agent operating on a rogkit-equipped machine (or scripting around one):
+
+- **The Go system tools start instantly.** `space`, `mem`, `drift`, `squeeze`, `why`, and `sysreboot` have no `uv`/Rich import cost, and all auto-detect a non-TTY stdout and switch to plain, uncolored output on their own — piping one from a shell tool never leaks ANSI codes into an agent's context, even without `-q`.
+- **`--json` gives structured output** on `sysreboot`, `space`, `mem`, `drift`, `why` (Go) and `doctor`, `scrape`, `primer`, `toolfind`, `recall` (Python) — prefer it over parsing table output.
+- **`-q`/`--quiet`/`--plain`** forces plain output even on a real TTY: `space`, `mem`, `drift`, and `squeeze` (Go), and every Rich-table Python tool (`ports`, `procs`, `dirs`, `system`, `note`, `pyinfo`, `purge`, `backup`, and the rest — all 38 of them). Python tools without an explicit flag still auto-detect a non-TTY stdout via Rich, but Rich's own fallback only drops color, not table borders/box-drawing — so `--plain` is still the safer bet for an agent even when piping.
+- **Start with `primer`.** It's a cold-start briefing for whatever machine you're on: uptime, disk headroom, dirty repos under `~/dev`, listening ports, recent notes, and (once a baseline exists) `drift`'s summary of what changed since last time — one command instead of re-deriving all of that from scratch every session.
+- **`drift`** is the closest thing to memory across sessions: `drift --set-baseline morning` once, then `drift` any time to see what actually changed, with exit codes (`0`/`1`/`2`) usable in scripts.
+- **`squeeze`** is for compressing large log/output dumps before they hit a context window — `squeeze --fit 4000 some.log` distills thousands of lines to their unique templates, keeping rare and error-shaped lines even under a tight budget. See the Go tools section above for the exact algorithm.
+- **`recall`** and **`toolfind`** help with session handoff and tool discovery respectively — `recall yesterday` for "what happened since I was last here," `toolfind "empty folders"` instead of grepping this README for the right tool name.
 
 ---
 

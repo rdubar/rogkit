@@ -5,7 +5,7 @@
 
 ## Project Overview
 
-**rogkit** is a personal utility toolkit: 85+ CLI tools in Python, plus Go
+**rogkit** is a personal utility toolkit: 88+ CLI tools in Python, plus Go
 binaries and a Rust workspace. Most Python tools are standalone modules with a
 `main()` entry point invoked via shell alias; the top-level `rogkit` command is
 the umbrella entry point for help, version/credits, update, doctor, and setup.
@@ -25,7 +25,7 @@ rogkit/
 │   ├── settings.py       # get_invoking_cwd(), path helpers
 │   └── __init__.py
 ├── go/
-│   ├── cmd/              # Go CLI commands (dirfind, fastfind, finder, ishtime, mem, replacer, search, space, sysreboot)
+│   ├── cmd/              # Go CLI commands (dirfind, drift, fastfind, finder, ishtime, mem, replacer, search, space, squeeze, sysreboot, why)
 │   ├── internal/         # Shared Go packages (finder, search, util)
 │   └── bin/              # Compiled Go binaries
 ├── rust/
@@ -182,6 +182,15 @@ from ..settings import root_dir, data_dir, package_data_dir, ensure_package_data
 Go commands live in `go/cmd/<name>/main.go` with shared logic in
 `go/internal/`. Build all with `./scripts/build_go.sh` which runs
 `go install ./cmd/...` with `GOBIN=go/bin`.
+
+## Using rogkit as an agent
+
+If you're an AI agent *using* the tools this repo builds (not just editing
+rogkit's source), read README.md's **"rogkit for AI agents"** section — it
+covers which tools give instant startup, structured `--json` output, and
+plain `-q`/`--plain` output, plus which tools (`primer`, `drift`, `squeeze`,
+`why`, `recall`, `toolfind`) exist specifically to serve agents as users of
+a rogkit-equipped machine.
 
 ## Rust
 
