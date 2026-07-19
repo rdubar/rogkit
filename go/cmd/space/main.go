@@ -4,6 +4,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -31,6 +32,7 @@ func main() {
 	flag.BoolVar(all, "all", false, "Show all mount points (alias for -a)")
 	showTotal := flag.Bool("t", false, "Show a combined totals row")
 	flag.BoolVar(showTotal, "total", false, "Show a combined totals row (alias for -t)")
+	jsonOut := flag.Bool("json", false, "Output JSON for automation")
 	flag.Parse()
 
 	rows := gatherRows(resolvePaths(flag.Args()))
@@ -55,11 +57,41 @@ func main() {
 		totalRow = &t
 	}
 
+	if *jsonOut {
+		printJSON(rows, totalRow)
+		return
+	}
+
 	if *quiet || !isTerminal() {
 		printPlain(rows, totalRow)
 		return
 	}
 	printTable(rows, totalRow)
+}
+
+func printJSON(rows []row, totalRow *row) {
+	mounts := make([]map[string]any, 0, len(rows))
+	for _, r := range rows {
+		mounts = append(mounts, jsonRow(r))
+	}
+	out := map[string]any{"mounts": mounts}
+	if totalRow != nil {
+		out["total"] = jsonRow(*totalRow)
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(out)
+}
+
+func jsonRow(r row) map[string]any {
+	used := r.total - r.free
+	return map[string]any{
+		"path":        r.path,
+		"total_bytes": r.total,
+		"used_bytes":  used,
+		"free_bytes":  r.free,
+		"usage_pct":   percentOf(used, r.total),
+	}
 }
 
 // resolvePaths mirrors the old syscheck.py-era space.py behaviour: explicit

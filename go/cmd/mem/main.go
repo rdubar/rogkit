@@ -6,6 +6,7 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -21,6 +22,7 @@ func main() {
 	flag.BoolVar(all, "all", false, "Show all groups (alias for -a)")
 	quiet := flag.Bool("q", false, "Plain tab-delimited output, no table or color")
 	flag.BoolVar(quiet, "quiet", false, "Plain output (alias for -q)")
+	jsonOut := flag.Bool("json", false, "Output JSON for automation")
 	flag.Parse()
 
 	procs, err := readProcs()
@@ -37,17 +39,22 @@ func main() {
 	plain := *quiet || !isTerminal()
 
 	if pattern := flag.Arg(0); pattern != "" {
-		runFiltered(procs, pattern, totalMem, plain)
+		runFiltered(procs, pattern, totalMem, plain, *jsonOut)
 		return
 	}
-	runSummary(procs, totalMem, *limit, *all, plain)
+	runSummary(procs, totalMem, *limit, *all, plain, *jsonOut)
 }
 
-func runSummary(procs []proc, totalMem uint64, limit int, all bool, plain bool) {
+func runSummary(procs []proc, totalMem uint64, limit int, all bool, plain bool, jsonOut bool) {
 	groups := groupByName(procs)
 	sort.SliceStable(groups, func(i, j int) bool { return groups[i].rss > groups[j].rss })
 	if !all && len(groups) > limit {
 		groups = groups[:limit]
+	}
+
+	if jsonOut {
+		printSummaryJSON(groups, totalMem)
+		return
 	}
 
 	c := activePalette()
@@ -64,27 +71,34 @@ func runSummary(procs []proc, totalMem uint64, limit int, all bool, plain bool) 
 	printTable(header, rows, false, summaryRightAlign)
 }
 
-func runFiltered(procs []proc, pattern string, totalMem uint64, plain bool) {
+func runFiltered(procs []proc, pattern string, totalMem uint64, plain bool, jsonOut bool) {
 	matches := matchProcs(procs, pattern)
+	sort.SliceStable(matches, func(i, j int) bool { return matches[i].rss > matches[j].rss })
+
+	var totalRSS uint64
+	for _, p := range matches {
+		totalRSS += p.rss
+	}
+
+	if jsonOut {
+		printFilteredJSON(pattern, matches, totalRSS, totalMem)
+		return
+	}
+
 	if len(matches) == 0 {
 		fmt.Printf("No processes matching %q.\n", pattern)
 		return
 	}
-	sort.SliceStable(matches, func(i, j int) bool { return matches[i].rss > matches[j].rss })
 
 	c := activePalette()
 	header := newFilteredHeader(c)
 	rows := make([]tableRow, 0, len(matches)+1)
-	var totalRSS uint64
-	var count int
 	for _, p := range matches {
 		rows = append(rows, formatFilteredRow(c, p, totalMem))
-		totalRSS += p.rss
-		count++
 	}
 	hasTotal := len(matches) > 1
 	if hasTotal {
-		rows = append(rows, formatTotalRow(c, 1, fmt.Sprintf("TOTAL (%d procs)", count), totalRSS, totalMem, len(header.cells)))
+		rows = append(rows, formatTotalRow(c, 1, fmt.Sprintf("TOTAL (%d procs)", len(matches)), totalRSS, totalMem, len(header.cells)))
 	}
 
 	if plain {
@@ -92,4 +106,39 @@ func runFiltered(procs []proc, pattern string, totalMem uint64, plain bool) {
 		return
 	}
 	printTable(header, rows, hasTotal, filteredRightAlign)
+}
+
+func printSummaryJSON(groups []group, totalMem uint64) {
+	out := make([]map[string]any, 0, len(groups))
+	for _, g := range groups {
+		out = append(out, map[string]any{
+			"name":      g.name,
+			"procs":     g.procs,
+			"rss_bytes": g.rss,
+			"pct_mem":   percentOf(g.rss, totalMem),
+		})
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(map[string]any{"groups": out})
+}
+
+func printFilteredJSON(pattern string, matches []proc, totalRSS, totalMem uint64) {
+	out := make([]map[string]any, 0, len(matches))
+	for _, p := range matches {
+		out = append(out, map[string]any{
+			"pid":       p.pid,
+			"name":      p.name,
+			"rss_bytes": p.rss,
+			"pct_mem":   percentOf(p.rss, totalMem),
+		})
+	}
+	enc := json.NewEncoder(os.Stdout)
+	enc.SetIndent("", "  ")
+	_ = enc.Encode(map[string]any{
+		"pattern":         pattern,
+		"processes":       out,
+		"total_rss_bytes": totalRSS,
+		"total_pct_mem":   percentOf(totalRSS, totalMem),
+	})
 }
