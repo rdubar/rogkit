@@ -123,10 +123,10 @@ def _print_message(message: str, *, style: Optional[str] = None, stderr: bool = 
         print(message, file=target)
 
 
-def _render_listing(title: str, items: Sequence[str], item_style: str = "white") -> None:
+def _render_listing(title: str, items: Sequence[str], item_style: str = "white", *, plain: bool = False) -> None:
     if not items:
         return
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         table = Table(
             title=title,
             show_header=False,
@@ -361,10 +361,13 @@ def main():
         default=5.0,
         help="Maximum file size in MiB (<=0 to disable; hard-capped at 1 MiB). Default 5.",
     )
+    parser.add_argument(
+        "--plain", action="store_true", help="Plain text output (suppresses rich tables)."
+    )
     args = parser.parse_args()
 
     if args.purge_list:
-        _render_listing("Base substrings used for purge matching", BASE_TEXT_MATCHES)
+        _render_listing("Base substrings used for purge matching", BASE_TEXT_MATCHES, plain=args.plain)
         return
 
     folder_candidates, from_config = _resolve_target_folders(args.folders)
@@ -391,7 +394,7 @@ def main():
         return
 
     if missing:
-        _render_listing("Skipping missing folders", missing, item_style="yellow")
+        _render_listing("Skipping missing folders", missing, item_style="yellow", plain=args.plain)
 
     source_label = "rogkit config" if from_config else "command line"
     _print_message(f"Scanning folders from {source_label}: {folders}", style="bold blue")
@@ -466,7 +469,7 @@ def main():
     if args.confirm:
         delete_files(results.files_to_delete)
     elif results.files_to_delete:
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and not args.plain:
             table = Table(
                 title="Files to be deleted (use --confirm to actually delete)",
                 box=None,

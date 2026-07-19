@@ -76,6 +76,12 @@ def parse_args(argv=None):
         action="store_true",
         help="Show which engine was used and any fallback reasons.",
     )
+    parser.add_argument(
+        "-p",
+        "--plain",
+        action="store_true",
+        help="Plain text output.",
+    )
     args = parser.parse_args(argv)
 
     if args.limit <= 0:
@@ -231,14 +237,14 @@ def _render_intro(root: Path, include_hidden: bool) -> None:
     _print_message(message, style="bold blue")
 
 
-def _render_results_table(root: Path, entries, total_size: int, limit: int, depth: int) -> None:
+def _render_results_table(root: Path, entries, total_size: int, limit: int, depth: int, *, plain: bool = False) -> None:
     if not limit:
         return
 
     depth_label = "all levels" if depth == -1 else f"depth ≤ {depth}"
     title = f"Top {limit} directories ({depth_label}) under {root}"
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         table = Table(title=title, box=None, padding=(0, 1))
         table.add_column("Rank", justify="right", style="bold cyan")
         table.add_column("Size", justify="right", style="magenta")
@@ -257,7 +263,7 @@ def _render_results_table(root: Path, entries, total_size: int, limit: int, dept
 
 
 def _render_summary(dir_sizes_count: int, total_files: Optional[int], total_size: int, elapsed: float,
-                    filtered_total: int, filtered_count: int, search_term: Optional[str]) -> None:
+                    filtered_total: int, filtered_count: int, search_term: Optional[str], *, plain: bool = False) -> None:
     summary_lines = [
         ("Total size", byte_size(total_size)),
         ("Directories", f"{dir_sizes_count:,}"),
@@ -267,7 +273,7 @@ def _render_summary(dir_sizes_count: int, total_files: Optional[int], total_size
     if search_term:
         summary_lines.append(("Filtered total", f"{byte_size(filtered_total)} ({filtered_count} dirs)"))
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         table = Table(show_header=False, box=None, pad_edge=False)
         table.add_column(justify="right", style="bold green")
         table.add_column(style="white")
@@ -285,14 +291,14 @@ def _render_summary(dir_sizes_count: int, total_files: Optional[int], total_size
             print(f"Filtered total: {byte_size(filtered_total)} ({filtered_count} directories)")
 
 
-def _render_errors(errors: list[str]) -> None:
+def _render_errors(errors: list[str], *, plain: bool = False) -> None:
     if not errors:
         return
 
     shown = min(5, len(errors))
     header = f"Encountered {len(errors)} errors while reading files (showing {shown}):"
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         console.print(Panel(header, border_style="red", style="red"))
         for error in errors[:shown]:
             console.print(f"[red]- {error}[/red]")
@@ -306,10 +312,10 @@ def _render_errors(errors: list[str]) -> None:
             print("  (showing first few only)")
 
 
-def _render_engine_details(engine: str, details: List[str]) -> None:
+def _render_engine_details(engine: str, details: List[str], *, plain: bool = False) -> None:
     header = f"Engine: {engine}"
     body = "\n".join(details) if details else ""
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         console.print(Panel(body or "no details", title=header, border_style="cyan"))
     else:
         print(f"\n{header}")
@@ -346,7 +352,7 @@ def main(argv=None):
     limit = min(args.limit, len(entries))
 
     if limit:
-        _render_results_table(root, entries, total_size, limit, args.depth)
+        _render_results_table(root, entries, total_size, limit, args.depth, plain=args.plain)
     else:
         if args.search:
             _print_message("No directories matched the provided search term.", style="yellow")
@@ -354,10 +360,10 @@ def main(argv=None):
             _print_message("No directories found under the specified root.", style="yellow")
 
     if args.verbose:
-        _render_engine_details(result.engine, result.details)
+        _render_engine_details(result.engine, result.details, plain=args.plain)
 
-    _render_summary(len(dir_sizes), total_files, total_size, elapsed, filtered_total, len(entries), args.search)
-    _render_errors(errors)
+    _render_summary(len(dir_sizes), total_files, total_size, elapsed, filtered_total, len(entries), args.search, plain=args.plain)
+    _render_errors(errors, plain=args.plain)
 
     return 0
 

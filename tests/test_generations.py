@@ -1,7 +1,7 @@
 """Tests for generations.py — genealogy calculator."""
 
 import pytest
-from rogkit_package.bin.generations import calculate_dna_shared, parent_name
+from rogkit_package.bin.generations import calculate_dna_shared, parent_name, render_generations
 
 
 class TestCalculateDnaShared:
@@ -36,3 +36,18 @@ class TestParentName:
     def test_generation_4_is_great_2_grandparent(self):
         name = parent_name(4)
         assert "Great-2" in name
+
+
+class TestRenderGenerationsPlain:
+    def test_plain_output_contains_row_data(self, capsys):
+        rows = [("1", "25", "50.000", "Parent", "2")]
+        render_generations(rows, plain=True)
+        out = capsys.readouterr().out
+        assert "Parent" in out
+        assert "50.000" in out
+
+    def test_plain_output_has_no_box_drawing_chars(self, capsys):
+        rows = [("1", "25", "50.000", "Parent", "2")]
+        render_generations(rows, plain=True)
+        out = capsys.readouterr().out
+        assert "─" not in out  # no box-drawing horizontal line char

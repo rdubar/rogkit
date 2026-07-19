@@ -26,9 +26,9 @@ DEFAULT_PORT = 8000
 DEFAULT_HOST = "127.0.0.1"
 
 
-def _print_message(message: str, *, style: str | None = None) -> None:
+def _print_message(message: str, *, style: str | None = None, plain: bool = False) -> None:
     """Print with optional Rich styling and a plain fallback."""
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         console.print(Text(message, style=style) if style else message)
     else:
         print(message)
@@ -62,6 +62,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("port", nargs="?", type=int, default=DEFAULT_PORT, help=f"Port to bind (default: {DEFAULT_PORT})")
     parser.add_argument("--path", help="Directory to serve (default: invoking cwd)")
     parser.add_argument("--host", default=DEFAULT_HOST, help=f"Host/interface to bind (default: {DEFAULT_HOST})")
+    parser.add_argument("-p", "--plain", action="store_true", help="Plain text output")
     return parser.parse_args()
 
 
@@ -84,12 +85,12 @@ def main() -> int:
         return 1
 
     try:
-        _print_message(f"Serving {directory}", style="green")
-        _print_message(f"URL: {local_url(args.host, args.port)}", style="cyan")
-        _print_message("Press Ctrl+C to stop.", style="dim")
+        _print_message(f"Serving {directory}", style="green", plain=args.plain)
+        _print_message(f"URL: {local_url(args.host, args.port)}", style="cyan", plain=args.plain)
+        _print_message("Press Ctrl+C to stop.", style="dim", plain=args.plain)
         server.serve_forever()
     except KeyboardInterrupt:
-        _print_message("\nServer stopped.", style="yellow")
+        _print_message("\nServer stopped.", style="yellow", plain=args.plain)
     finally:
         server.server_close()
 

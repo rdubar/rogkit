@@ -33,11 +33,36 @@ def parent_name(number):
     else:
         return f"Great-{number - 2} Grandparent"
 
+def render_generations(rows, *, plain: bool = False) -> None:
+    """Render generation rows as a Rich table or aligned plain text."""
+    if RICH_AVAILABLE and not plain:
+        table = Table(box=None, pad_edge=False)
+        table.add_column("Gen", justify="right", style="bold cyan")
+        table.add_column("Years", justify="right")
+        table.add_column("% DNA", justify="right", style="magenta")
+        table.add_column("Relationship", style="green")
+        table.add_column("Ancestors", justify="right", style="yellow")
+        for row in rows:
+            table.add_row(*row)
+        console.print(table)
+    else:
+        print("Gen".ljust(5) + "Years".ljust(10) + "% DNA".ljust(10) + "Relationship".ljust(25) + "Ancestors".ljust(20))
+        for row in rows:
+            print(
+                f"{row[0].ljust(5)}"
+                f"{row[1].ljust(10)}"
+                f"{row[2].ljust(10)}"
+                f"{row[3].ljust(25)}"
+                f"{row[4].ljust(20)}"
+            )
+
+
 def main():
     """CLI entry point for genealogy calculator."""
     parser = argparse.ArgumentParser(description='Show the number of ancestors and percentage of DNA shared with each generation.')
     parser.add_argument('-g', '--generations', type=int, default=10, help='Number of generations to calculate (default: 10)')
     parser.add_argument('-y', '--years', type=int, default=25, help='Number of years per generation (default: 25)')
+    parser.add_argument('-p', '--plain', action='store_true', help='Plain text output')
     args = parser.parse_args()
 
     # Number of generations to calculate
@@ -65,26 +90,7 @@ def main():
             )
         )
 
-    if RICH_AVAILABLE:
-        table = Table(box=None, pad_edge=False)
-        table.add_column("Gen", justify="right", style="bold cyan")
-        table.add_column("Years", justify="right")
-        table.add_column("% DNA", justify="right", style="magenta")
-        table.add_column("Relationship", style="green")
-        table.add_column("Ancestors", justify="right", style="yellow")
-        for row in rows:
-            table.add_row(*row)
-        console.print(table)
-    else:
-        print("Gen".ljust(5) + "Years".ljust(10) + "% DNA".ljust(10) + "Relationship".ljust(25) + "Ancestors".ljust(20))
-        for row in rows:
-            print(
-                f"{row[0].ljust(5)}"
-                f"{row[1].ljust(10)}"
-                f"{row[2].ljust(10)}"
-                f"{row[3].ljust(25)}"
-                f"{row[4].ljust(20)}"
-            )
+    render_generations(rows, plain=args.plain)
 
 if __name__ == "__main__":
     main()

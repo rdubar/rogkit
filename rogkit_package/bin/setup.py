@@ -76,6 +76,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Skip rogkit config checks and creation.",
     )
+    parser.add_argument(
+        "-p",
+        "--plain",
+        action="store_true",
+        help="Plain text output (suppresses the rich table).",
+    )
     if argv is None:
         return parser.parse_args()
     return parser.parse_args(argv)
@@ -309,7 +315,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parse_args(argv)
     results = run_setup(args)
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not args.plain:
         _render_rich(results)
     else:
         _render_plain(results)

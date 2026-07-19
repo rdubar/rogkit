@@ -108,6 +108,28 @@ def test_create_backup_writes_tar_and_manifest(tmp_path):
     assert payload["sha256"]
 
 
+def test_plan_backup_plain_outputs_no_box_drawing(tmp_path, capsys):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+    (src / "keep.txt").write_text("keep", encoding="utf-8")
+
+    settings = backup.BackupSet(
+        name="test",
+        sources=[str(src)],
+        destinations=[str(dest)],
+        file_excludes=[],
+        folder_excludes=[],
+    )
+
+    assert backup.plan_backup(settings, plain=True) == 0
+    out = capsys.readouterr().out
+    assert str(src) in out
+    assert "Would archive 1 files" in out
+    assert "─" not in out  # no rich box-drawing chars leak through
+
+
 def test_validate_encryption_requires_recipient_or_file(monkeypatch, tmp_path):
     monkeypatch.setattr(backup.shutil, "which", lambda name: "/opt/homebrew/bin/age")
     settings = backup.BackupSet(

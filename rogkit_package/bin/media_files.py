@@ -90,8 +90,8 @@ def _rich_print(*args, style: str | None = None, **kwargs):
 print = _rich_print
 
 
-def _build_table(title: str, headers: List[str]):
-    if not RICH_AVAILABLE:
+def _build_table(title: str, headers: List[str], *, plain: bool = False):
+    if not RICH_AVAILABLE or plain:
         return None
     table = Table(title=title, box=None, show_header=True, header_style="bold cyan")
     for header in headers:
@@ -468,7 +468,7 @@ def find_duplicates(media_files: List[MediaFile]) -> dict:
 
     return duplicates
 
-def display_duplicates(duplicates: dict):
+def display_duplicates(duplicates: dict, *, plain: bool = False):
     """
     Display duplicate media titles with their total file sizes on each disk.
 
@@ -479,7 +479,7 @@ def display_duplicates(duplicates: dict):
         return
 
     headers = ["Title", "Disk", "Size"]
-    table = _build_table("Duplicate Media Titles", headers)
+    table = _build_table("Duplicate Media Titles", headers, plain=plain)
     if table:
         for title, disk_sizes in duplicates.items():
             for disk, size in disk_sizes.items():
@@ -562,7 +562,7 @@ def is_extra_file(name: str) -> bool:
             return True
     return False  # Explicitly return False if no keywords match
 
-def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_000_000, not_other: bool = False):
+def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_000_000, not_other: bool = False, *, plain: bool = False):
     """
     Display folders containing large files, optionally filtering out extras.
 
@@ -598,7 +598,7 @@ def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_00
     size_str = byte_size(min_folder_size, unit="GB")
     description = f"{len(big_folders):,} of {len(media_folders):,} folders have a total size > {total_str} and more than one file > {size_str}."
     print(description)
-    table = _build_table("Folders with multiple large files", ["Folder", "Disk", "Location", "Total Size", "Files > threshold"])
+    table = _build_table("Folders with multiple large files", ["Folder", "Disk", "Location", "Total Size", "Files > threshold"], plain=plain)
 
     if table:
         for folder, large_files in big_folders:
@@ -627,7 +627,7 @@ def show_folders(media_folders: List[MediaFolder], min_folder_size: int = 500_00
     elif len(big_folders) > 10:
         print(description)
         
-def show_extras(media_files: List[MediaFile]):
+def show_extras(media_files: List[MediaFile], *, plain: bool = False):
     folders = set()
     for file in media_files:
         parts = file.filepath.split('/')
@@ -655,7 +655,7 @@ def show_extras(media_files: List[MediaFile]):
     # Display the results
     print(f"Total extra folders: {len(folders)}")
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         table = Table(title="Extra Folder Counts", box=None, show_header=True, header_style="bold cyan")
         table.add_column("Category")
         table.add_column("Count", justify="right")
@@ -669,7 +669,7 @@ def show_extras(media_files: List[MediaFile]):
 
     extras = [folder for folder in folders if folder.split('/')[-1] not in collate]
     if extras:
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and not plain:
             table = Table(title="Other Extra Folders", box=None, show_header=False, pad_edge=False)
             table.add_column("Folder")
             for folder in sorted(extras):
@@ -1008,7 +1008,8 @@ def main():
     parser.add_argument("--server", default=None, help="Server hostname or IP address (overrides config)")
     parser.add_argument("--username", default=None, help="Username for SSH connection (overrides config)")
     parser.add_argument("--engine", "-E", choices=["auto", "fd", "python"], default="auto", help="Discovery engine for file listing")
-    
+    parser.add_argument("--plain", action="store_true", help="Plain text output (suppresses rich tables)")
+
     args = parser.parse_args()
     search = ' '.join(args.search) if args.search else None
 
@@ -1074,14 +1075,14 @@ def main():
     # Display duplicates if requested
     if True or args.duplicates:
         duplicates = find_duplicates(media_files)
-        display_duplicates(duplicates)
+        display_duplicates(duplicates, plain=args.plain)
 
     # Show folders with multiple large files
     if args.folders or args.other:
-        show_folders(media_folders, not_other=args.other)
+        show_folders(media_folders, not_other=args.other, plain=args.plain)
 
     if args.extras:
-        show_extras(media_files)
+        show_extras(media_files, plain=args.plain)
 
     if args.hidden:
         find_hidden_files(media_files)

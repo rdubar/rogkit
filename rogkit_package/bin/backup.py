@@ -110,12 +110,12 @@ def _print_message(message: str, style: str | None = None) -> None:
         print(message)
 
 
-def _print_paths(title: str, paths: list[str], style: str) -> None:
+def _print_paths(title: str, paths: list[str], style: str, *, plain: bool = False) -> None:
     if not paths:
         _print_message(f"{title}: (none)")
         return
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         table = Table(box=None, show_header=False, padding=(0, 1))
         table.add_column(justify="right", style="bold " + style)
         table.add_column(style=style)
@@ -128,15 +128,15 @@ def _print_paths(title: str, paths: list[str], style: str) -> None:
             print(f"  - {path}")
 
 
-def _print_rule(title: str) -> None:
-    if RICH_AVAILABLE:
+def _print_rule(title: str, *, plain: bool = False) -> None:
+    if RICH_AVAILABLE and not plain:
         console.rule(f"[bold]{title}")
     else:
         underline = "-" * len(title)
         print(f"\n{title}\n{underline}")
 
 
-def _render_backup_summary(file_count: int, skipped_count: int, archive_size: int, elapsed: str) -> None:
+def _render_backup_summary(file_count: int, skipped_count: int, archive_size: int, elapsed: str, *, plain: bool = False) -> None:
     summary = [
         ("Files Archived", f"{file_count:,}"),
         ("Skipped", f"{skipped_count:,}"),
@@ -144,7 +144,7 @@ def _render_backup_summary(file_count: int, skipped_count: int, archive_size: in
         ("Total Time", elapsed),
     ]
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         table = Table(show_header=False, box=None, pad_edge=False)
         table.add_column(justify="right", style="bold green")
         table.add_column(style="white")
@@ -158,8 +158,8 @@ def _render_backup_summary(file_count: int, skipped_count: int, archive_size: in
             print(f"{label}: {value}")
 
 
-def _render_backup_listing(location: str, rows: list[tuple[str, str]]) -> None:
-    if RICH_AVAILABLE:
+def _render_backup_listing(location: str, rows: list[tuple[str, str]], *, plain: bool = False) -> None:
+    if RICH_AVAILABLE and not plain:
         table = Table(title=f"Backups in {location}", box=None)
         table.add_column("Size", style="cyan", justify="right", no_wrap=True)
         table.add_column("Path", style="white")
@@ -494,15 +494,15 @@ def build_backup_plan(settings: BackupSet, *, create_destinations: bool = False)
     )
 
 
-def _render_plan(plan: BackupPlan) -> None:
+def _render_plan(plan: BackupPlan, *, plain: bool = False) -> None:
     mode = "Encrypted backup" if plan.settings.encrypted else "Backup"
-    _print_rule(f"{mode} Plan: {plan.settings.name}")
-    _print_paths("Destinations", plan.valid_destinations, "green") if plan.valid_destinations else _print_message("No usable destinations found.", "yellow")
-    _print_paths("Folders", plan.source_folders, "cyan") if plan.source_folders else _print_message("No folder entries in whitelist.", "yellow")
+    _print_rule(f"{mode} Plan: {plan.settings.name}", plain=plain)
+    _print_paths("Destinations", plan.valid_destinations, "green", plain=plain) if plan.valid_destinations else _print_message("No usable destinations found.", "yellow")
+    _print_paths("Folders", plan.source_folders, "cyan", plain=plain) if plan.source_folders else _print_message("No folder entries in whitelist.", "yellow")
     if plan.source_files:
-        _print_paths("Files", plan.source_files, "magenta")
+        _print_paths("Files", plan.source_files, "magenta", plain=plain)
     if plan.missing_sources:
-        _print_paths("Missing sources", plan.missing_sources, "yellow")
+        _print_paths("Missing sources", plan.missing_sources, "yellow", plain=plain)
     if plan.settings.secrets_excluded:
         _print_message("Secrets excluded (set include_secrets = true to include)", "bold yellow")
     if plan.settings.encrypted:
@@ -660,7 +660,7 @@ def _validate_encryption_settings(settings: BackupSet) -> bool:
     return True
 
 
-def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool = False) -> int:
+def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool = False, plain: bool = False) -> int:
     """Create a new backup for a single set."""
     if not settings.destinations:
         _print_message(f"[{settings.name}] No backup destinations configured.", "bold red")
@@ -698,7 +698,7 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
         return 1
 
     if dry_run:
-        _render_plan(plan)
+        _render_plan(plan, plain=plain)
         return 0
 
     start_time = perf_counter()
@@ -711,7 +711,7 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
     backup_file_path = os.path.join(primary_archive_path, backup_filename)
     encrypted_temp_path = backup_file_path + ".tmp"
 
-    _render_plan(plan)
+    _render_plan(plan, plain=plain)
     _print_message(f"Primary backup destination: {backup_file_path}", "bold blue")
 
     try:
@@ -762,26 +762,26 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
 
     total_elapsed = convert_seconds(perf_counter() - start_time)
     archive_size = os.path.getsize(backup_file_path)
-    _render_backup_summary(len(plan.included_files), plan.skipped_count, archive_size, total_elapsed)
+    _render_backup_summary(len(plan.included_files), plan.skipped_count, archive_size, total_elapsed, plain=plain)
     _print_message(f"[{settings.name}] Primary backup path: {backup_file_path}", "bold cyan")
     return 0
 
 
-def plan_backup(settings: BackupSet) -> int:
+def plan_backup(settings: BackupSet, *, plain: bool = False) -> int:
     """Print the backup plan for a single set."""
     plan = build_backup_plan(settings, create_destinations=False)
-    _render_plan(plan)
+    _render_plan(plan, plain=plain)
     return 0
 
 
-def list_backups(settings: BackupSet) -> int:
+def list_backups(settings: BackupSet, *, plain: bool = False) -> int:
     """List existing backups from all destinations for a set."""
     if not settings.destinations:
         _print_message(f"[{settings.name}] No backup destinations configured.", "bold red")
         print(CONFIG_HELP)
         return 1
 
-    _print_rule(f"Available Backups: {settings.name}")
+    _print_rule(f"Available Backups: {settings.name}", plain=plain)
     found_any = False
 
     for location in settings.destinations:
@@ -801,7 +801,7 @@ def list_backups(settings: BackupSet) -> int:
                     backup_path = os.path.join(location, backup)
                     backup_size = os.path.getsize(backup_path)
                     rows.append((byte_size(backup_size), backup_path))
-                _render_backup_listing(location, rows)
+                _render_backup_listing(location, rows, plain=plain)
             else:
                 _print_message(f"No backups found in {location}.", "yellow")
         except OSError as exc:
@@ -823,6 +823,7 @@ def main() -> int:
     parser.add_argument('--dry-run', action='store_true', help='Alias for --plan when creating backups')
     parser.add_argument('--encrypted', action='store_true', help='Only select encrypted backup sets')
     parser.add_argument('-v', '--verbose', action='store_true', help='Verbose output')
+    parser.add_argument('-p', '--plain', action='store_true', help='Plain text output')
     parser.add_argument(
         '--set',
         dest='sets',
@@ -850,7 +851,7 @@ def main() -> int:
         return 1
 
     if args.list_sets:
-        _print_rule("Configured Backup Sets")
+        _print_rule("Configured Backup Sets", plain=args.plain)
         for idx, setting in enumerate(backup_sets, start=1):
             _print_message(f"{idx}. {setting.name} ({len(setting.sources)} paths -> {len(setting.destinations)} destinations)")
         return 0
@@ -876,15 +877,15 @@ def main() -> int:
 
     if args.plan:
         for setting in selected_sets:
-            plan_code = plan_backup(setting)
+            plan_code = plan_backup(setting, plain=args.plain)
             exit_code = plan_code if plan_code else exit_code
     if args.list:
         for setting in selected_sets:
-            list_code = list_backups(setting)
+            list_code = list_backups(setting, plain=args.plain)
             exit_code = list_code if list_code else exit_code
     if args.backup:
         for setting in selected_sets:
-            backup_code = create_backup(setting, verbose=args.verbose, dry_run=args.dry_run)
+            backup_code = create_backup(setting, verbose=args.verbose, dry_run=args.dry_run, plain=args.plain)
             exit_code = backup_code if backup_code else exit_code
 
     return exit_code

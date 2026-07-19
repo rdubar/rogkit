@@ -51,6 +51,12 @@ def _build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Skip confirmation (useful for scripted runs)",
     )
+    parser.add_argument(
+        "-p",
+        "--plain",
+        action="store_true",
+        help="Plain text output",
+    )
     return parser
 
 
@@ -83,8 +89,8 @@ def _path_size_display(path: Path) -> str:
     return "missing"
 
 
-def _render_paths_table(paths: List[Path]) -> None:
-    if RICH_AVAILABLE:
+def _render_paths_table(paths: List[Path], *, plain: bool = False) -> None:
+    if RICH_AVAILABLE and not plain:
         table = Table(box=None, pad_edge=False)
         table.add_column("Size", justify="right", style="cyan")
         table.add_column("Path", style="white")
@@ -208,7 +214,7 @@ def main() -> int:
         )
         return 1
 
-    _render_paths_table(paths)
+    _render_paths_table(paths, plain=args.plain)
 
     approved_paths = _prompt_deletion_choices(paths, args.yes, bool(piped_paths))
     if approved_paths is None:

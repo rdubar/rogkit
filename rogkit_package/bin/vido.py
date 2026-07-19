@@ -56,9 +56,12 @@ except ModuleNotFoundError:  # pragma: no cover
     RICH_AVAILABLE = False
 
 
+_PLAIN_OUTPUT = False
+
+
 def _print_message(message: str, *, style: str | None = None) -> None:
     """Print with optional rich styling, fallback to plain print."""
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not _PLAIN_OUTPUT:
         console.print(Text(message, style=style) if style else message)
     else:
         print(message)
@@ -312,8 +315,12 @@ def main(argv: list[str] | None = None) -> int:
         help="Check the yt-dlp update path without changing the lockfile or environment"
     )
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
+    parser.add_argument("-p", "--plain", action="store_true", help="Plain text output")
     args = parser.parse_args(argv)
-    
+
+    global _PLAIN_OUTPUT
+    _PLAIN_OUTPUT = args.plain
+
     if args.update or args.check_update:
         return update_yt_dlp(check_only=args.check_update)
 

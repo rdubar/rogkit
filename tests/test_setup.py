@@ -107,6 +107,24 @@ def test_parse_args_yes_enables_apply():
     assert args.apply is True
 
 
+def test_parse_args_plain_flag():
+    args = setup.parse_args(["--plain"])
+
+    assert args.plain is True
+
+
+def test_main_plain_output(monkeypatch, tmp_path, capsys):
+    monkeypatch.setattr(setup, "get_rogkit_toml_path", lambda: tmp_path / "config.toml")
+    monkeypatch.setattr(setup, "get_rogkit_secrets_path", lambda: tmp_path / "secrets.toml")
+    monkeypatch.setattr(setup, "ALIASES_PATH", tmp_path / "aliases")
+
+    rc = setup.main(["--plain", "--skip-shell"])
+
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "would be created" in out.lower()
+
+
 def test_print_next_steps_preview_mentions_yes(capsys):
     setup._print_next_steps(
         setup.argparse.Namespace(apply=False),

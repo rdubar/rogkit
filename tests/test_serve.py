@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 from pathlib import Path
 
-from rogkit_package.bin.serve import local_url, resolve_directory
+from rogkit_package.bin.serve import _print_message, local_url, resolve_directory
 
 
 def test_local_url():
@@ -45,6 +45,12 @@ def test_main_not_directory(tmp_path):
     file_path.write_text("hello", encoding="utf-8")
     rc = _run_main(["--path", str(file_path)])
     assert rc == 1
+
+
+def test_print_message_plain_suppresses_style(capsys):
+    _print_message("hello there", style="green", plain=True)
+    out = capsys.readouterr().out
+    assert out.strip() == "hello there"
 
 
 def test_main_bind_error(monkeypatch, tmp_path):

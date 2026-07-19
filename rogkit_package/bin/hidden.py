@@ -89,7 +89,9 @@ def main():
                         help="Glob pattern to ignore (can be repeated).")
     parser.add_argument('--engine', choices=["auto", "fd", "python"], default="auto",
                         help="Engine: auto prefers fd when available, else python.")
-    
+    parser.add_argument('--plain', action='store_true',
+                        help="Plain text output (suppresses the rich table).")
+
     args = parser.parse_args()
     
     path_to_scan = os.path.abspath(args.path)  # Ensure we are working with absolute paths
@@ -116,7 +118,7 @@ def main():
     
     if args.verbose:
         print(f"[hidden] engine: {engine_used}")
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and not args.plain:
             title = f"{count:,} hidden item(s) in {path_to_scan} [engine: {engine_used}]"
             table = Table(title=title, box=None, pad_edge=False)
             table.add_column("#", justify="right", style="dim", no_wrap=True)

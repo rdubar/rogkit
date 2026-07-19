@@ -32,8 +32,8 @@ def _print(message: str, *, style: str | None = None) -> None:
         print(message)
 
 
-def _render_settings(root: Path, command: str, addons: Iterable[str]) -> None:
-    if RICH_AVAILABLE:
+def _render_settings(root: Path, command: str, addons: Iterable[str], *, plain: bool = False) -> None:
+    if RICH_AVAILABLE and not plain:
         table = Table(title="Active Settings", box=None, show_header=False, pad_edge=False)
         table.add_column("Key", style="bold cyan")
         table.add_column("Value", style="white")
@@ -130,6 +130,7 @@ def main():
     parser.add_argument('--path', help='Override openerp root path.')
     parser.add_argument('--command', help='Override nosetests command.')
     parser.add_argument('--addons', nargs='*', help='Override addon folders (space separated).')
+    parser.add_argument('-p', '--plain', action='store_true', help='Plain text output.')
     args = parser.parse_args()
 
     root, command, addons = load_settings()
@@ -158,7 +159,7 @@ def main():
         sys.exit(1)
 
     assert root is not None and command is not None and addons  # for type checkers
-    _render_settings(root, command, addons)
+    _render_settings(root, command, addons, plain=args.plain)
 
     folder_path = get_full_folder_path(root, addons, args.folder)
     if folder_path:

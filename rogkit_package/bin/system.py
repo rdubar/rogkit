@@ -6,6 +6,7 @@ colorful, human-friendly layout.
 """
 from __future__ import annotations
 
+import argparse
 import os
 import platform
 import subprocess
@@ -96,8 +97,8 @@ def _is_rosetta() -> bool:
         return False
 
 
-def render_report() -> None:
-    if not RICH_AVAILABLE:
+def render_report(*, plain: bool = False) -> None:
+    if not RICH_AVAILABLE or plain:
         print("Roger's Python System Report")
         print("----------------------------")
         sections = [
@@ -130,8 +131,21 @@ def render_report() -> None:
         console.print(Panel(table, title=title, border_style="blue", padding=(0, 1)))
 
 
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(description="Enhanced system snapshot utility.")
+    parser.add_argument(
+        "-p",
+        "--plain",
+        action="store_true",
+        help="Plain text output (suppresses rich panels/tables).",
+    )
+    return parser.parse_args()
+
+
 def main() -> None:
-    render_report()
+    args = parse_args()
+    render_report(plain=args.plain)
 
 
 if __name__ == "__main__":

@@ -103,6 +103,8 @@ def list_notes(
     notes_file: Path,
     count: int = DEFAULT_LIST_COUNT,
     query: Optional[str] = None,
+    *,
+    plain: bool = False,
 ) -> int:
     """Print recent notes, optionally filtered by query text."""
     if not notes_file.exists():
@@ -122,7 +124,7 @@ def list_notes(
         _print("No notes found.", style="bold yellow")
         return 0
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         console.print(Rule(f"[bold]Notes — {notes_file}", style="blue"))
     else:
         print(f"Notes — {notes_file}")
@@ -132,16 +134,16 @@ def list_notes(
     for date_str, line in entries:
         if date_str != current_date:
             current_date = date_str
-            if RICH_AVAILABLE:
+            if RICH_AVAILABLE and not plain:
                 console.print(f"\n[bold cyan]{date_str}[/bold cyan]")
             else:
                 print(f"\n{date_str}")
         # Render plain text by stripping markdown bold markers
-        plain = re.sub(r"\*\*(.+?)\*\*", r"\1", line)
-        if RICH_AVAILABLE:
-            console.print(f"  {plain[2:]}")
+        stripped_line = re.sub(r"\*\*(.+?)\*\*", r"\1", line)
+        if RICH_AVAILABLE and not plain:
+            console.print(f"  {stripped_line[2:]}")
         else:
-            print(f"  {plain[2:]}")
+            print(f"  {stripped_line[2:]}")
 
     return 0
 
@@ -159,6 +161,7 @@ def main() -> int:
         help=f"List recent notes; optionally pass a count (default {DEFAULT_LIST_COUNT}) or search query",
     )
     parser.add_argument("-f", "--file", metavar="PATH", help="Notes file path (overrides config)")
+    parser.add_argument("-p", "--plain", action="store_true", help="Plain text output")
     args = parser.parse_args()
 
     notes_file = _get_notes_file(args.file)
@@ -171,7 +174,7 @@ def main() -> int:
         except ValueError:
             count = DEFAULT_LIST_COUNT
             query = args.list
-        return list_notes(notes_file, count=count, query=query)
+        return list_notes(notes_file, count=count, query=query, plain=args.plain)
 
     if args.text:
         append_note(args.text.strip(), notes_file)

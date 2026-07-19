@@ -38,3 +38,15 @@ def test_resolve_media_paths_cli_overrides_config(monkeypatch) -> None:
     )
 
     assert media_files._resolve_media_paths("/srv/media/Media/") == ["/srv/media/Media/"]
+
+
+def test_display_duplicates_plain_outputs_no_box_drawing(capsys) -> None:
+    """display_duplicates(plain=True) should skip the rich table entirely."""
+    duplicates = {"some film": {"media1": 1_000_000_000, "media2": 1_000_000_000}}
+
+    media_files.display_duplicates(duplicates, plain=True)
+
+    out = capsys.readouterr().out
+    assert "some film" in out
+    assert "media1" in out
+    assert "─" not in out

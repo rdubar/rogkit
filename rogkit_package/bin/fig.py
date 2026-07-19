@@ -19,9 +19,9 @@ except ModuleNotFoundError:  # pragma: no cover
     RICH_AVAILABLE = False
 
 
-def _print_message(message: str, *, style: str | None = None) -> None:
+def _print_message(message: str, *, style: str | None = None, plain: bool = False) -> None:
     """Print with optional rich styling, fallback to plain print."""
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         console.print(Text(message, style=style) if style else message)
     else:
         print(message)
@@ -108,20 +108,25 @@ def main() -> None:
         action="store_true",
         help="List all available fonts and exit.",
     )
+    parser.add_argument(
+        "-p", "--plain",
+        action="store_true",
+        help="Plain text output (no rich styling).",
+    )
 
     args = parser.parse_args()
 
     # Handle --list-fonts
     if args.list_fonts:
         fonts = pyfiglet.FigletFont.getFonts()
-        _print_message("Available fonts:")
+        _print_message("Available fonts:", plain=args.plain)
         for font in fonts:
-            _print_message(font)
+            _print_message(font, plain=args.plain)
         exit(0)
 
     # Check if text is provided
     if not args.text:
-        _print_message("No text provided. Use --list-fonts to see available fonts.")
+        _print_message("No text provided. Use --list-fonts to see available fonts.", plain=args.plain)
         exit(0)
 
     # Join the text into a single string (to handle spaces)
@@ -137,15 +142,15 @@ def main() -> None:
             vertical_layout=args.vertical_layout,
             width=args.width,
         )
-        _print_message(ascii_art, style=args.color)
+        _print_message(ascii_art, style=args.color, plain=args.plain)
     except pyfiglet.FontNotFound:
-        _print_message(f"Error: Font '{args.font}' not found. Use --list-fonts to see available fonts.", style="red")
+        _print_message(f"Error: Font '{args.font}' not found. Use --list-fonts to see available fonts.", style="red", plain=args.plain)
     except pyfiglet.LayoutError:
-        _print_message("Error: Invalid layout configuration.", style="red")
+        _print_message("Error: Invalid layout configuration.", style="red", plain=args.plain)
     except pyfiglet.SizeError:
-        _print_message("Error: Invalid width configuration.", style="red")
+        _print_message("Error: Invalid width configuration.", style="red", plain=args.plain)
     except Exception as e:
-        _print_message(f"An error occurred: {e}", style="red")
+        _print_message(f"An error occurred: {e}", style="red", plain=args.plain)
 
 
 if __name__ == "__main__":

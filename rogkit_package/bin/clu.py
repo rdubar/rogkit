@@ -121,8 +121,8 @@ def _print_brief(daily: TokenTotals, rate: TokenTotals, window: int) -> None:
         print(line)
 
 
-def _print_table(label: str, totals: TokenTotals, style_color: str) -> None:
-    if RICH_AVAILABLE:
+def _print_table(label: str, totals: TokenTotals, style_color: str, *, plain: bool = False) -> None:
+    if RICH_AVAILABLE and not plain:
         table = Table(title=f"[bold {style_color}]{label}[/]", box=None, pad_edge=True, show_edge=False)
         table.add_column("Metric", style="dim", min_width=22)
         table.add_column("Tokens", justify="right", style=style_color)
@@ -144,11 +144,11 @@ def _print_table(label: str, totals: TokenTotals, style_color: str) -> None:
         print(f"  Messages:    {_fmt(totals.messages)}")
 
 
-def _print_hourly(by_hour: dict[int, TokenTotals], current_hour: int) -> None:
+def _print_hourly(by_hour: dict[int, TokenTotals], current_hour: int, *, plain: bool = False) -> None:
     if not by_hour:
         return
     max_msgs = max((t.messages for t in by_hour.values()), default=1)
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         table = Table(title="[bold green]Hourly activity (today)[/]", box=None, pad_edge=True, show_edge=False)
         table.add_column("Hour", style="dim", min_width=6)
         table.add_column("Msgs", justify="right", min_width=5)
@@ -184,6 +184,10 @@ def parse_args() -> argparse.Namespace:
         "--window", type=int, default=RATE_WINDOW_MINUTES,
         metavar="N", help=f"Rate window in minutes (default: {RATE_WINDOW_MINUTES})"
     )
+    parser.add_argument(
+        "-p", "--plain", action="store_true",
+        help="Plain text output"
+    )
     return parser.parse_args()
 
 
@@ -200,16 +204,16 @@ def main() -> None:
         _print_brief(daily, rate, args.window)
         return
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not args.plain:
         console.print()
-    _print_table("Today's usage", daily, "cyan")
-    if RICH_AVAILABLE:
+    _print_table("Today's usage", daily, "cyan", plain=args.plain)
+    if RICH_AVAILABLE and not args.plain:
         console.print()
-    _print_table(f"Last {args.window} minutes", rate, "yellow")
+    _print_table(f"Last {args.window} minutes", rate, "yellow", plain=args.plain)
 
     if rate.messages >= 8:
         msg = f"⚠  {rate.messages} messages in the last {args.window} min — approaching rate limit."
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and not args.plain:
             console.print()
             console.print(Text(msg, style="bold red"))
         else:
@@ -218,11 +222,11 @@ def main() -> None:
     if args.extra:
         local_hour = datetime.now().hour
         by_hour = collect_hourly(since=today_start)
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and not args.plain:
             console.print()
-        _print_hourly(by_hour, local_hour)
+        _print_hourly(by_hour, local_hour, plain=args.plain)
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not args.plain:
         console.print()
 
 

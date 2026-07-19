@@ -36,6 +36,11 @@ def main():
         nargs="?",
         help="Date in YYYY-MM-DD format (defaults to today)."
     )
+    parser.add_argument(
+        "-p", "--plain",
+        action="store_true",
+        help="Plain text output (suppresses the rich table)."
+    )
     args = parser.parse_args()
 
     # Determine input date
@@ -77,7 +82,7 @@ def main():
     baktun, katun, tun, uinal, kin = mayan.from_gregorian(y, m, d)
     entries.append(("Mayan Long Count", f"{baktun}.{katun}.{tun}.{uinal}.{kin}"))
 
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not args.plain:
         console.print(Text("\nMulti-Calendar Conversion Utility", style="bold blue"))
         console.print(Text(header, style="cyan"))
         table = Table(box=None, show_header=False, pad_edge=False)

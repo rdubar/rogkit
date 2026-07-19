@@ -46,11 +46,11 @@ def main():
     """CLI entry point for Python system information tool."""
     args = parse_args()
     info_rows = gather_system_info()
-    render_info(info_rows)
+    render_info(info_rows, plain=args.plain)
 
     if args.bench:
         iterations, elapsed, accumulator = run_benchmark(args.bench_seconds)
-        render_benchmark(iterations, elapsed, accumulator)
+        render_benchmark(iterations, elapsed, accumulator, plain=args.plain)
 
 
 def gather_system_info():
@@ -77,9 +77,9 @@ def gather_system_info():
     ]
 
 
-def render_info(rows):
+def render_info(rows, *, plain: bool = False):
     """Render system info either via Rich or plain text."""
-    if not RICH_AVAILABLE:
+    if not RICH_AVAILABLE or plain:
         print("=" * 40)
         print("Python System Information Report")
         print("=" * 40)
@@ -98,7 +98,7 @@ def render_info(rows):
     console.print(Panel.fit(table, border_style="blue"))
 
 
-def render_benchmark(iterations, elapsed, accumulator):
+def render_benchmark(iterations, elapsed, accumulator, *, plain: bool = False):
     """Render benchmark results."""
     iters_per_sec = iterations / elapsed if elapsed > 0 else 0
     rows = [
@@ -107,7 +107,7 @@ def render_benchmark(iterations, elapsed, accumulator):
         ("Accumulated result", f"{accumulator:.6f}"),
         ("Approx iters/sec", f"{iters_per_sec:,.0f}"),
     ]
-    if not RICH_AVAILABLE:
+    if not RICH_AVAILABLE or plain:
         print("Simple CPU Benchmark")
         print("-" * 40)
         for label, value in rows:
@@ -137,6 +137,12 @@ def parse_args():
         type=float,
         default=3.0,
         help="Duration in seconds for the benchmark (default: 3.0)",
+    )
+    parser.add_argument(
+        "-p",
+        "--plain",
+        action="store_true",
+        help="Plain text output (suppresses rich panels/tables)",
     )
     return parser.parse_args()
 

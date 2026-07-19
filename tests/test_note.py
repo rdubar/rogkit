@@ -178,3 +178,17 @@ def test_get_notes_file_default(monkeypatch):
     monkeypatch.setattr("rogkit_package.bin.note.get_config_value", lambda *_args: None)
     result = _get_notes_file()
     assert result == Path.home() / "notes.md"
+
+
+# ---------------------------------------------------------------------------
+# list_notes plain output
+# ---------------------------------------------------------------------------
+
+def test_list_notes_plain_outputs_note_text(tmp_path, capsys):
+    f = tmp_path / "notes.md"
+    append_note("plain mode note", f)
+    capsys.readouterr()  # discard append output
+    rc = list_notes(f, count=5, plain=True)
+    out = capsys.readouterr().out
+    assert rc == 0
+    assert "plain mode note" in out

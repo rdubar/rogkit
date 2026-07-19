@@ -58,3 +58,19 @@ def test_run_uv_command_reports_missing_uv(monkeypatch):
     monkeypatch.setattr(vido.shutil, "which", lambda _name: None)
 
     assert vido.run_uv_command(["lock"], cwd=Path("/tmp")) == 1
+
+
+def test_plain_flag_suppresses_rich_styling(monkeypatch, capsys):
+    """--plain sets the module-level flag so _print_message falls back to plain print."""
+    calls: list[bool] = []
+    monkeypatch.setattr(vido, "update_yt_dlp", lambda *, check_only=False: calls.append(check_only) or 0)
+
+    assert vido.main(["--update", "--plain"]) == 0
+    assert vido._PLAIN_OUTPUT is True
+
+    vido._print_message("plain output check", style="green")
+    out = capsys.readouterr().out
+    assert out.strip() == "plain output check"
+
+    # Reset the module flag so other tests aren't affected by ordering.
+    vido._PLAIN_OUTPUT = False

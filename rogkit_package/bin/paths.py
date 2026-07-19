@@ -70,8 +70,8 @@ def _print_message(message: str, *, style: str | None = None, stderr: bool = Fal
         print(message, file=target)
 
 
-def _render_paths_table(rows: List[tuple[str, str, str]], show_media: bool, to_show: int) -> None:
-    if RICH_AVAILABLE:
+def _render_paths_table(rows: List[tuple[str, str, str]], show_media: bool, to_show: int, *, plain: bool = False) -> None:
+    if RICH_AVAILABLE and not plain:
         table = Table(box=None, pad_edge=False)
         table.add_column("Size", justify="right", style="cyan")
         table.add_column("Path", style="white")
@@ -100,7 +100,7 @@ class SearchReport:
     total_files_searched: int = 0
     search_time: float = 0.0
 
-    def display_files(self, number: int = 10, show_all: bool = False, show_media: bool = False) -> None:
+    def display_files(self, number: int = 10, show_all: bool = False, show_media: bool = False, *, plain: bool = False) -> None:
         """Display search results with file size and optional media info."""
         to_show = len(self.results) if show_all else min(number, len(self.results))
         matches = "match" if len(self.results) == 1 else "matches"
@@ -109,7 +109,7 @@ class SearchReport:
             f"{self.total_files_searched:,} files across {len(self.folders)} root(s) "
             f"in {self.search_time:.2f} seconds."
         )
-        if RICH_AVAILABLE:
+        if RICH_AVAILABLE and not plain:
             console.print(Panel(summary, border_style="cyan"))
         else:
             print(summary)
@@ -127,7 +127,7 @@ class SearchReport:
                     media_details = info
             rows.append((size, str(result), media_details))
 
-        _render_paths_table(rows, show_media, to_show)
+        _render_paths_table(rows, show_media, to_show, plain=plain)
 
         if len(self.results) > to_show:
             _print_message("...and more", style="dim")
@@ -185,6 +185,11 @@ def parse_args() -> argparse.Namespace:
         "texts",
         nargs="+",
         help="Text tokens to match (all must appear in the file path).",
+    )
+    parser.add_argument(
+        "--plain",
+        action="store_true",
+        help="Plain text output (suppresses the rich table).",
     )
 
     args = parser.parse_args()
@@ -292,7 +297,7 @@ def main() -> None:
         _print_message("Media metadata (resolution/codec) will be displayed for video files.", style="magenta")
 
     report = find_files(roots, tokens)
-    report.display_files(number=args.number, show_all=args.all, show_media=args.media)
+    report.display_files(number=args.number, show_all=args.all, show_media=args.media, plain=args.plain)
 
 
 if __name__ == "__main__":

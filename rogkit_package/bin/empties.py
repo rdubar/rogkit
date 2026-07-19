@@ -119,9 +119,9 @@ def find_sparse_folders(
     return matches, directory_count, file_count
 
 
-def print_summary(folders: List[Path], directory_count: int, file_count: int, file_limit: int, elapsed: float, engine: str) -> None:
+def print_summary(folders: List[Path], directory_count: int, file_count: int, file_limit: int, elapsed: float, engine: str, *, plain: bool = False) -> None:
     """Verbose summary with optional rich table."""
-    if RICH_AVAILABLE:
+    if RICH_AVAILABLE and not plain:
         headline = (
             f"Found {len(folders)} matching folder(s) (entry limit <= {file_limit}) "
             f"from {file_count:,} files across {directory_count:,} directories "
@@ -192,6 +192,12 @@ def main() -> None:
         default="auto",
         help="Engine to use: auto prefers fd when available (limit=0) else python.",
     )
+    parser.add_argument(
+        "-p",
+        "--plain",
+        action="store_true",
+        help="Plain text output (suppresses the rich table).",
+    )
 
     args = parser.parse_args()
 
@@ -227,7 +233,7 @@ def main() -> None:
 
     if args.verbose:
         print(f"[empties] engine: {engine_used}")
-        print_summary(matches, directory_count, file_count, args.number, elapsed, engine_used)
+        print_summary(matches, directory_count, file_count, args.number, elapsed, engine_used, plain=args.plain)
 
     for folder in matches:
         print(folder)
