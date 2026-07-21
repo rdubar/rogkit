@@ -15,7 +15,7 @@ AI agents (Claude, Codex, and similar) are a first-class user of any machine rog
 - **`recall`** and **`toolfind`** help with session handoff and tool discovery respectively — `recall yesterday` for "what happened since I was last here," `toolfind "empty folders"` instead of grepping this README for the right tool name.
 - **The Go system tools start instantly.** `space`, `mem`, `drift`, `squeeze`, `why`, and `sysreboot` have no `uv`/Rich import cost, and all auto-detect a non-TTY stdout and switch to plain, uncolored output on their own — piping one from a shell tool never leaks ANSI codes into an agent's context, even without `-q`.
 - **`--json` gives structured output** on `sysreboot`, `space`, `mem`, `drift`, `why` (Go) and `doctor`, `scrape`, `primer`, `toolfind`, `recall` (Python) — prefer it over parsing table output.
-- **`-q`/`--quiet`/`--plain`** forces plain output even on a real TTY: `space`, `mem`, `drift`, and `squeeze` (Go), and every Rich-table Python tool (`ports`, `procs`, `dirs`, `system`, `note`, `pyinfo`, `purge`, `backup`, and the rest — all 38 of them). Python tools without an explicit flag still auto-detect a non-TTY stdout via Rich, but Rich's own fallback only drops color, not table borders/box-drawing — so `--plain` is still the safer bet for an agent even when piping.
+- **`-q`/`--quiet`/`--plain`** forces plain output even on a real TTY: `space`, `mem`, `drift`, and `squeeze` (Go), and every Rich-table Python tool (`ports`, `procs`, `dsize`, `system`, `note`, `pyinfo`, `purge`, `backup`, and the rest — all 38 of them). Python tools without an explicit flag still auto-detect a non-TTY stdout via Rich, but Rich's own fallback only drops color, not table borders/box-drawing — so `--plain` is still the safer bet for an agent even when piping.
 
 ---
 
@@ -92,7 +92,7 @@ Use `doctor` for a health check covering config, secrets, aliases, common binari
 `rogkit-dev` (short alias: `rk`) is the repo-local top-level command. It mirrors the packaged `rogkit` entry point while running from your checkout.
 
 Command naming convention:
-Short user-facing commands live in `aliases` (`json`, `csv`, `env`) while the
+Short user-facing commands live in `aliases` (`json`, `csv`, `envr`) while the
 underlying Python modules may use disambiguated names such as `jsonr.py` and
 `csvr.py` to avoid collisions with standard-library modules or common utilities.
 
@@ -106,11 +106,10 @@ underlying Python modules may use disambiguated names such as `jsonr.py` and
 |------|-------------|
 | `backup` | Archive files/folders with compression, dry-run plans, manifests, and optional `age`-encrypted sets |
 | `archive` | Inspect archive contents or extract them safely |
-| `clean` | Translation file cleaner — removes unused keys from `.po`/`.pot` files |
 | `collate` | Merge files from multiple locations into one directory |
 | `dedupe` | Find duplicate files by size and hash under a directory tree, with exclude globs and optional `.gitignore` filtering |
 | `delete` | Delete or trash files/folders; accepts piped filenames with confirmation |
-| `dirs` | Recursive directory size calculator with sorted output |
+| `dsize` | Recursive directory size calculator with sorted output |
 | `empties` | Find empty folders and sparse directory trees |
 | `fuzzy` | Fuzzy file/text search helper with interactive selection |
 | `hidden` | Find hidden files and folders |
@@ -155,7 +154,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `recall` | Unified activity timeline: git reflogs, Claude session starts, and notes, merged and filterable |
 | `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |
 | `setup` | Create rogkit config.toml if missing and wire aliases into your shell profile |
-| `speed_test` | Network speed test |
+| `speeder` | Python interpreter benchmark and version probe |
 | `system` | Enhanced system snapshot (CPU, memory, disk, network) |
 | `time_check` | System clock check and NTP sync status |
 | `venv_set` | Locate and activate virtual environments |
@@ -169,7 +168,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `hash` | Hash files or stdin with common digest algorithms |
 | `clipboard` | Copy text to the system clipboard |
 | `csv` | Render CSV files as terminal tables with column selection and sorting |
-| `env` | Pretty-print environment variables with key/value filtering |
+| `envr` | Pretty-print environment variables with key/value filtering |
 | `fakes` | Generate fake names, emails, addresses using Faker |
 | `fig` | ASCII art text via pyfiglet |
 | `generations` | Genealogy calculator — ancestors and DNA percentages per generation |
@@ -458,7 +457,7 @@ make lint
 
 These map to `uv sync --all-extras`, `uv run pytest -q`, `uv run ruff check .`, and the Go build script respectively.
 
-Commit style: `tool_name: what changed` (e.g. `clean: add -t/--total option`). One logical change per commit, directly to `main`.
+Commit style: `tool_name: what changed` (e.g. `toolfind: improve alias matching`). One logical change per commit, directly to `main`.
 
 ---
 
