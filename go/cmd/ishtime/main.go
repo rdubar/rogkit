@@ -1,3 +1,5 @@
+// Command ishtime describes the current time, or a supplied time, in
+// conversational "ish" form.
 package main
 
 import (

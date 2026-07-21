@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Convert byte counts to human-readable SI or binary units."""
+
 import argparse
 import sys
 from typing import Optional

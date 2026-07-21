@@ -230,7 +230,7 @@ Twelve compiled Go binaries live in `go/bin/` and are built with `./scripts/buil
 | `replacer` | Fast in-place text replacement across a file tree, with confirmation |
 | `search` | Multi-term content search with batching |
 | `ishtime` | Time zone conversion and "is it time?" helper |
-| `sysreboot` | Ultra-fast one-or-two-line reboot advisor (aliased as `sys`/`syscheck`) |
+| `sysreboot` | Ultra-fast one-or-two-line reboot advisor (aliased as `sys`) |
 | `space` | Disk usage summary with a colored table, sortable by size |
 | `mem` | Memory usage summary, grouped by app; `mem <name>` filters to matching processes plus a total |
 | `drift` | Snapshots disk/mem/ports/launch-agents/packages/dirty-repos and reports what changed since the last run or a named baseline |

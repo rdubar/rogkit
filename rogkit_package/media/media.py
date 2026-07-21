@@ -517,7 +517,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         size = human_size(db_path.stat().st_size)
         print(f"Plex database detected at: {db_path}")
         print(f"Size: {size}")
-        print("Use `plex_db --query \"...\"` (alias `pd`) to run read-only SQL.")
+        print("Use `media --query \"...\"` or `p --query \"...\"` to run read-only SQL.")
         return 0
 
     try:

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Show a Gregorian date across multiple calendar systems."""
+
 import argparse
 import datetime
 from convertdate import (

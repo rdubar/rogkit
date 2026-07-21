@@ -44,7 +44,6 @@ fi
 alias rogkit-dev='rogkit_py -m rogkit_package.bin.rogkit'
 alias rk='rogkit_py -m rogkit_package.bin.rogkit'
 alias setup='rogkit_py -m rogkit_package.bin.rogkit setup'
-alias rsetup='rogkit_py -m rogkit_package.bin.rogkit setup'
 alias update='rogkit_py -m rogkit_package.bin.rogkit update'
 
 # ------------------------------------------------------------------------------
@@ -61,21 +60,15 @@ alias lm='rogkit_py -m rogkit_package.bin.lm'
 # ------------------------------------------------------------------------------
 # Primary media library interface
 alias media='rogkit_py -m rogkit_package.media.media'
-alias m='rogkit_py -m rogkit_package.media.media'
 
 # Plex operations
-alias plex_db='rogkit_py -m rogkit_package.media.media'
 alias p='rogkit_py -m rogkit_package.media.media'
-alias pb='rogkit_py -m rogkit_package.media.media'
 alias integrate='rogkit_py -m rogkit_package.media.extra_sources.integrate'
 
 # Media file scanning and analysis
 alias media_files='rogkit_py -m rogkit_package.bin.media_files'
-alias mfiles='rogkit_py -m rogkit_package.bin.media_files'
-alias mf='rogkit_py -m rogkit_package.bin.media_files'
 
 alias media_scan='rogkit_py -m rogkit_package.bin.media_scan'
-alias mscan='rogkit_py -m rogkit_package.bin.media_scan'
 
 # Media playback
 alias media_play='rogkit_py -m rogkit_package.bin.media_play'
@@ -91,15 +84,11 @@ alias tkm='rogkit_py -m rogkit_package.media.media_tk'
 # ------------------------------------------------------------------------------
 # Backup and archiving
 alias backup='rogkit_py -m rogkit_package.bin.backup'
-alias bac='rogkit_py -m rogkit_package.bin.backup'
 
 # File operations
 alias collate='rogkit_py -m rogkit_package.bin.collate'
 alias delete='rogkit_py -m rogkit_package.bin.delete'
-alias del='rogkit_py -m rogkit_package.bin.delete'
 alias paths='rogkit_py -m rogkit_package.bin.paths'
-alias ppaths='rogkit_py -m rogkit_package.bin.paths'
-alias pfiles='rogkit_py -m rogkit_package.bin.paths'  # legacy alias for renamed utility
 alias renamer='rogkit_py -m rogkit_package.bin.renamer'
 alias preplacer='rogkit_py -m rogkit_package.bin.replacer'  # replaced by Go Utility
 
@@ -127,13 +116,11 @@ alias clipboard='rogkit_py -m rogkit_package.bin.clipboard'
 alias clip='rogkit_py -m rogkit_package.bin.clipboard'
 
 alias randomcase='rogkit_py -m rogkit_package.bin.randomcase'
-alias rcase='rogkit_py -m rogkit_package.bin.randomcase'
 
 alias strike='rogkit_py -m rogkit_package.bin.strike'
 alias fig='rogkit_py -m rogkit_package.bin.fig'
 alias plural='rogkit_py -m rogkit_package.bin.plural'
 alias padding='$ROGKIT_PACKAGE/bin/padding.sh'
-alias scrape='rogkit_py -m rogkit_package.bin.scrape'
 
 # ------------------------------------------------------------------------------
 # Data Format Tools
@@ -142,11 +129,8 @@ alias iso='rogkit_py -m rogkit_package.bin.iso'
 alias miso='rogkit_py -m rogkit_package.bin.miso'
 
 alias xmlr='rogkit_py -m rogkit_package.bin.xmlr'
-alias xml='rogkit_py -m rogkit_package.bin.xmlr'
-alias api='rogkit_py -m rogkit_package.bin.xmlr'
 
 alias tomlr='rogkit_py -m rogkit_package.bin.tomlr'
-alias toml='rogkit_py -m rogkit_package.bin.tomlr'
 
 # ------------------------------------------------------------------------------
 # Calculation & Conversion Tools
@@ -164,7 +148,6 @@ alias multical='rogkit_py -m rogkit_package.bin.multical'
 # Age & generation calculators
 alias catyears='rogkit_py -m rogkit_package.bin.catyears'
 alias generations='rogkit_py -m rogkit_package.bin.generations'
-alias gen='rogkit_py -m rogkit_package.bin.generations'
 
 # Health & fitness
 alias bmi_calc='rogkit_py -m rogkit_package.bin.bmi_calc'
@@ -174,7 +157,6 @@ alias bmi='rogkit_py -m rogkit_package.bin.bmi_calc'
 # System Information & Utilities
 # ------------------------------------------------------------------------------
 alias location='rogkit_py -m rogkit_package.bin.location'
-alias loc='rogkit_py -m rogkit_package.bin.location'
 
 alias space='$ROGKIT_GO_BIN/space'
 alias mem='$ROGKIT_GO_BIN/mem'
@@ -183,7 +165,6 @@ alias squeeze='$ROGKIT_GO_BIN/squeeze'
 alias why='$ROGKIT_GO_BIN/why'
 alias mapper='rogkit_py -m rogkit_package.bin.mapper'
 
-alias syscheck='$ROGKIT_GO_BIN/sysreboot'
 alias sys='$ROGKIT_GO_BIN/sysreboot'
 alias system='rogkit_py -m rogkit_package.bin.system'
 alias pyinfo='rogkit_py -m rogkit_package.bin.pyinfo'
@@ -194,7 +175,6 @@ alias speeder='rogkit_py -m rogkit_package.bin.speeder'
 # Container & Remote Management
 # ------------------------------------------------------------------------------
 alias docker_bash='rogkit_py -m rogkit_package.bin.docker_bash'
-alias dbash='rogkit_py -m rogkit_package.bin.docker_bash'
 
 alias spot='rogkit_py -m rogkit_package.bin.spot'
 
@@ -232,19 +212,16 @@ alias stars='rogkit_py -m rogkit_package.bin.stars'
 # ------------------------------------------------------------------------------
 alias scrape='rogkit_py -m rogkit_package.bin.scrape'
 alias vido='rogkit_py -m rogkit_package.bin.vido'
-alias yout='rogkit_py -m rogkit_package.bin.vido'
 
 # ------------------------------------------------------------------------------
 # Information & Reference
 # ------------------------------------------------------------------------------
 alias wikipedia='rogkit_py -m rogkit_package.bin.wikipedia'
-alias wiki='rogkit_py -m rogkit_package.bin.wikipedia'
 
 # ------------------------------------------------------------------------------
 # Time & Clocks
 # ------------------------------------------------------------------------------
 alias ishtime='$ROGKIT_GO_BIN/ishtime'
-alias ish='$ROGKIT_GO_BIN/ishtime'
 
 # ------------------------------------------------------------------------------
 # Miscellaneous
@@ -256,9 +233,7 @@ alias primer='rogkit_py -m rogkit_package.bin.primer'
 alias toolfind='rogkit_py -m rogkit_package.bin.toolfind'
 alias recall='rogkit_py -m rogkit_package.bin.recall'
 alias json='rogkit_py -m rogkit_package.bin.jsonr'
-alias jsonr='rogkit_py -m rogkit_package.bin.jsonr'
 alias csv='rogkit_py -m rogkit_package.bin.csvr'
-alias csvr='rogkit_py -m rogkit_package.bin.csvr'
 alias envr='rogkit_py -m rogkit_package.bin.envr'
 alias enver='rogkit_py -m rogkit_package.bin.enver'
 alias procs='rogkit_py -m rogkit_package.bin.procs'
