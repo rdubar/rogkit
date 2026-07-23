@@ -18,6 +18,10 @@ func main() {
 	flag.BoolVar(oneline, "oneline", false, "Squash the report onto a single line (alias for -1)")
 	flag.Parse()
 
+	if !*jsonOut {
+		fmt.Fprintln(os.Stderr, "netcheck: probing dns, latency, throughput…")
+	}
+
 	stats := collectAll()
 	v := diagnose(stats, platformHintSet())
 
