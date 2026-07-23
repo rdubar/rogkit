@@ -377,6 +377,7 @@ secret_patterns = ["secrets.toml", ".env"]
 name = "CloudBackup"
 destinations = ["~/Dropbox/Backups"]
 paths = ["~/.config/", "~/dev"]
+keep = 5
 
 [[backup.set]]
 name = "LocalBackup"

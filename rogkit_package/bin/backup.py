@@ -24,6 +24,7 @@ Example per-set config:
     name = "CloudBackup"
     destinations = ["~/Dropbox/Backups", "~/Library/Mobile Documents/..."]
     paths = ["~/.ssh", "~/.config/", "~/dev"]
+    keep = 5
 
     # Local only — secrets included
     [[backup.set]]
@@ -38,6 +39,7 @@ Example per-set config:
     recipients_file = "~/.config/rogkit/backup-recipients.txt"
     destinations = ["~/Archive/Backups/encrypted"]
     paths = ["~/.ssh", "~/.config", "~/life/medical", "~/life/household"]
+    keep = 5
 
 Optional global overrides (shared by all sets):
 
@@ -45,6 +47,18 @@ Optional global overrides (shared by all sets):
     secret_patterns = ["secrets.toml", ".env"]
     file_excludes = [".DS_Store", "*.pyc"]
     folder_excludes = ["__pycache__", "/tmp"]
+    keep = 10   # default retention for any set that doesn't set its own
+
+Retention
+---------
+Set `keep = N` (per-set, or as a `[backup]`-level default above) to delete all
+but the N most recent archives — and their `.manifest.json` sidecars — from
+each of a set's destinations after a successful run. Pruning is per
+destination (an archive present locally but not yet synced to a cloud
+destination doesn't count against that cloud destination's N), runs only
+after the new archive is written and copied everywhere, and never runs on
+`--plan`/`--dry-run`. `--keep N` on the CLI overrides every selected set's
+configured value for that invocation only.
 
 Legacy `backup.txt` whitelist (one path per line) also works when no sets
 are defined:
@@ -182,6 +196,7 @@ CONFIG_HELP = dedent(
         name = "CloudBackup"
         destinations = ["~/Dropbox/Backups"]
         paths = ["~/.ssh", "~/.config/", "~/dev"]
+        keep = 5   # optional: prune to the 5 most recent archives per destination
 
         [[backup.set]]
         name = "LocalBackup"
@@ -224,6 +239,7 @@ class BackupSet:
     encrypted: bool = False
     recipients: List[str] | None = None
     recipients_file: str | None = None
+    keep: int | None = None
 
 
 @dataclass
@@ -283,6 +299,7 @@ def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
     base_destinations = [_normalize_path(path) for path in _as_list(backup_config.get("backup_to"))]
     base_sources = [_normalize_path(path) for path in _as_list(backup_config.get("backup_from"))]
     secret_patterns = _as_list(backup_config.get("secret_patterns"))
+    base_keep = backup_config.get("keep")
 
     def _build(entry: dict, *, encrypted: bool, default_name: str, default_include_secrets: bool) -> BackupSet:
         name = entry.get("name") or default_name
@@ -293,6 +310,7 @@ def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
         include_secrets = bool(entry.get("include_secrets", default_include_secrets))
         secrets_excluded = bool(secret_patterns) and not include_secrets
         applied_secret_patterns = list(secret_patterns) if secrets_excluded else []
+        keep_raw = entry.get("keep", base_keep)
         return BackupSet(
             name=str(name),
             sources=[_normalize_path(p) for p in sources_raw],
@@ -308,6 +326,7 @@ def _build_backup_sets_from_config(backup_config: dict) -> List[BackupSet]:
                 if encrypted and entry.get("recipients_file")
                 else None
             ),
+            keep=int(keep_raw) if keep_raw is not None else None,
         )
 
     backup_sets: List[BackupSet] = []
@@ -349,6 +368,8 @@ def load_backup_settings() -> List[BackupSet]:
     if folder_excludes_raw is None:
         folder_excludes = list(DEFAULT_FOLDER_EXCLUDES)
 
+    keep_raw = backup_config.get("keep")
+
     return [
         BackupSet(
             name="default",
@@ -356,6 +377,7 @@ def load_backup_settings() -> List[BackupSet]:
             destinations=destinations,
             file_excludes=file_excludes,
             folder_excludes=folder_excludes,
+            keep=int(keep_raw) if keep_raw is not None else None,
         )
     ]
 
@@ -494,7 +516,7 @@ def build_backup_plan(settings: BackupSet, *, create_destinations: bool = False)
     )
 
 
-def _render_plan(plan: BackupPlan, *, plain: bool = False) -> None:
+def _render_plan(plan: BackupPlan, *, plain: bool = False, effective_keep: int | None = None) -> None:
     mode = "Encrypted backup" if plan.settings.encrypted else "Backup"
     _print_rule(f"{mode} Plan: {plan.settings.name}", plain=plain)
     _print_paths("Destinations", plan.valid_destinations, "green", plain=plain) if plan.valid_destinations else _print_message("No usable destinations found.", "yellow")
@@ -511,6 +533,8 @@ def _render_plan(plan: BackupPlan, *, plain: bool = False) -> None:
         if plan.settings.recipients_file:
             recipient_note += f", recipients file: {plan.settings.recipients_file}"
         _print_message(f"Encryption: age ({recipient_note})", "bold blue")
+    if effective_keep:
+        _print_message(f"Retention: keep last {effective_keep} archive(s) per destination", "bold blue")
     _print_message(
         f"Would archive {len(plan.included_files):,} files ({byte_size(plan.total_file_size)}). "
         f"Skipped {plan.skipped_count:,}.",
@@ -660,7 +684,14 @@ def _validate_encryption_settings(settings: BackupSet) -> bool:
     return True
 
 
-def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool = False, plain: bool = False) -> int:
+def create_backup(
+    settings: BackupSet,
+    *,
+    verbose: bool = False,
+    dry_run: bool = False,
+    plain: bool = False,
+    keep: int | None = None,
+) -> int:
     """Create a new backup for a single set."""
     if not settings.destinations:
         _print_message(f"[{settings.name}] No backup destinations configured.", "bold red")
@@ -697,8 +728,10 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
         print(CONFIG_HELP)
         return 1
 
+    effective_keep = keep if keep is not None else settings.keep
+
     if dry_run:
-        _render_plan(plan, plain=plain)
+        _render_plan(plan, plain=plain, effective_keep=effective_keep)
         return 0
 
     start_time = perf_counter()
@@ -711,7 +744,7 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
     backup_file_path = os.path.join(primary_archive_path, backup_filename)
     encrypted_temp_path = backup_file_path + ".tmp"
 
-    _render_plan(plan, plain=plain)
+    _render_plan(plan, plain=plain, effective_keep=effective_keep)
     _print_message(f"Primary backup destination: {backup_file_path}", "bold blue")
 
     try:
@@ -760,6 +793,9 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
     extra_destinations = plan.valid_destinations[1:]
     _copy_to_extra_destinations(backup_file_path, extra_destinations, restrict_perms=settings.encrypted)
 
+    if effective_keep:
+        prune_backups(settings, plan.valid_destinations, effective_keep, plain=plain)
+
     total_elapsed = convert_seconds(perf_counter() - start_time)
     archive_size = os.path.getsize(backup_file_path)
     _render_backup_summary(len(plan.included_files), plan.skipped_count, archive_size, total_elapsed, plain=plain)
@@ -767,10 +803,47 @@ def create_backup(settings: BackupSet, *, verbose: bool = False, dry_run: bool =
     return 0
 
 
+def _find_backup_archives(destination: str, settings: BackupSet) -> List[str]:
+    """List archives in `destination` belonging to `settings` (not sidecar manifests)."""
+    prefix = f"backup-{_slugify(settings.name)}-"
+    suffix = ".tar.gz.age" if settings.encrypted else ".tar.gz"
+    try:
+        entries = os.listdir(destination)
+    except OSError:
+        return []
+    return [
+        os.path.join(destination, entry)
+        for entry in entries
+        if entry.startswith(prefix) and entry.endswith(suffix)
+    ]
+
+
+def prune_backups(settings: BackupSet, destinations: Iterable[str], keep: int, *, plain: bool = False) -> None:
+    """Delete all but the `keep` most recent archives (by mtime) in each destination.
+
+    Runs independently per destination since cloud/local copies of the same
+    set can drift out of sync (e.g. a destination added after older runs).
+    """
+    for destination in destinations:
+        archives = _find_backup_archives(destination, settings)
+        if len(archives) <= keep:
+            continue
+        archives.sort(key=os.path.getmtime, reverse=True)
+        for stale_archive in archives[keep:]:
+            for path in (stale_archive, stale_archive + ".manifest.json"):
+                try:
+                    if os.path.exists(path):
+                        os.unlink(path)
+                except OSError as exc:
+                    _print_message(f"[{settings.name}] Failed to prune {path}: {exc}", "bold red")
+                    continue
+            _print_message(f"[{settings.name}] Pruned {stale_archive}", "yellow")
+
+
 def plan_backup(settings: BackupSet, *, plain: bool = False) -> int:
     """Print the backup plan for a single set."""
     plan = build_backup_plan(settings, create_destinations=False)
-    _render_plan(plan, plain=plain)
+    _render_plan(plan, plain=plain, effective_keep=settings.keep)
     return 0
 
 
@@ -835,7 +908,19 @@ def main() -> int:
         action='store_true',
         help='Show configured backup set names and exit',
     )
+    parser.add_argument(
+        '--keep',
+        type=int,
+        metavar='N',
+        help=(
+            'After a successful backup, delete all but the N most recent archives '
+            '(per destination). Overrides each set\'s configured keep=; only applies with -b/--backup.'
+        ),
+    )
     args = parser.parse_args()
+
+    if args.keep is not None and args.keep < 1:
+        parser.error('--keep must be a positive integer')
 
     if args.dry_run and not args.backup:
         args.plan = True
@@ -885,7 +970,9 @@ def main() -> int:
             exit_code = list_code if list_code else exit_code
     if args.backup:
         for setting in selected_sets:
-            backup_code = create_backup(setting, verbose=args.verbose, dry_run=args.dry_run, plain=args.plain)
+            backup_code = create_backup(
+                setting, verbose=args.verbose, dry_run=args.dry_run, plain=args.plain, keep=args.keep
+            )
             exit_code = backup_code if backup_code else exit_code
 
     return exit_code

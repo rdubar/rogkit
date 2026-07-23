@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import json
+import os
 import shutil
 import subprocess
 import tarfile
+import time
 from pathlib import Path
 
 import pytest
@@ -248,6 +250,153 @@ def test_encrypted_manifest_redacts_source_paths(tmp_path):
     # of an encrypted archive — they leak what's inside.
     assert "sources" not in payload
     assert "destinations" not in payload
+
+
+def _touch_with_mtime(path: Path, contents: bytes, mtime: float) -> None:
+    path.write_bytes(contents)
+    os.utime(path, (mtime, mtime))
+
+
+def test_build_backup_sets_from_config_parses_keep(tmp_path):
+    config = {
+        "keep": 10,
+        "set": [
+            {
+                "name": "explicit",
+                "paths": [str(tmp_path)],
+                "destinations": [str(tmp_path)],
+                "keep": 3,
+            },
+            {
+                "name": "inherited",
+                "paths": [str(tmp_path)],
+                "destinations": [str(tmp_path)],
+            },
+        ],
+    }
+
+    sets = backup._build_backup_sets_from_config(config)
+    by_name = {item.name: item for item in sets}
+
+    assert by_name["explicit"].keep == 3
+    assert by_name["inherited"].keep == 10  # falls back to [backup].keep
+
+
+def test_prune_backups_keeps_only_the_n_most_recent(tmp_path):
+    dest = tmp_path / "dest"
+    dest.mkdir()
+    now = time.time()
+
+    names = [
+        "backup-test-2026-01-01-00-00-00.tar.gz",
+        "backup-test-2026-02-01-00-00-00.tar.gz",
+        "backup-test-2026-03-01-00-00-00.tar.gz",
+    ]
+    for offset, name in enumerate(names):
+        _touch_with_mtime(dest / name, b"data", now - (len(names) - offset) * 60)
+        (dest / f"{name}.manifest.json").write_text("{}", encoding="utf-8")
+
+    settings = backup.BackupSet(
+        name="test",
+        sources=[],
+        destinations=[str(dest)],
+        file_excludes=[],
+        folder_excludes=[],
+    )
+
+    backup.prune_backups(settings, [str(dest)], keep=1)
+
+    remaining = sorted(p.name for p in dest.glob("backup-test-*.tar.gz"))
+    assert remaining == [names[-1]]
+    assert not (dest / f"{names[0]}.manifest.json").exists()
+    assert not (dest / f"{names[1]}.manifest.json").exists()
+    assert (dest / f"{names[-1]}.manifest.json").exists()
+
+
+def test_create_backup_prunes_old_archives_with_keep_override(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+    (src / "keep.txt").write_text("keep", encoding="utf-8")
+
+    now = time.time()
+    stale_names = [
+        "backup-test-2026-01-01-00-00-00.tar.gz",
+        "backup-test-2026-02-01-00-00-00.tar.gz",
+    ]
+    for offset, name in enumerate(stale_names):
+        _touch_with_mtime(dest / name, b"stale", now - (len(stale_names) - offset) * 60)
+        (dest / f"{name}.manifest.json").write_text("{}", encoding="utf-8")
+
+    settings = backup.BackupSet(
+        name="test",
+        sources=[str(src)],
+        destinations=[str(dest)],
+        file_excludes=[],
+        folder_excludes=[],
+    )
+
+    assert backup.create_backup(settings, keep=1) == 0
+
+    archives = sorted(dest.glob("backup-test-*.tar.gz"))
+    assert len(archives) == 1
+    assert archives[0].name not in stale_names
+    assert len(list(dest.glob("backup-test-*.tar.gz.manifest.json"))) == 1
+
+
+def test_create_backup_uses_configured_keep_when_no_override(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+    (src / "keep.txt").write_text("keep", encoding="utf-8")
+
+    stale = dest / "backup-test-2020-01-01-00-00-00.tar.gz"
+    _touch_with_mtime(stale, b"stale", time.time() - 3600)
+    (dest / f"{stale.name}.manifest.json").write_text("{}", encoding="utf-8")
+
+    settings = backup.BackupSet(
+        name="test",
+        sources=[str(src)],
+        destinations=[str(dest)],
+        file_excludes=[],
+        folder_excludes=[],
+        keep=1,
+    )
+
+    assert backup.create_backup(settings) == 0
+
+    archives = sorted(dest.glob("backup-test-*.tar.gz"))
+    assert len(archives) == 1
+    assert archives[0].name != stale.name
+
+
+def test_create_backup_dry_run_does_not_prune(tmp_path):
+    src = tmp_path / "src"
+    dest = tmp_path / "dest"
+    src.mkdir()
+    dest.mkdir()
+    (src / "keep.txt").write_text("keep", encoding="utf-8")
+
+    stale = dest / "backup-test-2020-01-01-00-00-00.tar.gz"
+    _touch_with_mtime(stale, b"stale", time.time() - 3600)
+    (dest / f"{stale.name}.manifest.json").write_text("{}", encoding="utf-8")
+
+    settings = backup.BackupSet(
+        name="test",
+        sources=[str(src)],
+        destinations=[str(dest)],
+        file_excludes=[],
+        folder_excludes=[],
+        keep=1,
+    )
+
+    assert backup.create_backup(settings, dry_run=True, keep=1) == 0
+
+    assert stale.exists()
+    # Dry-run writes nothing, so the stale archive is the only one present.
+    assert len(list(dest.glob("backup-test-*.tar.gz"))) == 1
 
 
 def test_create_encrypted_backup_writes_age_archive_and_manifest(tmp_path):

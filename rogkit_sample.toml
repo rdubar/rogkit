@@ -15,6 +15,9 @@ secret_patterns = ["secrets.toml", ".env"]
 # file_excludes = [".DS_Store", "*.pyc"]
 # folder_excludes = ["__pycache__", "/tmp"]
 
+# Optional default retention for any set below that doesn't set its own `keep`.
+# keep = 10
+
 # Cloud-synced set — secrets excluded automatically
 [[backup.set]]
 name = "CloudBackup"
@@ -29,6 +32,8 @@ paths = [
     "~/bin",
     "~/.zshrc",
 ]
+# Prune each destination to the 5 most recent archives after a successful run.
+keep = 5
 
 # Local-only set — include_secrets = true allows secrets files through
 [[backup.set]]

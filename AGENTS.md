@@ -210,6 +210,12 @@ Build with standard `cargo build --release`.
   Requires `recipients` and/or `recipients_file`; ages preflight before the
   real tar runs.
 
+Both flavours support `keep = N` (per-set, or as a `[backup]`-level default):
+after a successful run, all but the N most recent archives — and their
+`.manifest.json` sidecars — are deleted from each destination independently.
+Pruning never runs on `--plan`/`--dry-run`. `backup -b --keep N` overrides
+every selected set's configured value for that invocation only.
+
 Per-machine strategy doc (not committed; lives next to the config):
 `~/.config/rogkit/backup-strategy.md`.
 
@@ -220,6 +226,7 @@ Per-machine strategy doc (not committed; lives next to the config):
 | `backup -b` | Run all configured sets |
 | `backup -b --set <name>` | Run a single set |
 | `backup -b --encrypted` | Only encrypted sets |
+| `backup -b --keep N` | Run all sets, then prune each destination to the N most recent archives |
 | `backup --plan` | Dry-run preview (no writes) |
 | `backup --list-sets` | List configured sets |
 
