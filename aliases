@@ -60,7 +60,6 @@ alias lm='rogkit_py -m rogkit_package.bin.lm'
 # ------------------------------------------------------------------------------
 # Primary media library interface
 alias media='rogkit_py -m rogkit_package.media.media'
-alias m='rogkit_py -m rogkit_package.media.media'
 
 # Plex operations
 alias p='rogkit_py -m rogkit_package.media.media'
