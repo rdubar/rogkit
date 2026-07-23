@@ -163,6 +163,8 @@ alias mem='$ROGKIT_GO_BIN/mem'
 alias drift='$ROGKIT_GO_BIN/drift'
 alias squeeze='$ROGKIT_GO_BIN/squeeze'
 alias why='$ROGKIT_GO_BIN/why'
+alias netcheck='$ROGKIT_GO_BIN/netcheck'
+alias netc='$ROGKIT_GO_BIN/netcheck'
 alias mapper='rogkit_py -m rogkit_package.bin.mapper'
 
 alias sys='$ROGKIT_GO_BIN/sysreboot'
