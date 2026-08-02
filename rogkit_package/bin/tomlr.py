@@ -54,6 +54,7 @@ DEFAULT_ROGKIT_TOML = {
     "plex": {"plex_server_url": ""},
     "spotify": {
         "spotify_redirect_uri": "http://127.0.0.1:8888/callback/",
+        "download_folder": "",
     },
     "purge": {
         "folders": [
