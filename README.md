@@ -219,7 +219,7 @@ Talking to an AI *from* the shell, as distinct from the agent-native tools above
 
 ## Go tools
 
-Twelve compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
+Fourteen compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
 
 | Binary | What it does |
 |--------|-------------|
@@ -235,6 +235,8 @@ Twelve compiled Go binaries live in `go/bin/` and are built with `./scripts/buil
 | `drift` | Snapshots disk/mem/ports/launch-agents/packages/dirty-repos and reports what changed since the last run or a named baseline |
 | `squeeze` | Distills a log stream into unique templates, with `--fit` to budget output to roughly N tokens |
 | `why` | One-shot slowness triage: swap pressure, CPU-bound, or memory-bound, with a named culprit |
+| `netcheck` | Superfast network triage: DNS, latency, and throughput probed in parallel, one-line verdict |
+| `rosetta` | Which running apps are executing under Rosetta 2 translation, grouped by app; `--watch` backgrounds a notifier for new launches |
 
 Build all: `./scripts/build_go.sh`
 
@@ -259,6 +261,9 @@ drift --set-baseline morning         # name the current snapshot as a baseline
 squeeze app.log                      # cluster a log file into unique templates
 squeeze app.log --fit 4000           # budget output to ~4000 tokens, bulk noise elided first
 why                                  # "🔥 CPU-bound: load 8.1 on 4 cores — mediaanalysisd at 340% CPU"
+rosetta                              # "🌀 2 processes running under Rosetta" grouped by app
+rosetta --watch                      # background notifier: toast when a new app launches under Rosetta
+rosetta --stop                       # stop the background notifier
 ```
 
 `sysreboot` replaced the old Python `syscheck` tool: no `psutil`/Rich dependency, ~150ms→sub-10ms runtime, and on Linux it checks the canonical reboot marker directly (`/run/reboot-required`, with `/var/run` as a compatibility alias) instead of re-deriving reboot need from `apt-cache policy` heuristics. macOS stays native too: uptime, load, and swap come from sysctls, with only `vm_stat` left for the memory-pressure page counters. Exit code doubles as a script-friendly signal: `0` = fine, `1` = moderate, `2` = reboot required/advised.
@@ -272,6 +277,8 @@ why                                  # "🔥 CPU-bound: load 8.1 on 4 cores — 
 `squeeze` masks variable fields (timestamps, UUIDs/hex IDs, IPs, paths, bare numbers) out of each line and clusters structurally identical lines into one template with a count — built for when the thing reading the output is a context window, not a scrollback buffer. `--fit N` budgets the rendered output to roughly N tokens (a documented ~4-chars-per-token estimate, not a real tokenizer): error-shaped templates and rare ones survive first, high-count bulk noise is elided, and an "N more templates elided" line accounts for what got cut.
 
 `why` answers "why is this machine slow right now?" by composing `sysreboot --json` and `mem --json` rather than re-reading the same syscalls a third time, adding only its own top-CPU-process check (`ps -axo pid=,pcpu=,comm=`). Checks run in escalating order — swap pressure (substantial swap use *and* low available RAM), then CPU-bound (load vs. core count), then a single process dominating memory — first match wins, and a miss prints "Nothing obviously wrong" rather than guessing. Thermal and disk-I/O-wait checks are deliberately not implemented: a one-shot tool has no honest way to claim a *sustained* reading, only a snapshot, so v1 stops at checks it can back up.
+
+`rosetta` reads the `P_TRANSLATED` bit off every `kinfo_proc` from a single `kern.proc.all` sysctl (the same flag Activity Monitor's "Kind: Intel" column reads), then shells out to `ps` once for full executable paths so it can group helper processes under their real app name instead of a 16-byte truncated `comm`. The one-shot check needs no daemon — it's already sub-30ms. `--watch` is for a different job: it forks a detached copy of itself (PID tracked in `~/.local/state/rogkit/rosetta/watch.pid`) that polls every 3s and fires an `osascript` notification the instant a *new* app name appears under translation, so a fan-spin moment turns into an instant "oh, it's Docker" instead of a `top` dive. `--stop` tears the watcher down; re-running `--watch` while one is already alive just reports its pid instead of double-spawning.
 
 Support matrix:
 
