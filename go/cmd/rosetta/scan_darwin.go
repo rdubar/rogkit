@@ -1,3 +1,5 @@
+//go:build darwin
+
 package main
 
 import (
@@ -5,8 +7,6 @@ import (
 	"bytes"
 	"fmt"
 	"os/exec"
-	"path/filepath"
-	"regexp"
 	"sort"
 	"strconv"
 	"strings"
@@ -18,12 +18,6 @@ import (
 // any process running under Rosetta 2. This is the same bit Activity
 // Monitor's "Kind: Intel" column and `sysctl.proc_translated` are backed by.
 const pTranslated = 0x00020000
-
-// app groups translated pids under one canonical app name.
-type app struct {
-	Name string `json:"name"`
-	Pids []int  `json:"pids"`
-}
 
 // scan reads kern.proc.all once to find every translated pid, then shells
 // out to `ps` once for full executable paths so grouping can use the real
@@ -94,22 +88,4 @@ func pidNames() (map[int]string, error) {
 		names[pid] = strings.Join(fields[1:], " ")
 	}
 	return names, scanner.Err()
-}
-
-var appBundlePath = regexp.MustCompile(`/([^/]+)\.app/Contents/MacOS/`)
-var helperSuffix = regexp.MustCompile(`\s+Helper(\s*\([^)]*\))?$`)
-
-// canonicalAppName turns a `ps` comm (often a full executable path) into a
-// human-readable app name: pull the bundle name out of a `.app/Contents/
-// MacOS/` path when present, else fall back to the basename, and strip
-// Chromium/Electron-style " Helper (Renderer)" suffixes so helper processes
-// roll up under their parent app — mirrors the `mem` tool's grouping.
-func canonicalAppName(comm string) string {
-	name := comm
-	if m := appBundlePath.FindStringSubmatch(comm); m != nil {
-		name = m[1]
-	} else {
-		name = filepath.Base(comm)
-	}
-	return helperSuffix.ReplaceAllString(name, "")
 }

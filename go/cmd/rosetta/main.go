@@ -10,9 +10,15 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"runtime"
 )
 
 func main() {
+	if runtime.GOOS != "darwin" || runtime.GOARCH != "arm64" {
+		fmt.Fprintf(os.Stderr, "rosetta: Apple Silicon only — Rosetta 2 doesn't exist on %s/%s.\n", runtime.GOOS, runtime.GOARCH)
+		os.Exit(1)
+	}
+
 	jsonOut := flag.Bool("json", false, "Output JSON for automation")
 	quiet := flag.Bool("q", false, "Plain output, no color")
 	flag.BoolVar(quiet, "quiet", false, "Plain output (alias for -q)")
