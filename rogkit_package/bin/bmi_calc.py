@@ -1,8 +1,8 @@
 """
 BMI (Body Mass Index) calculator and progression tracker.
 
-Calculates BMI from height and weight, shows weight classifications,
-and projects BMI changes over time with weight gain/loss.
+Calculates BMI from height and weight (metric or imperial), shows weight
+classifications, and projects BMI changes over time with weight gain/loss.
 """
 import argparse
 import re
@@ -65,17 +65,18 @@ def get_bmi(cm, kg):
     return kg / (cm / 100) ** 2
 
 
-def show_bmi_table(period="month", height=181, weight=84, gain=2.5, limit=12, bmi=None):
+def show_bmi_table(period="month", height=181, weight=84, gain=2.5, limit=12, bmi=None, imperial=False):
     """
     Display BMI progression table over time.
-    
+
     Args:
         period: Time period for weight change (default: "month")
-        height: Height in cm (or feet'inches" format string)
+        height: Height in cm (or feet'inches"/inches format string)
         weight: Starting weight in kg (or "lbs"/"st" format string)
-        gain: Weight change per period in kg
+        gain: Weight change per period, in kg (or lbs if imperial)
         limit: Number of periods to project
         bmi: Optional BMI to calculate weight from
+        imperial: Flag and display results in imperial units (inches, pounds)
     """
 
     if height and isinstance(height, str):
@@ -83,6 +84,11 @@ def show_bmi_table(period="month", height=181, weight=84, gain=2.5, limit=12, bm
         if match:
             feet, inches = int(match.group(1)), int(match.group(2))
             height = feet_to_cm(feet, inches)
+            imperial = True
+        elif height.lower().endswith('in'):
+            imperial = True
+            height = float(height[:-2]) * 2.54
+            feet, inches = cm_to_feet(height)
         else:
             print(f'Error: Invalid height: {height}')
             return
@@ -92,11 +98,13 @@ def show_bmi_table(period="month", height=181, weight=84, gain=2.5, limit=12, bm
     if weight and isinstance(weight, str):
         if weight.endswith("lbs"):
             weight = pounds_to_kg(float(weight[:-3]))
+            imperial = True
         elif weight.endswith("st"):
             match = re.match(r'(\d+)st(\d+)?', weight)
             if match:
                 stones, pounds = int(match.group(1)), int(match.group(2) or 0)
                 weight = stones_to_kg(stones, pounds)
+                imperial = True
             else:
                 print(f'Error: Invalid weight: {weight}')
                 return
@@ -120,8 +128,15 @@ def show_bmi_table(period="month", height=181, weight=84, gain=2.5, limit=12, bm
         print('Error: Invalid BMI.')
         return
 
-    print(f'Height: {height:.1f} cm ({feet}\'{inches:.0f}")\tStart BMI: {start_bmi:.2f}\tStart Weight: {start_weight:.1f} kg')
-    print(f'Gain: {gain:.1f} kg per {period} for {limit} {period}s.')
+    if imperial:
+        print('Using imperial units (inches, pounds).')
+        start_weight_lbs = kg_to_pounds(start_weight)
+        gain_lbs = kg_to_pounds(gain)
+        print(f'Height: {feet}\'{inches:.0f}" ({height:.1f} cm)\tStart BMI: {start_bmi:.2f}\tStart Weight: {start_weight_lbs:.1f} lbs ({start_weight:.1f} kg)')
+        print(f'Gain: {gain_lbs:.1f} lbs per {period} for {limit} {period}s.')
+    else:
+        print(f'Height: {height:.1f} cm ({feet}\'{inches:.0f}")\tStart BMI: {start_bmi:.2f}\tStart Weight: {start_weight:.1f} kg')
+        print(f'Gain: {gain:.1f} kg per {period} for {limit} {period}s.')
 
     for section in range(limit + 1):
         weight = start_weight + (gain * section)
@@ -143,10 +158,10 @@ def main():
     height = None
     weight = None
     bmi = None
-    feet = False
-    
+    imperial = False
+
     print('BMI Progression Calculator')
-    
+
     if not args.args:
         print('Provide <height> <weight>, or e.g, <height> 0 <bmi> to calculate weight from BMI')
         return
@@ -154,32 +169,48 @@ def main():
     for arg in args.args:
         if arg == '_':
             arg = 0
-        try:
+        unit_hint = None
+        if isinstance(arg, str):
+            unit_match = re.match(r'^(\d+(?:\.\d+)?)\s*(in|"|lbs?)$', arg, re.IGNORECASE)
+            if unit_match:
+                value = float(unit_match.group(1))
+                unit_hint = 'in' if unit_match.group(2).lower() in ('in', '"') else 'lbs'
+            else:
+                try:
+                    value = float(arg)
+                except ValueError:
+                    print(f'Error: Invalid argument: {arg}')
+                    continue
+        else:
             value = float(arg)
-        except ValueError:
-            print(f'Error: Invalid argument: {arg}')
-            continue
         if height is None:
-            if value == 0:
+            if unit_hint == 'in':
+                # explicit inches
+                imperial = True
+                height = value * 2.54
+                print(f'Converting {value:.0f} inches to {height:.2f} cm')
+            elif value == 0:
                 height = 0
             elif value < 3:
-                # assume it's meters
+                # assume it's meters
                 height = value * 100
                 print(f'Converting {arg} meters to {height} cm')
             elif value < 10:
-                feet = True
-                # assume it's feet dot inches
+                # assume it's feet dot inches
                 if '.' in arg:
                     feet, inches = arg.split('.')
                 else:
                     feet, inches = value, 0
                 height = feet_to_cm(int(feet), int(inches))
+                imperial = True
                 print(f'Converting {int(feet)}\'{inches}" to {height:.02f} cm.')
             elif value < 100:
-                print(f'Error: Invalid height: {value} cm')
-                return
+                # assume it's inches
+                imperial = True
+                height = value * 2.54
+                print(f'Converting {value:.0f} inches to {height:.2f} cm')
             else:
-                # assume it's cm
+                # assume it's cm
                 height = value
                 if height != 0:
                     print(f'Height: {height} cm')
@@ -187,26 +218,27 @@ def main():
             if value == 0:
                 weight = 0
                 continue
+            if unit_hint == 'lbs':
+                # explicit pounds
+                weight = pounds_to_kg(value)
+                imperial = True
+                print(f'Converting {value:.0f} pounds to {weight:.2f} kg')
+                continue
             if value < 30:
-                # assume weight is in stones dot pounds
+                # assume weight is in stones dot pounds
                 if '.' in arg:
                     stones, pounds = arg.split('.')
                 else:
                     stones, pounds = value, 0
-                weight = stones_to_kg(int(stones), int(pounds))    
+                weight = stones_to_kg(int(stones), int(pounds))
+                imperial = True
                 print(f'Converting {arg}st {pounds}lbs to {weight:.02f} kg')
-                continue 
-            if feet:
-                # check if weight is in pounds
-                pounds = pounds_to_kg(value)
-                if height:
-                    provisional_bmi = get_bmi(height, pounds)
-                    if provisional_bmi > 15:
-                        # assume it's pounds
-                        weight = pounds_to_kg(value)
-                        print(f'Converting {arg} pounds to {weight:.02f} kg')
-                        continue
-            # else
+                continue
+            if imperial:
+                # height was given in imperial units, assume weight is pounds too
+                weight = pounds_to_kg(value)
+                print(f'Converting {value:.0f} pounds to {weight:.2f} kg')
+                continue
             weight = value
             print(f'Weight: {weight:.2f} kg')
         elif bmi is None and (height==0 or weight==0):
@@ -226,12 +258,14 @@ def main():
     elif height and weight and not bmi:
         bmi = get_bmi(height, weight)
         print(f'Calculated BMI from height and weight: {bmi:.2f}')
-        
+
     if height < 50 or height > 300 or weight < 10 or weight > 500:
         print('Error: Height and weight must be within valid ranges.')
         return
-        
-    show_bmi_table(period=args.period, height=height, weight=weight, bmi=bmi, gain=args.gain, limit=args.limit)
+
+    gain = pounds_to_kg(args.gain) if imperial else args.gain
+
+    show_bmi_table(period=args.period, height=height, weight=weight, bmi=bmi, gain=gain, limit=args.limit, imperial=imperial)
 
 if __name__ == "__main__":
     main()
