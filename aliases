@@ -169,6 +169,7 @@ alias rosetta='$ROGKIT_GO_BIN/rosetta'
 alias mapper='rogkit_py -m rogkit_package.bin.mapper'
 
 alias sys='$ROGKIT_GO_BIN/sysreboot'
+alias uprec='$ROGKIT_GO_BIN/uprec'
 alias system='rogkit_py -m rogkit_package.bin.system'
 alias pyinfo='rogkit_py -m rogkit_package.bin.pyinfo'
 

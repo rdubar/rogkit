@@ -13,8 +13,8 @@ AI agents (Claude, Codex, and similar) are a first-class user of any machine rog
 - **`mem`** gives a grouped, per-app memory view (`mem chrome` for every matching process plus a total) — and **`why`** does one-shot slowness triage by composing `sysreboot`/`mem` rather than re-reading the same syscalls.
 - **`squeeze`** is for compressing large log/output dumps before they hit a context window — `squeeze --fit 4000 some.log` distills thousands of lines to their unique templates, keeping rare and error-shaped lines even under a tight budget. See the Go tools section below for the exact algorithm.
 - **`recall`** and **`toolfind`** help with session handoff and tool discovery respectively — `recall yesterday` for "what happened since I was last here," `toolfind "empty folders"` instead of grepping this README for the right tool name.
-- **The Go system tools start instantly.** `space`, `mem`, `drift`, `squeeze`, `why`, and `sysreboot` have no `uv`/Rich import cost, and all auto-detect a non-TTY stdout and switch to plain, uncolored output on their own — piping one from a shell tool never leaks ANSI codes into an agent's context, even without `-q`.
-- **`--json` gives structured output** on `sysreboot`, `space`, `mem`, `drift`, `why` (Go) and `doctor`, `scrape`, `primer`, `toolfind`, `recall` (Python) — prefer it over parsing table output.
+- **The Go system tools start instantly.** `space`, `mem`, `drift`, `squeeze`, `why`, `uprec`, and `sysreboot` have no `uv`/Rich import cost, and all auto-detect a non-TTY stdout and switch to plain, uncolored output on their own — piping one from a shell tool never leaks ANSI codes into an agent's context, even without `-q`.
+- **`--json` gives structured output** on `sysreboot`, `space`, `mem`, `drift`, `why`, `uprec` (Go) and `doctor`, `scrape`, `primer`, `toolfind`, `recall` (Python) — prefer it over parsing table output.
 - **`-q`/`--quiet`/`--plain`** forces plain output even on a real TTY: `space`, `mem`, `drift`, and `squeeze` (Go), and every Rich-table Python tool (`ports`, `procs`, `dsize`, `system`, `note`, `pyinfo`, `purge`, `backup`, and the rest — all 38 of them). Python tools without an explicit flag still auto-detect a non-TTY stdout via Rich, but Rich's own fallback only drops color, not table borders/box-drawing — so `--plain` is still the safer bet for an agent even when piping.
 
 ---
@@ -28,6 +28,7 @@ A few tools you may find immediately useful, day to day:
 | `pw` | Cryptographically secure password generator |
 | `space` | Disk usage summary with a colored table, instant startup |
 | `sys` | One-or-two-line reboot advisor — is this machine actually fine? |
+| `uprec` | Longest uptime this machine has ever managed, and where the current run ranks |
 | `json` | Pretty-print and query JSON from file or stdin |
 | `dedupe` | Find duplicate files by content across a directory tree |
 | `serve` | Serve any folder over HTTP instantly |
@@ -219,7 +220,7 @@ Talking to an AI *from* the shell, as distinct from the agent-native tools above
 
 ## Go tools
 
-Fourteen compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
+Fifteen compiled Go binaries live in `go/bin/` and are built with `./scripts/build_go.sh`.
 
 | Binary | What it does |
 |--------|-------------|
@@ -230,6 +231,7 @@ Fourteen compiled Go binaries live in `go/bin/` and are built with `./scripts/bu
 | `search` | Multi-term content search with batching |
 | `ishtime` | Time zone conversion and "is it time?" helper |
 | `sysreboot` | Ultra-fast one-or-two-line reboot advisor (aliased as `sys`) |
+| `uprec` | Longest uptimes on record and where the current run ranks — works with or without the `uptimed` daemon |
 | `space` | Disk usage summary with a colored table, sortable by size |
 | `mem` | Memory usage summary, grouped by app; `mem <name>` filters to matching processes plus a total |
 | `drift` | Snapshots disk/mem/ports/launch-agents/packages/dirty-repos and reports what changed since the last run or a named baseline |
@@ -249,6 +251,9 @@ search --path ./project "TODO" "FIXME" --limit 10
 ishtime --time 1530                  # convert hhmm to readable delta
 sys                                  # "✅ No reboot needed (score 12%)" + stats line
 sys -1                               # squash to one line
+uprec                                # ranked uptime table, current run marked with ->
+uprec -1                             # "up 9d 1h · rank 3 of 7 · record 16d 11h"
+uprec -q                             # plain pipe-delimited rows for scripting
 space                                # colored table: mount, total, used, free, usage
 space -s -t                          # sorted by size, plus a combined totals row
 space -q                             # plain pipe-delimited output, no color
@@ -277,6 +282,8 @@ rosetta --stop                       # stop the background notifier
 `squeeze` masks variable fields (timestamps, UUIDs/hex IDs, IPs, paths, bare numbers) out of each line and clusters structurally identical lines into one template with a count — built for when the thing reading the output is a context window, not a scrollback buffer. `--fit N` budgets the rendered output to roughly N tokens (a documented ~4-chars-per-token estimate, not a real tokenizer): error-shaped templates and rare ones survive first, high-count bulk noise is elided, and an "N more templates elided" line accounts for what got cut.
 
 `why` answers "why is this machine slow right now?" by composing `sysreboot --json` and `mem --json` rather than re-reading the same syscalls a third time, adding only its own top-CPU-process check (`ps -axo pid=,pcpu=,comm=`). Checks run in escalating order — swap pressure (substantial swap use *and* low available RAM), then CPU-bound (load vs. core count), then a single process dominating memory — first match wins, and a miss prints "Nothing obviously wrong" rather than guessing. Thermal and disk-I/O-wait checks are deliberately not implemented: a one-shot tool has no honest way to claim a *sustained* reading, only a snapshot, so v1 stops at checks it can back up.
+
+`uprec` answers "what is this machine's longest uptime, ever?" — which nothing on a stock mac or Linux box records, since `uptime` only knows the current boot. The [`uptimed`](https://github.com/rpodgorny/uptimed/) daemon does keep a high-score table, and `uprec` reads its records file wherever it is installed (`/var/spool/uptimed`, `/var/lib/uptimed`, or either Homebrew prefix), but it deliberately does not need it: history is reconstructed from the login database on the spot, so a server reports a real record the first time the tool runs on it. On Linux that means decoding `wtmp` directly — fixed 384-byte glibc `struct utmp` records, host byte order, including gzipped rotated generations, since monthly rotation is where a long-lived server's history actually sits. macOS keeps its login database inside the ASL store rather than a flat `utmpx` file, so there `last(1)` is parsed instead; it omits the year, which is recovered from record order (output is newest-first, so a date that jumps forward means the year rolled back) rather than by comparing against today, which breaks on logs spanning New Year. Every run merges all sources and writes the result to `~/.local/state/rogkit/uprec.records` in uptimed's own `uptime:boot_epoch:system` format, so boots survive `wtmp` being rotated away and the file stays readable by uptimed itself; a fourth field records whether each run ended cleanly, which uptimed does not track. That verdict is the genuinely useful part for monitoring: a boot with no shutdown record before it was a crash, a power cut, or a hard reset, and "4 of the last 10 boots were unclean" says more about a server's health than the record itself.
 
 `rosetta` reads the `P_TRANSLATED` bit off every `kinfo_proc` from a single `kern.proc.all` sysctl (the same flag Activity Monitor's "Kind: Intel" column reads), then shells out to `ps` once for full executable paths so it can group helper processes under their real app name instead of a 16-byte truncated `comm`. The one-shot check needs no daemon — it's already sub-30ms. `--watch` is for a different job: it forks a detached copy of itself (PID tracked in `~/.local/state/rogkit/rosetta/watch.pid`) that polls every 3s and fires an `osascript` notification the instant a *new* app name appears under translation, so a fan-spin moment turns into an instant "oh, it's Docker" instead of a `top` dive. `--stop` tears the watcher down; re-running `--watch` while one is already alive just reports its pid instead of double-spawning.
 
