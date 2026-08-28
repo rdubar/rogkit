@@ -494,7 +494,10 @@ Primarily developed and tested on **macOS**. Most tools work on Linux. A small n
 
 The top-level `rogkit` command works on both macOS and Linux. `rogkit update`
 currently supports macOS plus `apt`-based Linux distributions (Debian, Ubuntu,
-Raspberry Pi OS).
+Raspberry Pi OS). It fast-forwards the repo and then rebuilds the Go binaries
+via `scripts/build_go.sh` unconditionally — `go install` is incremental and
+cached, so a no-op rebuild costs nothing, and doing it every time is what stops
+a newly added or locally edited tool from being left unbuilt.
 
 ---
 

@@ -6,9 +6,10 @@
 # Use --full for more aggressive upgrades (dist-upgrade on Debian,
 # --greedy casks + App Store on macOS).
 #
-# Also pulls the rogkit repo itself and rebuilds the Go binaries if the
-# pull brought in changes — `go install` is incremental/cached, so
-# rebuilding after a no-op pull costs nothing.
+# Also pulls the rogkit repo itself (fast-forward only) and always
+# rebuilds the Go binaries afterwards — `go install` is incremental and
+# cached, so a no-op rebuild costs nothing, and doing it unconditionally
+# is what keeps a new or changed tool from being missed.
 #
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -29,8 +30,9 @@ Options:
   -y, --yes     Skip confirmation prompts
   -h, --help    Show this help
 
-Also pulls the rogkit repo (fast-forward only) and rebuilds Go binaries
-via scripts/build_go.sh when the pull brings in changes.
+Also pulls the rogkit repo (fast-forward only), then rebuilds the Go
+binaries via scripts/build_go.sh — always, not just when the pull brought
+changes in, so a new or locally edited tool is never left unbuilt.
 
 Platforms supported: Debian/Ubuntu/Raspberry Pi OS, macOS (Homebrew)
 EOF
@@ -90,19 +92,29 @@ update_self() {
     echo "Commits available:"
     echo "$incoming"
     echo
-    confirm "Pull and rebuild?" || { echo "Skipped."; return; }
+    confirm "Pull?" || { echo "Skipped."; return; }
 
     section "Pulling..."
     git -C "$REPO_ROOT" pull --ff-only
+}
+
+# Rebuilding is deliberately not conditional on the pull having brought
+# anything in. `go install` is incremental and cached, so a no-op rebuild
+# costs nothing, whereas tying it to the pull left stale or missing
+# binaries behind in every other case: the repo updated by a manual `git
+# pull`, uncommitted local work on a tool, no upstream configured, or an
+# earlier run where the Go toolchain was not yet installed.
+rebuild_go() {
+    section "Go binaries"
 
     if [[ ! -x "$REPO_ROOT/scripts/build_go.sh" ]]; then
+        echo "  scripts/build_go.sh not found — skipping"
         return
     fi
     if ! command -v go &>/dev/null; then
-        echo "  Go toolchain not found — skipping Go rebuild"
+        echo "  Go toolchain not found — skipping"
         return
     fi
-    section "Rebuilding Go binaries..."
     "$REPO_ROOT/scripts/build_go.sh"
 }
 
@@ -213,6 +225,7 @@ else
 fi
 
 update_self
+rebuild_go
 
 case "$(uname -s)" in
     Linux)
