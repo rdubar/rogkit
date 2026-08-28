@@ -18,7 +18,40 @@ import (
 	"time"
 )
 
+func usage() {
+	fmt.Fprintf(os.Stderr, `Usage: uprec [options]
+
+Report the longest uptimes this machine has recorded, and where the run
+in progress ranks among them.
+
+History is gathered from whichever of these exist, merged by boot time:
+
+  uptimed      /var/spool/uptimed/records and the other standard paths
+  wtmpdb       via "wtmpdb last" (Debian 13+, where boot records moved)
+  wtmp         /var/log/wtmp and rotated generations, incl. .gz
+  the kernel   kern.boottime or /proc/uptime, for the current run
+  its own      ~/.local/state/rogkit/uprec.records, written every run
+
+What it cannot do: invent history that was never recorded. uprec reports
+only boots something on this machine wrote down, so on a machine where
+nothing was recording, history starts the first time uprec runs. Nothing
+here backfills a boot that left no trace.
+
+Status column:
+  clean     a shutdown record was found for that run
+  unclean   the next thing logged was another boot: a crash, a power cut,
+            or a hard reset
+  unknown   the run ended, but no source recorded how
+  current   still running
+
+Options:
+`)
+	flag.PrintDefaults()
+}
+
 func main() {
+	flag.Usage = usage
+
 	oneline := flag.Bool("1", false, "One-line summary")
 	flag.BoolVar(oneline, "oneline", false, "One-line summary (alias for -1)")
 	quiet := flag.Bool("q", false, "Plain pipe-delimited output, no table or color")
