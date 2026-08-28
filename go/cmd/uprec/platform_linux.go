@@ -5,6 +5,7 @@ package main
 import (
 	"io"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"sort"
 	"strconv"
@@ -76,9 +77,12 @@ func wtmpPaths() []string {
 	return matches
 }
 
-// bootEvents decodes every readable wtmp generation. A file that cannot
-// be read or is malformed is skipped rather than failing the run: partial
-// history beats none.
+// bootEvents reads both login databases. Which one holds the boot
+// records depends on the distribution and its age — Debian 13 moved them
+// from wtmp to wtmpdb, and a machine mid-migration has wtmp full of
+// sessions and wtmpdb full of boots — so ask both and let the merge sort
+// out any overlap. A source that is absent or unreadable is skipped
+// rather than failing the run: partial history beats none.
 func bootEvents() ([]event, error) {
 	var events []event
 	for _, path := range wtmpPaths() {
@@ -88,5 +92,20 @@ func bootEvents() ([]event, error) {
 		}
 		events = append(events, found...)
 	}
-	return events, nil
+	return append(events, wtmpdbEvents()...), nil
+}
+
+// wtmpdbEvents shells out to wtmpdb's read subcommand. A missing tool or
+// database is the normal case on a machine that never migrated, so every
+// failure here is silent.
+func wtmpdbEvents() []event {
+	out, err := exec.Command(wtmpdbCommand, wtmpdbArgs(os.Getenv("UPREC_WTMPDB"))...).Output()
+	if err != nil {
+		return nil
+	}
+	events, err := parseWtmpdbJSON(out)
+	if err != nil {
+		return nil
+	}
+	return events
 }
