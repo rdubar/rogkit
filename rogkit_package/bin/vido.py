@@ -95,6 +95,7 @@ def get_title_from_url(url):
             return info_dict.get('title', None)
     except Exception as e:
         _print_message(f"Error fetching title with yt_dlp: {e}", style="magenta")
+        _print_message("If this site used to work, try `vido --update` to get the latest yt_dlp.", style="cyan")
         return None
 
 def set_directory(directory=None):
@@ -150,6 +151,7 @@ def process_url(url, config):
 
     except Exception as e:
         _print_message(f"Error downloading {url}\n{e}", style="magenta")
+        _print_message("If this site used to work, try `vido --update` to get the latest yt_dlp.", style="cyan")
         return
 
     _print_message(f"Downloaded to {final_output}", style="green")
