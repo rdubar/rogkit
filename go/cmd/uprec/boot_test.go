@@ -131,6 +131,44 @@ func TestMergeBootsKeepsDistinctBoots(t *testing.T) {
 	}
 }
 
+// A log source can stamp a boot record with the wrong wall-clock time —
+// the system clock hadn't synced yet when it was written — leaving a
+// "still running" record for a boot the machine has since left behind.
+// Only the truly latest boot should stay current.
+func TestResolveCurrentClosesStaleCurrent(t *testing.T) {
+	stale := Boot{Boot: at("2026-09-04 14:40:53"), Uptime: 200 * time.Hour, Current: true, Source: "state"}
+	live := Boot{Boot: at("2026-09-06 16:43:52"), Uptime: 45 * time.Hour, Current: true, Source: "live"}
+
+	merged := mergeBoots([]Boot{stale}, []Boot{live})
+	if len(merged) != 2 {
+		t.Fatalf("got %d boots, want 2", len(merged))
+	}
+
+	var closed, current *Boot
+	for i := range merged {
+		if merged[i].Current {
+			current = &merged[i]
+		} else {
+			closed = &merged[i]
+		}
+	}
+	if current == nil || !current.Boot.Equal(live.Boot) {
+		t.Fatalf("current boot = %+v, want the live boot to stay current", current)
+	}
+	if closed == nil {
+		t.Fatalf("stale boot should no longer be current")
+	}
+	if !closed.CleanKnown || closed.Clean {
+		t.Errorf("closed boot clean=%v cleanKnown=%v, want unclean but known", closed.Clean, closed.CleanKnown)
+	}
+	if !closed.End.Equal(live.Boot) {
+		t.Errorf("closed boot end = %v, want the live boot's start %v", closed.End, live.Boot)
+	}
+	if closed.Uptime != live.Boot.Sub(stale.Boot) {
+		t.Errorf("closed boot uptime = %v, want the span up to the live boot", closed.Uptime)
+	}
+}
+
 func TestSummarize(t *testing.T) {
 	ranked := byUptime([]Boot{
 		{Boot: at("2026-07-08 22:53:00"), Uptime: 400 * time.Hour, Clean: true, CleanKnown: true},

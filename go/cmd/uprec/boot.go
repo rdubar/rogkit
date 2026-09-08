@@ -121,7 +121,38 @@ func mergeBoots(sets ...[]Boot) []Boot {
 		}
 		out = append(out, b)
 	}
-	return out
+	return resolveCurrent(out)
+}
+
+// resolveCurrent enforces that at most one boot is current. A record can
+// end up looking "still running" even though the machine has since
+// rebooted: its own boot timestamp was wrong when written — most often
+// because the system clock hadn't synced yet at the moment a log source
+// stamped it, on a machine whose clock doesn't survive a power cut — so
+// it never fell within mergeTolerance of the real, later boot and never
+// combined with it. Only the latest such record can really be current;
+// any earlier one was ended by that later boot, however it looks unclosed.
+func resolveCurrent(boots []Boot) []Boot {
+	latest := -1
+	for i, b := range boots {
+		if b.Current && (latest == -1 || b.Boot.After(boots[latest].Boot)) {
+			latest = i
+		}
+	}
+	if latest == -1 {
+		return boots
+	}
+	for i := range boots {
+		if i == latest || !boots[i].Current {
+			continue
+		}
+		boots[i].Current = false
+		boots[i].CleanKnown = true
+		boots[i].Clean = false
+		boots[i].End = boots[latest].Boot
+		boots[i].Uptime = boots[latest].Boot.Sub(boots[i].Boot)
+	}
+	return boots
 }
 
 // sourceRank orders sources by how precisely they timestamp a boot. The

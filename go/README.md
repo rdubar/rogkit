@@ -66,6 +66,7 @@ Whatever exists is read and merged by boot time; nothing is required.
 - **It does not judge.** No verdict on whether an uptime is good, no reboot advice — that is `sysreboot`'s job.
 - **Retention limits how far back it can see.** `wtmp` rotation and journald retention bound the initial recovery. Once uprec has run, its own file preserves what it saw, but it cannot reach back past what was on disk the first time.
 - **Timestamps are only as precise as the source.** macOS `last(1)` prints whole minutes, so a boot recovered from it can sit up to a minute early; the running kernel and stored records are exact, and the more precise source wins when they disagree.
+- **A log source can misdate its own boot record.** On a machine whose clock doesn't survive a power cut (a Pi with no battery-backed RTC, say), the services that write boot records run before NTP has corrected the time, so they can log the new boot under a stale timestamp — sometimes landing right on the *previous* boot's start time. That leaves a "still running" record for a boot the machine has actually left behind, alongside the real current one. uprec only lets the chronologically latest boot stay current; any earlier record still marked "still running" once merged is closed out as unclean at the point the real next boot began.
 
 #### Status column
 
@@ -90,3 +91,10 @@ brew services start uptimed
 ```
 
 Installing `uptimed` without enabling it records nothing at all, which is easy to miss because the package looks present.
+
+If a Pi (or any machine without a battery-backed RTC) keeps logging boots under the wrong timestamp after an unclean power loss — visible as a "still running" record `uprec` has to close out itself, or as `journalctl --list-boots` misattributing early messages to the previous boot — the underlying log can be made accurate instead of merely tolerated:
+
+- Add a battery-backed RTC (the Pi 5's onboard RTC header takes a coin cell) so the clock survives a power cut and is correct from the first instruction.
+- Or reorder the record-writing service to wait for the clock, e.g. `sudo systemctl edit wtmpdb-update-boot.service` and add `After=time-sync.target` plus `Wants=time-sync.target` — at the cost of delaying that record until NTP (or the RTC) has synced.
+
+Neither is required: `uprec`'s merge already treats only the latest boot as current regardless of what the log claims.
