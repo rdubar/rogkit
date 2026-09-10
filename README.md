@@ -204,6 +204,7 @@ The media subsystem is the most complex component — see [Media subsystem](#med
 | `pw` | Cryptographically secure password generator with strength analysis |
 | `pyinfo` | Python environment info and CPU benchmark |
 | `tomlr` | TOML config file manager (`~/.config/rogkit/config.toml`) |
+| `tunnel` | SSH DB tunnel manager for ERP/Odoo13/P2P (live + test) with live Vaultwarden credential fetch |
 | `xmlr` | Odoo/OpenERP XML-RPC connection manager |
 
 ### AI chat clients
