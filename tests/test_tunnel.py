@@ -11,25 +11,25 @@ ENTRIES = [
         "system": "erp",
         "tier": "live",
         "bastion_user": "tunnel",
-        "bastion_host": "bastion-live.alpha.pet",
-        "host_ro": "erp-live-pg-cluster.cluster-ro-ccx1mfaemtzc.eu-central-1.rds.amazonaws.com",
-        "host_rw": "erp-live-pg-cluster.cluster-ccx1mfaemtzc.eu-central-1.rds.amazonaws.com",
+        "bastion_host": "bastion-live.example.internal",
+        "host_ro": "example-live-pg-cluster.cluster-ro-abc123.eu-central-1.rds.amazonaws.com",
+        "host_rw": "example-live-pg-cluster.cluster-abc123.eu-central-1.rds.amazonaws.com",
         "remote_port": 5432,
         "local_port": 5433,
-        "db_name": "petspremium",
-        "db_user": "roger.dubar",
-        "vaultwarden_item": "OpenERP7_DB_PW - Live",
+        "db_name": "exampledb",
+        "db_user": "example.user",
+        "vaultwarden_item": "Example_DB_PW - Live",
     },
     {
         "system": "erp",
         "tier": "test",
         "bastion_user": "tunnel",
-        "bastion_host": "bastion-test.alpha.pet",
-        "host_rw": "erp-test-pg-cluster.cluster-ccx1mfaemtzc.eu-central-1.rds.amazonaws.com",
+        "bastion_host": "bastion-test.example.internal",
+        "host_rw": "example-test-pg-cluster.cluster-abc123.eu-central-1.rds.amazonaws.com",
         "remote_port": 5432,
         "local_port": 5434,
-        "db_name": "petspremium",
-        "db_user": "roger.dubar",
+        "db_name": "exampledb",
+        "db_user": "example.user",
         "vaultwarden_item": "",
     },
 ]
@@ -70,8 +70,8 @@ def test_target_host_falls_back_to_writer_when_no_reader():
 def test_tunnel_target_parses_ssh_command_line(monkeypatch):
     cmdline = (
         "ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -f -N -T -M "
-        "-L 127.0.0.1:5433:erp-live-pg-cluster.cluster-ro-ccx1mfaemtzc.eu-central-1.rds.amazonaws.com:5432 "
-        "tunnel@bastion-live.alpha.pet"
+        "-L 127.0.0.1:5433:example-live-pg-cluster.cluster-ro-abc123.eu-central-1.rds.amazonaws.com:5432 "
+        "tunnel@bastion-live.example.internal"
     )
 
     class FakeResult:
@@ -79,7 +79,7 @@ def test_tunnel_target_parses_ssh_command_line(monkeypatch):
 
     monkeypatch.setattr(tunnel.subprocess, "run", lambda *a, **k: FakeResult())
     target = tunnel._tunnel_target(1234)
-    assert target == "erp-live-pg-cluster.cluster-ro-ccx1mfaemtzc.eu-central-1.rds.amazonaws.com"
+    assert target == "example-live-pg-cluster.cluster-ro-abc123.eu-central-1.rds.amazonaws.com"
 
 
 def test_tunnel_target_returns_none_without_match(monkeypatch):
