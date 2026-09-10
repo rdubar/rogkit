@@ -98,9 +98,31 @@ def test_require_entry_prints_error_when_missing(monkeypatch, capsys):
     assert "No registered entry" in capsys.readouterr().out
 
 
-def test_rbw_password_missing_item_returns_none(monkeypatch):
+def test_entry_password_prefers_vaultwarden_item(monkeypatch):
+    monkeypatch.setattr(tunnel, "_rbw_password", lambda item: f"from-rbw:{item}")
+    entry = {"vaultwarden_item": "Some Item", "env_var": "SOME_PW"}
+    assert tunnel._entry_password(entry) == "from-rbw:Some Item"
+
+
+def test_entry_password_falls_back_to_env_var(monkeypatch):
+    monkeypatch.setenv("SOME_PW", "from-env")
+    entry = {"vaultwarden_item": "", "env_var": "SOME_PW"}
+    assert tunnel._entry_password(entry) == "from-env"
+
+
+def test_entry_password_reports_missing_env_var(monkeypatch, capsys):
     monkeypatch.setattr(tunnel, "RICH_AVAILABLE", False)
-    assert tunnel._rbw_password("") is None
+    monkeypatch.delenv("UNSET_PW", raising=False)
+    entry = {"vaultwarden_item": "", "env_var": "UNSET_PW"}
+    assert tunnel._entry_password(entry) is None
+    assert "UNSET_PW" in capsys.readouterr().out
+
+
+def test_entry_password_reports_nothing_configured(monkeypatch, capsys):
+    monkeypatch.setattr(tunnel, "RICH_AVAILABLE", False)
+    entry = {"vaultwarden_item": "", "env_var": ""}
+    assert tunnel._entry_password(entry) is None
+    assert "No vaultwarden_item or env_var" in capsys.readouterr().out
 
 
 def test_rbw_password_returns_stripped_stdout(monkeypatch):

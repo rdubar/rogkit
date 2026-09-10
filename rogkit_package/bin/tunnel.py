@@ -233,9 +233,6 @@ def cmd_close(args: argparse.Namespace) -> int:
 
 def _rbw_password(item: str) -> str | None:
     """Fetch a password via rbw. Returns None (with a printed reason) on failure."""
-    if not item:
-        _print_message("No vaultwarden_item configured for this entry.", style="red")
-        return None
     try:
         result = subprocess.run(["rbw", "get", item], capture_output=True, text=True)
     except FileNotFoundError:
@@ -250,8 +247,32 @@ def _rbw_password(item: str) -> str | None:
     return result.stdout.strip()
 
 
+def _entry_password(entry: dict) -> str | None:
+    """Fetch an entry's password: prefer rbw (vaultwarden_item), fall back to env_var.
+
+    The env_var fallback exists for systems not yet migrated to Vaultwarden (e.g. P2P,
+    which as of 2026-09-10 has no Vaultwarden entry at all -- confirmed via `rbw list`).
+    It carries the exact same staleness risk as the old .env_apv approach; prefer adding
+    a Vaultwarden entry and switching to vaultwarden_item when one exists.
+    """
+    item = entry.get("vaultwarden_item", "")
+    if item:
+        return _rbw_password(item)
+
+    env_var = entry.get("env_var", "")
+    if env_var:
+        value = os.environ.get(env_var)
+        if not value:
+            _print_message(f"${env_var} is not set in this shell's environment.", style="red")
+            return None
+        return value
+
+    _print_message("No vaultwarden_item or env_var configured for this entry.", style="red")
+    return None
+
+
 def cmd_db(args: argparse.Namespace) -> int:
-    """Ensure the tunnel is open, fetch the password via rbw, and exec psql."""
+    """Ensure the tunnel is open, fetch the password, and exec psql."""
     entry = _require_entry(args)
     if entry is None:
         return 1
@@ -259,7 +280,7 @@ def cmd_db(args: argparse.Namespace) -> int:
     if cmd_open(args) != 0:
         return 1
 
-    password = _rbw_password(entry.get("vaultwarden_item", ""))
+    password = _entry_password(entry)
     if password is None:
         return 1
 
@@ -276,19 +297,28 @@ def cmd_db(args: argparse.Namespace) -> int:
 
 
 def cmd_pw(args: argparse.Namespace) -> int:
-    """Fetch the password for an entry via rbw, printing or copying to clipboard."""
+    """Fetch the password for an entry, printing or copying it to the clipboard."""
     entry = _require_entry(args)
     if entry is None:
         return 1
+
     item = entry.get("vaultwarden_item", "")
-    if not item:
-        _print_message("No vaultwarden_item configured for this entry.", style="red")
+    if item:
+        cmd = ["rbw", "get", item]
+        if args.clipboard:
+            cmd.append("--clipboard")
+        result = subprocess.run(cmd)
+        return result.returncode
+
+    password = _entry_password(entry)
+    if password is None:
         return 1
-    cmd = ["rbw", "get", item]
     if args.clipboard:
-        cmd.append("--clipboard")
-    result = subprocess.run(cmd)
-    return result.returncode
+        subprocess.run(["pbcopy"], input=password.encode())
+        _print_message("Copied to clipboard.", style="green")
+    else:
+        print(password)
+    return 0
 
 
 def parse_args() -> argparse.Namespace:
