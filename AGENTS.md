@@ -258,6 +258,42 @@ the plist is per-machine and not committed. neo / pi follow the same pattern
 when set up — each generates its own age identity and its own
 `backup-recipients.txt` (machine-local; m3 / neo / pi do **not** share keys).
 
+## Tunnel
+
+`rogkit_package/bin/tunnel.py` (alias `tunnel`) manages SSH DB tunnels and credentials
+for ERP/Odoo13/P2P, replacing the old per-system aliases that used to live in
+`~/.zshrc_apv` (`tunnel_live`, `erp_live`, etc. -- now commented out there, 2026-09-10).
+
+Single registry: `[[tunnel.entry]]` blocks in `~/.config/rogkit/config.toml` (not
+committed -- machine-local, and not synced by the `~/dev` rsync between m3/neo; copy it
+manually to use `tunnel` on another machine). Each entry: `system`, `tier`,
+`bastion_user`, `bastion_host`, `host_ro`/`host_rw`, `remote_port`, `local_port`,
+`db_name`, `db_user`, and either `vaultwarden_item` (preferred -- fetched live via `rbw`
+at connect time) or `env_var` (fallback for systems not yet in Vaultwarden -- reads a
+static var from `~/.env_apv`, same staleness risk as the old aliases).
+
+| Command | Effect |
+|---|---|
+| `tunnel list` | Show every registered entry and open/closed status |
+| `tunnel status <system> <tier>` | Check a tunnel is open and verify its actual target host |
+| `tunnel open <system> <tier> [--writer]` | Open a tunnel (read-only endpoint by default) |
+| `tunnel close <system> <tier>` / `tunnel close --all` | Close tunnel(s) |
+| `tunnel db <system> <tier> [--writer]` | Open (if needed), fetch password, exec `psql` |
+| `tunnel pw <system> <tier> [-c]` | Fetch/print/clipboard-copy just the password |
+
+Registered systems (2026-09-10): `erp` (live/test), `odoo13-de` (live/test),
+`odoo13-uk` (live/test), `p2p` (test only). **Not** registered, deliberately: `p2p`
+admin credential (`P2P_ADMIN_PW`) -- has admin access on both P2P test and live, guarded
+by `p2p/.claude/hooks/block-live-odoo.sh`; adding it here would create a path that
+bypasses that hook's pattern-matching. "Puzzle" isn't a DB at all --
+`PUZZLE_TEST_PW` is a REST API credential for `internal_packages/puzzle_rest_api` in
+openerp-addons, out of scope for this tool.
+
+Known gaps: `erp`/test and `odoo13-*` have no Vaultwarden entries as of 2026-09-10 (only
+`OpenERP7_DB_PW - Live` exists for ERP) -- `erp`/test falls back to `$ERP_TEST_PW`.
+`odoo13-uk`/test's bastion/db were inferred from the confirmed DE/UK-live pattern, not
+independently connection-tested.
+
 ## Troubleshooting
 
 ### Pi 5 network choice
