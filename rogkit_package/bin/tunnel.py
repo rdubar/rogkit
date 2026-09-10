@@ -12,9 +12,10 @@ from __future__ import annotations
 import argparse
 import os
 import re
+import shutil
 import subprocess
 
-from .tomlr import get_config_value
+from .tomlr import get_config_value, get_rogkit_toml_path
 
 try:
     from rich.console import Console
@@ -29,6 +30,9 @@ except ModuleNotFoundError:  # pragma: no cover
 
 
 _TARGET_RE = re.compile(r"-L\s*127\.0\.0\.1:(\d+):([\w.\-]+):(\d+)")
+
+# Tiers treated as live/production for warning purposes. Checked case-insensitively.
+_LIVE_TIERS = {"live", "prod", "production"}
 
 
 def _print_message(message: str, *, style: str | None = None) -> None:
@@ -63,6 +67,17 @@ def _require_entry(args: argparse.Namespace) -> dict | None:
             style="red",
         )
     return entry
+
+
+def _warn_if_live(entry: dict) -> None:
+    """Print a loud warning before touching a live/production tier entry."""
+    tier = (entry.get("tier") or "").lower()
+    if tier in _LIVE_TIERS:
+        _print_message(
+            f"WARNING: {entry.get('system')}/{entry.get('tier')} is a LIVE/production "
+            "environment -- double-check before running anything that writes.",
+            style="bold red",
+        )
 
 
 def _target_host(entry: dict, *, writer: bool) -> str | None:
@@ -155,6 +170,7 @@ def cmd_open(args: argparse.Namespace) -> int:
     entry = _require_entry(args)
     if entry is None:
         return 1
+    _warn_if_live(entry)
 
     port = entry.get("local_port")
     host = _target_host(entry, writer=args.writer)
@@ -301,6 +317,7 @@ def cmd_pw(args: argparse.Namespace) -> int:
     entry = _require_entry(args)
     if entry is None:
         return 1
+    _warn_if_live(entry)
 
     item = entry.get("vaultwarden_item", "")
     if item:
@@ -321,12 +338,77 @@ def cmd_pw(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_setup(args: argparse.Namespace) -> int:
+    """Check prerequisites: rbw, psql, and the tunnel entry registry."""
+    ok = True
+    _print_message("Checking tunnel prerequisites...", style="bold")
+
+    if shutil.which("rbw"):
+        result = subprocess.run(["rbw", "unlocked"], capture_output=True, text=True)
+        if result.returncode == 0:
+            _print_message("  rbw: installed and unlocked", style="green")
+        else:
+            _print_message("  rbw: installed but locked -- run 'rbw unlock' before 'tunnel db/pw'", style="yellow")
+    else:
+        _print_message("  rbw: not found -- install with 'brew install rbw'", style="red")
+        ok = False
+
+    if shutil.which("psql"):
+        _print_message("  psql: found", style="green")
+    else:
+        _print_message("  psql: not found -- 'tunnel db' needs it on PATH", style="red")
+        ok = False
+
+    config_path = get_rogkit_toml_path()
+    if not config_path.exists():
+        _print_message(f"  config: {config_path} does not exist", style="red")
+        ok = False
+    else:
+        entries = _entries()
+        if entries:
+            registered = ", ".join(sorted(f"{e.get('system')}/{e.get('tier')}" for e in entries))
+            _print_message(f"  config: {config_path} ({len(entries)} entries: {registered})", style="green")
+        else:
+            _print_message(
+                f"  config: {config_path} exists but has no [[tunnel.entry]] blocks -- "
+                "see rogkit/AGENTS.md's Tunnel section for the entry template.",
+                style="yellow",
+            )
+
+    if ok:
+        _print_message("All checks passed.", style="green")
+        return 0
+    _print_message("Some checks failed -- see above.", style="red")
+    return 1
+
+
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
-        description="Manage SSH DB tunnels and live-fetched credentials for ERP/Odoo13/P2P systems."
+        description=(
+            "Manage SSH DB tunnels and live-fetched credentials for ERP/Odoo13/P2P systems.\n\n"
+            "How it works: each system/tier is one [[tunnel.entry]] block in "
+            "~/.config/rogkit/config.toml (bastion host, DB host, ports) -- one registry "
+            "instead of a separate shell alias or ssh command per system. Passwords are never "
+            "stored in that file: at connect time they're fetched live from a password manager "
+            "(via rbw/Vaultwarden), so a rotated credential is picked up automatically instead "
+            "of silently going stale."
+        ),
+        epilog=(
+            "Examples:\n"
+            "  tunnel setup                   check rbw/psql/config prerequisites\n"
+            "  tunnel list                    see what's registered and what's open\n"
+            "  tunnel open erp test           open a tunnel to ERP test (read-only host)\n"
+            "  tunnel db erp live --writer    open + psql into ERP live (writer host)\n"
+            "  tunnel pw p2p test -c          copy the p2p/test password to the clipboard\n\n"
+            "Full docs: rogkit/AGENTS.md, \"Tunnel\" section."
+        ),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
     )
     sub = parser.add_subparsers(dest="command", required=True)
+
+    p_setup = sub.add_parser("setup", help="Check prerequisites: rbw, psql, and the entry registry")
+    p_setup.set_defaults(func=cmd_setup)
 
     p_list = sub.add_parser("list", help="List all registered entries and their status")
     p_list.add_argument("--plain", action="store_true", help="Plain text output")
