@@ -437,6 +437,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
             sort="added",
             reverse=args.reverse,
             deep=False,
+            include_episodes=False,
         )
         if not rows:
             print("No media found in the Plex database.")

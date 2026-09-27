@@ -325,9 +325,12 @@ def run_pretty_search(
     sort: str,
     reverse: bool,
     deep: bool,
+    include_episodes: bool = True,
 ) -> Tuple[List[Any], Optional[int]]:
     """Run a pretty search (title, parent, grandparent) against the Plex database."""
     records = load_cached_records(db_path)
+    if not include_episodes:
+        records = [record for record in records if record.get("metadata_type") != 4]
 
     def _apply_sort(items: List[Dict[str, Any]]) -> None:
         if sort == "title":
