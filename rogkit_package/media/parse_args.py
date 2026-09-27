@@ -140,6 +140,11 @@ def parse_args(argv: Optional[Iterable[str]] = None) -> argparse.Namespace:
         help="Short form for --stop-daemon.",
     )
     parser.add_argument(
+        "--restart-daemon",
+        action="store_true",
+        help="Restart the media daemon if it is running (e.g. after updating rogkit).",
+    )
+    parser.add_argument(
         "--no-daemon",
         action="store_true",
         help="Run locally without attempting to use the background daemon.",

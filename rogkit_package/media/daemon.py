@@ -217,7 +217,7 @@ class MediaDaemon:
                 response = {"status": "ok", "message": "Shutting down"}
             elif action == "execute":
                 argv = [str(arg) for arg in payload.get("argv", [])]
-                if any(flag in argv for flag in ("--daemon", "--stop-daemon")):
+                if any(flag in argv for flag in ("--daemon", "--stop-daemon", "--restart-daemon")):
                     response = {
                         "status": "error",
                         "error": "Nested daemon commands are not supported inside the daemon.",

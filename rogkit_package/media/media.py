@@ -53,6 +53,7 @@ from .media_cache import (
 from .daemon import (
     MediaDaemon,
     daemon_env_guard,
+    ping_daemon as _daemon_ping,
     request_daemon_shutdown as _daemon_request_shutdown,
     send_daemon_message as _daemon_send_message,
     spawn_daemon_process as _daemon_spawn_process,
@@ -153,6 +154,34 @@ def _request_daemon_shutdown() -> bool:
         _daemon_socket_path(),
         timeout=DAEMON_REQUEST_TIMEOUT_SECONDS,
     )
+
+
+def _restart_daemon_if_running() -> int:
+    """Restart the media daemon so it picks up new code; no-op if it isn't running."""
+    socket_path = _daemon_socket_path()
+    if not _daemon_ping(socket_path):
+        print("No media daemon running; nothing to restart.")
+        return 0
+    # A failed request is fine if the daemon was already on its way out (e.g.
+    # right after `p -S`); what matters is that its socket goes away.
+    _request_daemon_shutdown()
+    # The old daemon removes its socket on exit. Spawning before then would let
+    # it delete the new daemon's socket, leaving that daemon unreachable.
+    deadline = time.monotonic() + DAEMON_STARTUP_TIMEOUT_SECONDS
+    while socket_path.exists() and time.monotonic() < deadline:
+        time.sleep(0.1)
+    if socket_path.exists():
+        print("media: failed to stop the running daemon.", file=sys.stderr)
+        return 1
+    if not _spawn_daemon_process():
+        print("media: daemon stopped but could not be relaunched.", file=sys.stderr)
+        return 1
+    if not _wait_for_daemon_startup(time.monotonic() + DAEMON_STARTUP_TIMEOUT_SECONDS):
+        print("media: daemon relaunched but did not become ready.", file=sys.stderr)
+        return 1
+    print("Restarted media daemon.")
+    return 0
+
 
 def _execute_cli_in_daemon(argv: Sequence[str]) -> Tuple[int, str, str]:
     stdout_buffer = io.StringIO()
@@ -302,6 +331,7 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
         and not args.no_daemon
         and not args.daemon
         and not args.stop_daemon
+        and not args.restart_daemon
         and not is_update_request
     )
 
@@ -323,6 +353,9 @@ def main(argv: Optional[Iterable[str]] = None) -> int:
     # normalize short flag for stop
     if getattr(args, "stop_daemon_short", False):
         args.stop_daemon = True
+
+    if args.restart_daemon:
+        return _restart_daemon_if_running()
 
     if args.stop_daemon:
         if _request_daemon_shutdown():
