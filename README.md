@@ -352,9 +352,13 @@ p --stats             # aggregate totals
 If the daemon gets into a bad state:
 
 ```sh
-p -S    # stop daemon
-p       # next run restarts it automatically
+p -S                # stop daemon
+p                   # next run restarts it automatically
+p --restart-daemon  # or restart it now (no-op if it isn't running)
 ```
+
+`rogkit update` restarts a running daemon for you, so it never keeps serving
+code from before the update.
 
 ---
 
@@ -498,7 +502,8 @@ currently supports macOS plus `apt`-based Linux distributions (Debian, Ubuntu,
 Raspberry Pi OS). It fast-forwards the repo and then rebuilds the Go binaries
 via `scripts/build_go.sh` unconditionally — `go install` is incremental and
 cached, so a no-op rebuild costs nothing, and doing it every time is what stops
-a newly added or locally edited tool from being left unbuilt.
+a newly added or locally edited tool from being left unbuilt. A running media
+daemon is then restarted so it picks up the new code.
 
 ---
 

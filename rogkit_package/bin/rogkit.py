@@ -4,8 +4,10 @@
 from __future__ import annotations
 
 import argparse
+import os
 import shutil
 import subprocess
+import sys
 from pathlib import Path
 
 from .. import __author__, __license__, __title__, __url__, __version__
@@ -92,9 +94,13 @@ def _run_update(argv: list[str] | None = None) -> int:
     if bash_path is None:
         print("Error: `bash` is required to run the rogkit updater.")
         return 1
+    # Tell the script which interpreter rogkit runs under, as a fallback for
+    # the steps it runs in Python (e.g. restarting the media daemon).
+    env = {**os.environ, "ROGKIT_PYTHON": sys.executable}
     result = subprocess.run(
         [bash_path, str(script_path), *(argv or [])],
         check=False,
+        env=env,
     )
     return result.returncode
 

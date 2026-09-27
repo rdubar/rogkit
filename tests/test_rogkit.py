@@ -78,3 +78,16 @@ def test_help_topic_dispatches_to_doctor_help(monkeypatch):
 
     assert rc == 0
     assert calls == [["--help"]]
+
+
+def test_run_update_passes_interpreter_to_script(monkeypatch):
+    seen = {}
+
+    def fake_run(cmd, check, env):
+        seen["env"] = env
+        return type("Result", (), {"returncode": 0})()
+
+    monkeypatch.setattr(rogkit.subprocess, "run", fake_run)
+
+    assert rogkit._run_update(["--help"]) == 0
+    assert seen["env"]["ROGKIT_PYTHON"] == rogkit.sys.executable

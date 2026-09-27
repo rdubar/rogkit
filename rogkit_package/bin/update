@@ -32,7 +32,8 @@ Options:
 
 Also pulls the rogkit repo (fast-forward only), then rebuilds the Go
 binaries via scripts/build_go.sh — always, not just when the pull brought
-changes in, so a new or locally edited tool is never left unbuilt.
+changes in, so a new or locally edited tool is never left unbuilt. If the
+media daemon is running it is restarted too, so it serves the new code.
 
 Platforms supported: Debian/Ubuntu/Raspberry Pi OS, macOS (Homebrew)
 EOF
@@ -116,6 +117,27 @@ rebuild_go() {
         return
     fi
     "$REPO_ROOT/scripts/build_go.sh"
+}
+
+# A running media daemon keeps the code it started with in memory, so after
+# an update it would keep serving old behaviour until killed. Like the Go
+# rebuild this is unconditional: a manual `git pull` goes stale the same way,
+# and the restart is a no-op when no daemon is running.
+restart_media_daemon() {
+    section "Media daemon"
+
+    # Prefer the repo venv: it is what `p` spawns the daemon under, and it has
+    # the media dependency group that a uv-tool install may lack.
+    local python
+    if [[ -x "$REPO_ROOT/.venv/bin/python" ]]; then
+        python="$REPO_ROOT/.venv/bin/python"
+    elif [[ -n "${ROGKIT_PYTHON:-}" ]]; then
+        python="$ROGKIT_PYTHON"
+    else
+        python=$(command -v python3) || { echo "  python3 not found — skipping"; return; }
+    fi
+    (cd "$REPO_ROOT" && PYTHONPATH="$REPO_ROOT" "$python" -m rogkit_package.media.media --restart-daemon) \
+        | sed 's/^/  /'
 }
 
 # --- Debian/Ubuntu/Raspberry Pi OS ---
@@ -226,6 +248,7 @@ fi
 
 update_self
 rebuild_go
+restart_media_daemon
 
 case "$(uname -s)" in
     Linux)
