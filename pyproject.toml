@@ -45,13 +45,15 @@ dependencies = [
   "toml",
   "tqdm",
   "wikipedia",
-  "yt-dlp",
+  "yt-dlp[default]",
+  "secretstorage",  # lets yt-dlp read Chromium cookies from GNOME Keyring
   "rich",
 ]
 
 [project.optional-dependencies]
 media = [
-  "yt-dlp",
+  "yt-dlp[default]",
+  "secretstorage",
   "ffmpeg-python",
   "Pillow",
   "plexapi",
@@ -106,7 +108,7 @@ rk = "rogkit_package.bin.rogkit:main"
 
 [dependency-groups]
 cli = ["pyclip", "pyfiglet", "send2trash", "thefuzz", "sh", "spotipy", "psutil", "openai", "requests-html", "faker", "convertdate", "wikipedia"]
-media = ["yt-dlp", "ffmpeg-python", "Pillow", "plexapi", "paramiko", "python-dotenv"]
+media = ["yt-dlp[default]", "secretstorage", "ffmpeg-python", "Pillow", "plexapi", "paramiko", "python-dotenv"]
 db = ["sqlalchemy", "pymongo"]
 data = ["pandas", "numpy", "matplotlib", "python-dateutil", "pytz", "reportlab", "folium", "geopy"]
 aws = ["boto3", "botocore"]

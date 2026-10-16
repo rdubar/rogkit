@@ -74,3 +74,32 @@ def test_plain_flag_suppresses_rich_styling(monkeypatch, capsys):
 
     # Reset the module flag so other tests aren't affected by ordering.
     vido._PLAIN_OUTPUT = False
+
+
+def _make_config(tmp_path, extra=""):
+    path = tmp_path / "config.toml"
+    path.write_text(
+        '[vido]\ntemp_folder = "/tmp"\ndownload_folder = "/tmp"\ndefault_input_file = ""\n' + extra
+    )
+    return vido.Config(str(path))
+
+
+def test_cookie_options_empty_by_default(tmp_path):
+    assert _make_config(tmp_path).get_cookie_options() == {}
+
+
+def test_cookie_options_from_browser_with_profile(tmp_path):
+    config = _make_config(tmp_path, 'cookies_from_browser = "chrome:Profile 1"\n')
+    assert config.get_cookie_options() == {"cookiesfrombrowser": ("chrome", "Profile 1", None, None)}
+    assert config.get_download_options()["cookiesfrombrowser"][0] == "chrome"
+
+
+def test_cookie_options_from_browser_with_keyring(tmp_path):
+    config = _make_config(tmp_path, 'cookies_from_browser = "chromium+gnomekeyring"\n')
+    assert config.get_cookie_options() == {"cookiesfrombrowser": ("chromium", None, "GNOMEKEYRING", None)}
+    assert config.get_download_options()["noplaylist"] is True
+
+
+def test_cookie_file_takes_precedence(tmp_path):
+    config = _make_config(tmp_path, 'cookies_file = "~/c.txt"\ncookies_from_browser = "firefox"\n')
+    assert config.get_cookie_options() == {"cookiefile": str(Path("~/c.txt").expanduser())}

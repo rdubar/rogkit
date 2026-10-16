@@ -85,6 +85,9 @@ folders = [
 temp_folder = ""
 download_folder = ""
 default_input_file = ""
+# For age-restricted videos, set ONE of these (cookies from a browser signed in to YouTube):
+# cookies_from_browser = "chromium+gnomekeyring"   # Pi labwc desktop; or "firefox", "brave", "chrome:Profile 1"
+# cookies_file = "~/.config/rogkit/youtube_cookies.txt"
 
 # ── secrets.toml (gitignored, local backup only) ────────────────────────────
 # [aws]

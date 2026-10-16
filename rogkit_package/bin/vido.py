@@ -24,6 +24,8 @@ Usage:
   `python vido.py -c "/path/to/config.toml"`
 - Use the `-d` or `--debug` flag to enable debug mode:
   `python vido.py -d "search_term_or_url"`
+- Use `--cookies-from-browser firefox` or `--cookies cookies.txt` for age-restricted videos
+  (or set `cookies_from_browser` / `cookies_file` in the [vido] config section).
 - If no arguments are provided, the script will prompt for input.
 """
 
@@ -75,27 +77,72 @@ class Config:
             self.temp_folder = self.config['vido']['temp_folder']
             self.download_folder = self.config['vido']['download_folder']
             self.default_input_file = self.config['vido']['default_input_file']
+            # Optional: cookies let yt_dlp fetch age-restricted / sign-in-only videos
+            self.cookies_file = self.config['vido'].get('cookies_file') or None
+            self.cookies_from_browser = self.config['vido'].get('cookies_from_browser') or None
+            self.debug = False
         except Exception as e:
             _print_message(f"Failed to load [vido] section of config file {config_file}: {e}", style="magenta")
             exit(1)
 
+    def get_cookie_options(self):
+        """Get yt_dlp cookie options from a cookies.txt file or a browser profile."""
+        if self.cookies_file:
+            return {"cookiefile": os.path.expanduser(self.cookies_file)}
+        if self.cookies_from_browser:
+            # yt-dlp syntax: BROWSER[+KEYRING][:PROFILE][::CONTAINER], e.g. "chromium+gnomekeyring"
+            spec, _, container = self.cookies_from_browser.partition("::")
+            spec, _, profile = spec.partition(":")
+            browser, _, keyring = spec.partition("+")
+            return {"cookiesfrombrowser": (
+                browser.lower(), profile or None, keyring.upper() or None, container or None,
+            )}
+        return {}
+
+    def get_base_options(self):
+        """Options shared by title lookup and download: cookies plus JS runtimes for YouTube challenges."""
+        return {"js_runtimes": {"deno": {}, "node": {}}, **self.get_cookie_options()}
+
     def get_download_options(self):
         """Get yt_dlp download options with format and output template."""
         return {
+            "noplaylist": True,  # a watch URL with &list= downloads just that video
             "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
             "outtmpl": os.path.join(self.temp_folder, "%(title).80s-%(id)s.%(ext)s"),  # Include temp_folder in output template
+            "verbose": self.debug,
+            **self.get_base_options(),
         }
 
-def get_title_from_url(url):
+
+def _print_error_hint(error: Exception) -> None:
+    """Suggest a fix based on the yt_dlp error message."""
+    text = str(error).lower()
+    if any(k in text for k in ("age", "sign in", "inappropriate", "cookies")):
+        _print_message(
+            "This video needs a signed-in session (e.g. age-restricted). Retry with "
+            "`vido --cookies-from-browser firefox URL` or `vido --cookies cookies.txt URL`, "
+            "or set cookies_from_browser / cookies_file in the [vido] config. "
+            "On the Pi's labwc desktop use `chromium+gnomekeyring` (yt-dlp can't auto-detect the keyring there).",
+            style="cyan",
+        )
+    else:
+        _print_message("If this site used to work, try `vido --update` to get the latest yt_dlp.", style="cyan")
+
+
+def get_title_from_url(url, config=None):
     """Extract video title from URL using yt_dlp."""
-    ydl_opts = {'quiet': True, 'no_warnings': True, 'skip_download': True}
+    ydl_opts = {'quiet': True, 'no_warnings': True, 'skip_download': True, 'noplaylist': True}
+    if config is not None:
+        ydl_opts.update(config.get_base_options())
+        if config.debug:  # show yt_dlp's cookie extraction and request details
+            ydl_opts.update(quiet=False, no_warnings=False, verbose=True)
     try:
         with YoutubeDL(ydl_opts) as ydl:
             info_dict = ydl.extract_info(url, download=False)
             return info_dict.get('title', None)
     except Exception as e:
         _print_message(f"Error fetching title with yt_dlp: {e}", style="magenta")
-        _print_message("If this site used to work, try `vido --update` to get the latest yt_dlp.", style="cyan")
+        _print_error_hint(e)
         return None
 
 def set_directory(directory=None):
@@ -135,7 +182,7 @@ def process_lines(lines, config):
 
 def process_url(url, config):
     """Download video from URL and move to final destination."""
-    title = get_title_from_url(url)
+    title = get_title_from_url(url, config)
     if not title:
         _print_message("Skipping URL due to title fetch failure.", style="magenta")
         return
@@ -151,7 +198,7 @@ def process_url(url, config):
 
     except Exception as e:
         _print_message(f"Error downloading {url}\n{e}", style="magenta")
-        _print_message("If this site used to work, try `vido --update` to get the latest yt_dlp.", style="cyan")
+        _print_error_hint(e)
         return
 
     _print_message(f"Downloaded to {final_output}", style="green")
@@ -316,6 +363,16 @@ def main(argv: list[str] | None = None) -> int:
         action="store_true",
         help="Check the yt-dlp update path without changing the lockfile or environment"
     )
+    parser.add_argument(
+        "--cookies",
+        metavar="FILE",
+        help="Netscape cookies.txt file for sign-in / age-restricted videos (overrides config)"
+    )
+    parser.add_argument(
+        "--cookies-from-browser",
+        metavar="BROWSER[:PROFILE]",
+        help="Load cookies from a browser: BROWSER[+KEYRING][:PROFILE], e.g. firefox, chromium+gnomekeyring (overrides config)"
+    )
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("-p", "--plain", action="store_true", help="Plain text output")
     args = parser.parse_args(argv)
@@ -351,6 +408,11 @@ def main(argv: list[str] | None = None) -> int:
         return 1
 
     config = Config(args.config)
+    config.debug = args.debug
+    if args.cookies:
+        config.cookies_file, config.cookies_from_browser = args.cookies, None
+    elif args.cookies_from_browser:
+        config.cookies_file, config.cookies_from_browser = None, args.cookies_from_browser
 
     if args.search:
         search = args.search
