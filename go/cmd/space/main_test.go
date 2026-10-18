@@ -50,6 +50,35 @@ func TestPercentOf(t *testing.T) {
 	}
 }
 
+func TestUsageOf(t *testing.T) {
+	cases := []struct {
+		name                string
+		total, free, avail  uint64
+		wantUsed, wantAvail uint64
+		wantReserved        uint64
+		wantPct             float64
+	}{
+		// exFAT/APFS: no reserve, so df-style and used/total agree.
+		{"no reserve", 1000, 400, 400, 600, 400, 0, 60},
+		// ext4 with a 5% reserve: Free drops to f_bavail and the
+		// percentage is measured against usable space, as df does.
+		{"ext4 reserve", 1000, 400, 350, 600, 350, 50, 600.0 / 950 * 100},
+		// Full for ordinary users even though root could still write.
+		{"reserve only left", 1000, 50, 0, 950, 0, 50, 100},
+		{"empty filesystem", 0, 0, 0, 0, 0, 0, 0},
+		// Defensive clamps: inconsistent statfs data must not underflow.
+		{"avail above free", 1000, 400, 500, 600, 400, 0, 60},
+		{"free above total", 1000, 1200, 1200, 0, 1000, 0, 0},
+	}
+	for _, c := range cases {
+		u := usageOf(c.total, c.free, c.avail)
+		if u.used != c.wantUsed || u.avail != c.wantAvail || u.reserved != c.wantReserved || u.pct != c.wantPct {
+			t.Errorf("%s: usageOf(%d, %d, %d) = %+v, want used=%d avail=%d reserved=%d pct=%v",
+				c.name, c.total, c.free, c.avail, u, c.wantUsed, c.wantAvail, c.wantReserved, c.wantPct)
+		}
+	}
+}
+
 func TestDedupeByDevice(t *testing.T) {
 	rows := []row{
 		{path: "/a", dev: 1},

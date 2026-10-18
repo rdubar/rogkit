@@ -20,6 +20,7 @@ type row struct {
 	path  string
 	total uint64
 	free  uint64
+	avail uint64
 	dev   uint64
 }
 
@@ -53,6 +54,7 @@ func main() {
 		for _, r := range rows {
 			t.total += r.total
 			t.free += r.free
+			t.avail += r.avail
 		}
 		totalRow = &t
 	}
@@ -84,13 +86,14 @@ func printJSON(rows []row, totalRow *row) {
 }
 
 func jsonRow(r row) map[string]any {
-	used := r.total - r.free
+	u := usageOf(r.total, r.free, r.avail)
 	return map[string]any{
-		"path":        r.path,
-		"total_bytes": r.total,
-		"used_bytes":  used,
-		"free_bytes":  r.free,
-		"usage_pct":   percentOf(used, r.total),
+		"path":           r.path,
+		"total_bytes":    r.total,
+		"used_bytes":     u.used,
+		"free_bytes":     u.avail,
+		"reserved_bytes": u.reserved,
+		"usage_pct":      u.pct,
 	}
 }
 
@@ -142,7 +145,7 @@ func gatherRows(paths []string) []row {
 		if err != nil {
 			continue
 		}
-		rows = append(rows, row{path: p, total: st.total, free: st.free, dev: st.dev})
+		rows = append(rows, row{path: p, total: st.total, free: st.free, avail: st.avail, dev: st.dev})
 	}
 	return rows
 }
@@ -161,6 +164,57 @@ func dedupeByDevice(rows []row) []row {
 		out = append(out, r)
 	}
 	return out
+}
+
+// usage is the derived view of one mount that every output format shows.
+type usage struct {
+	used, avail, reserved uint64
+	pct                   float64
+}
+
+// usageOf follows df(1)'s accounting rather than the old Python tool's:
+//
+//   - used = total - f_bfree (blocks actually holding data)
+//   - Free = f_bavail, the space an ordinary user can still write
+//   - pct  = used / (used + f_bavail)
+//
+// The difference only shows on filesystems with a root reserve (ext4
+// reserves 5% by default; exFAT, APFS and most network mounts reserve
+// nothing, so all three formulas agree there). On the Pi's 984 GB ext4
+// root the old f_bfree figure claimed ~40 GB more free space than could
+// actually be written, and the percentage understated how close a disk
+// was to being full for normal use.
+//
+// Alternatives considered:
+//
+//   - Keep Free = f_bfree and pct = used / total (the Python tool's
+//     behaviour): columns add up neatly to Total, but it overstates usable
+//     space, which is exactly the number people read this tool for.
+//   - Free = f_bavail but pct = used / total: honest Free column, but the
+//     percentage would still never reach 100% on ext4 even when writes fail
+//     with ENOSPC, and would disagree with df.
+//   - An extra "Reserved" column in the table: complete, but widens the
+//     table for a detail that's zero on every media disk. The figure is
+//     exposed as reserved_bytes in --json instead, so Used + Free +
+//     Reserved still reconciles to Total for anyone who needs it.
+//
+// The trade-off accepted: on ext4, Used + Free is less than Total by the
+// reserve. drift's stored usage_pct for ext4 mounts steps up by a few
+// points once, from the first snapshot taken after this change.
+func usageOf(total, free, avail uint64) usage {
+	if free > total {
+		free = total
+	}
+	if avail > free {
+		avail = free
+	}
+	used := total - free
+	return usage{
+		used:     used,
+		avail:    avail,
+		reserved: free - avail,
+		pct:      percentOf(used, used+avail),
+	}
 }
 
 func percentOf(used, total uint64) float64 {
@@ -202,10 +256,9 @@ func printPlain(rows []row, totalRow *row) {
 }
 
 func printPlainRow(r row) {
-	used := r.total - r.free
-	pct := percentOf(used, r.total)
+	u := usageOf(r.total, r.free, r.avail)
 	fmt.Printf("%-20s | %10s | %10s | %10s | %5.2f%%\n",
-		r.path, byteSize(r.total), byteSize(used), byteSize(r.free), pct)
+		r.path, byteSize(r.total), byteSize(u.used), byteSize(u.avail), u.pct)
 }
 
 var siUnits = []string{"bytes", "KB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"}

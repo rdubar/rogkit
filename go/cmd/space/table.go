@@ -80,9 +80,11 @@ func newHeaderRow(c colors) tableRow {
 
 var rightAlign = []bool{false, true, true, true, true}
 
-func formatRow(c colors, path string, total, free uint64) tableRow {
-	used := total - free
-	pct := percentOf(used, total)
+// formatRow takes the raw statfs figures and renders them through usageOf,
+// so the table, plain, and JSON outputs can't drift apart.
+func formatRow(c colors, path string, total, free, avail uint64) tableRow {
+	u := usageOf(total, free, avail)
+	pct := u.pct
 	severity := c.ok
 	switch {
 	case pct >= 95:
@@ -91,13 +93,13 @@ func formatRow(c colors, path string, total, free uint64) tableRow {
 		severity = c.warn
 	}
 	return tableRow{
-		cells:      []string{path, byteSize(total), byteSize(used), byteSize(free), fmt.Sprintf("%.2f%%", pct)},
+		cells:      []string{path, byteSize(total), byteSize(u.used), byteSize(u.avail), fmt.Sprintf("%.2f%%", pct)},
 		cellStyles: []string{c.path, severity, severity, severity, severity},
 	}
 }
 
-func formatTotalRow(c colors, path string, total, free uint64) tableRow {
-	tr := formatRow(c, path, total, free)
+func formatTotalRow(c colors, path string, total, free, avail uint64) tableRow {
+	tr := formatRow(c, path, total, free, avail)
 	for i := range tr.cellStyles {
 		tr.cellStyles[i] = c.header
 	}
@@ -184,10 +186,10 @@ func printTable(rows []row, totalRow *row) {
 
 	trs := make([]tableRow, 0, len(rows)+1)
 	for _, r := range rows {
-		trs = append(trs, formatRow(c, r.path, r.total, r.free))
+		trs = append(trs, formatRow(c, r.path, r.total, r.free, r.avail))
 	}
 	if totalRow != nil {
-		trs = append(trs, formatTotalRow(c, totalRow.path, totalRow.total, totalRow.free))
+		trs = append(trs, formatTotalRow(c, totalRow.path, totalRow.total, totalRow.free, totalRow.avail))
 	}
 
 	header := newHeaderRow(c)

@@ -5,15 +5,16 @@ import "testing"
 func TestFormatRowSeverity(t *testing.T) {
 	c := trueColorPalette()
 	cases := []struct {
-		total, free uint64
-		wantStyle   string
+		total, free, avail uint64
+		wantStyle          string
 	}{
-		{100, 50, c.ok},   // 50% used
-		{100, 15, c.warn}, // 85% used
-		{100, 2, c.crit},  // 98% used
+		{100, 50, 50, c.ok},   // 50% used
+		{100, 15, 15, c.warn}, // 85% used
+		{100, 2, 2, c.crit},   // 98% used
+		{100, 22, 17, c.warn}, // 78% of Total, but 78/(78+17) = 82% of usable space
 	}
 	for _, tc := range cases {
-		tr := formatRow(c, "/x", tc.total, tc.free)
+		tr := formatRow(c, "/x", tc.total, tc.free, tc.avail)
 		if tr.cellStyles[1] != tc.wantStyle {
 			t.Errorf("total=%d free=%d: got style %q, want %q", tc.total, tc.free, tr.cellStyles[1], tc.wantStyle)
 		}
@@ -22,7 +23,7 @@ func TestFormatRowSeverity(t *testing.T) {
 
 func TestFormatTotalRowAllHeaderStyle(t *testing.T) {
 	c := trueColorPalette()
-	tr := formatTotalRow(c, "TOTAL", 100, 2)
+	tr := formatTotalRow(c, "TOTAL", 100, 2, 2)
 	for i, style := range tr.cellStyles {
 		if style != c.header {
 			t.Errorf("cell %d: got style %q, want %q", i, style, c.header)
@@ -34,7 +35,7 @@ func TestColumnWidths(t *testing.T) {
 	c := trueColorPalette()
 	header := newHeaderRow(c)
 	rows := []tableRow{
-		formatRow(c, "/mnt/very-long-path-name", 100, 50),
+		formatRow(c, "/mnt/very-long-path-name", 100, 50, 50),
 	}
 	widths := columnWidths(header, rows)
 	if widths[0] != len("/mnt/very-long-path-name") {

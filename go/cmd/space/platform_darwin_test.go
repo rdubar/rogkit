@@ -15,6 +15,9 @@ func TestStatfsRoot(t *testing.T) {
 	if st.free > st.total {
 		t.Fatalf("free (%d) exceeds total (%d)", st.free, st.total)
 	}
+	if st.avail > st.free {
+		t.Fatalf("avail (%d) exceeds free (%d)", st.avail, st.free)
+	}
 	if st.dev == 0 {
 		t.Fatal("expected non-zero device id for /")
 	}

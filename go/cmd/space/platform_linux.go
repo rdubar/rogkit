@@ -11,7 +11,8 @@ import (
 
 type mountStats struct {
 	total uint64
-	free  uint64
+	free  uint64 // every unused block (f_bfree), including any root reserve
+	avail uint64 // blocks an unprivileged user can write (f_bavail)
 	dev   uint64
 }
 
@@ -36,6 +37,7 @@ func statfs(path string) (mountStats, error) {
 	return mountStats{
 		total: st.Blocks * unit,
 		free:  st.Bfree * unit,
+		avail: st.Bavail * unit,
 		dev:   dev,
 	}, nil
 }
