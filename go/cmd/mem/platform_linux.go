@@ -40,3 +40,31 @@ func totalMemory() (uint64, error) {
 	}
 	return 0, fmt.Errorf("MemTotal not found in /proc/meminfo")
 }
+
+// applyFootprint adds each process's swapped-out memory (VmSwap) to its
+// RSS, so a process the kernel has pushed to swap still ranks by what it
+// really holds. Unreadable /proc entries (other users, exited) keep RSS.
+func applyFootprint(procs []proc) {
+	for i := range procs {
+		data, err := os.ReadFile(fmt.Sprintf("/proc/%d/status", procs[i].pid))
+		if err != nil {
+			continue
+		}
+		procs[i].rss += parseVmSwap(string(data))
+	}
+}
+
+func parseVmSwap(status string) uint64 {
+	for _, line := range strings.Split(status, "\n") {
+		if !strings.HasPrefix(line, "VmSwap:") {
+			continue
+		}
+		fields := strings.Fields(line)
+		if len(fields) < 2 {
+			return 0
+		}
+		kb, _ := strconv.ParseUint(fields[1], 10, 64)
+		return kb * 1024
+	}
+	return 0
+}

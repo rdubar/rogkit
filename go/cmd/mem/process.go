@@ -10,7 +10,8 @@ import (
 	"strings"
 )
 
-// proc is one running process: RSS in bytes plus both the raw ps `comm`
+// proc is one running process: memory in bytes (RSS from ps, upgraded to
+// the full footprint by applyFootprint where the platform allows) plus both the raw ps `comm`
 // (used for pattern matching, since it carries the full path) and the
 // basename derived from it (used for display and grouping).
 type proc struct {
@@ -59,7 +60,11 @@ func readProcs() ([]proc, error) {
 			rss:  rssKB * 1024,
 		})
 	}
-	return procs, scanner.Err()
+	if err := scanner.Err(); err != nil {
+		return nil, err
+	}
+	applyFootprint(procs)
+	return procs, nil
 }
 
 // helperSuffix strips Chromium/Electron-style helper-process suffixes (e.g.
