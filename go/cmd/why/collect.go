@@ -29,12 +29,14 @@ func siblingBinary(name string) string {
 
 // sysStats mirrors the fields why cares about from `sysreboot --json`.
 type sysStats struct {
-	Cores        int     `json:"cores"`
-	Load1        float64 `json:"load1"`
-	MemTotal     uint64  `json:"mem_total"`
-	MemAvailable uint64  `json:"mem_available"`
-	SwapTotal    uint64  `json:"swap_total"`
-	SwapUsed     uint64  `json:"swap_used"`
+	Cores        int      `json:"cores"`
+	Load1        float64  `json:"load1"`
+	MemTotal     uint64   `json:"mem_total"`
+	MemAvailable uint64   `json:"mem_available"`
+	SwapTotal    uint64   `json:"swap_total"`
+	SwapUsed     uint64   `json:"swap_used"`
+	Pressure     string   `json:"mem_pressure"`
+	Warnings     []string `json:"warnings"`
 }
 
 func collectSysStats() (sysStats, bool) {
@@ -42,10 +44,9 @@ func collectSysStats() (sysStats, bool) {
 	if bin == "" {
 		return sysStats{}, false
 	}
-	out, err := exec.Command(bin, "--json").Output()
-	if err != nil {
-		return sysStats{}, false
-	}
+	// sysreboot exits non-zero when it has something to say, so only a
+	// missing/garbled payload counts as failure.
+	out, _ := exec.Command(bin, "--json").Output()
 	var s sysStats
 	if err := json.Unmarshal(out, &s); err != nil {
 		return sysStats{}, false

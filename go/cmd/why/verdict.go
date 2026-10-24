@@ -10,11 +10,13 @@ const (
 	memAvailablePctThreshold = 15.0
 	loadRatioThreshold       = 1.5
 	memPctThreshold          = 25.0
+	swapRAMHeavyRatio        = 0.50 // half of RAM swapped: sluggish whatever "available" says
 )
 
 type verdict struct {
-	Text    string
-	Culprit bool // true when a specific cause was identified (exit 1)
+	Text     string
+	Culprit  bool     // true when a specific cause was identified (exit 1)
+	Warnings []string // memory limits sysreboot flagged, shown even without a culprit
 }
 
 // diagnose runs the checks in escalating order, first match wins: swap
@@ -25,10 +27,27 @@ type verdict struct {
 // implemented in v1: both need genuinely platform-specific sampling this
 // one-shot tool doesn't have a honest way to do yet.
 func diagnose(sys sysStats, sysOK bool, topMem memGroup, memOK bool, topCPU cpuProc, cpuOK bool) verdict {
-	if sysOK && swapPressure(sys) {
-		text := fmt.Sprintf("Memory-pressured: %s swap in use with low available RAM", byteSize(sys.SwapUsed))
+	v := diagnoseCause(sys, sysOK, topMem, memOK, topCPU, cpuOK)
+	if sysOK {
+		v.Warnings = sys.Warnings
+	}
+	if !v.Culprit && len(v.Warnings) > 0 {
+		v.Text = "No single culprit, but memory is getting tight."
 		if memOK {
-			text += fmt.Sprintf(" — %s using %s (%.0f%% mem)", topMem.Name, byteSize(topMem.RSSBytes), topMem.PctMem)
+			v.Text += fmt.Sprintf(" Biggest: %s at %s.", topMem.Name, byteSize(topMem.RSSBytes))
+		}
+	}
+	return v
+}
+
+func diagnoseCause(sys sysStats, sysOK bool, topMem memGroup, memOK bool, topCPU cpuProc, cpuOK bool) verdict {
+	if sysOK && swapPressure(sys) {
+		text := fmt.Sprintf("Memory-pressured: %s swapped (%.0f%% of RAM)", byteSize(sys.SwapUsed), swapRAMRatio(sys)*100)
+		if sys.Pressure == "warn" || sys.Pressure == "critical" {
+			text += ", kernel pressure " + sys.Pressure
+		}
+		if memOK {
+			text += fmt.Sprintf(" — biggest is %s using %s (%.0f%% mem)", topMem.Name, byteSize(topMem.RSSBytes), topMem.PctMem)
 		}
 		return verdict{Text: text, Culprit: true}
 	}
@@ -49,11 +68,28 @@ func diagnose(sys sysStats, sysOK bool, topMem memGroup, memOK bool, topCPU cpuP
 	return verdict{Text: "Nothing obviously wrong.", Culprit: false}
 }
 
+// swapPressure fires on the kernel's own critical verdict, on heavy swap
+// measured against RAM (macOS counts inactive pages as available, so the
+// available-RAM test alone stays quiet while the machine freezes), or on
+// notable swap with genuinely low available RAM.
 func swapPressure(sys sysStats) bool {
-	if sys.SwapTotal == 0 || sys.SwapUsed < swapNotableBytes || sys.MemTotal == 0 {
+	if sys.Pressure == "critical" {
+		return true
+	}
+	if sys.MemTotal == 0 || sys.SwapUsed < swapNotableBytes {
 		return false
 	}
+	if swapRAMRatio(sys) >= swapRAMHeavyRatio {
+		return true
+	}
 	return float64(sys.MemAvailable)/float64(sys.MemTotal)*100 < memAvailablePctThreshold
+}
+
+func swapRAMRatio(sys sysStats) float64 {
+	if sys.MemTotal == 0 {
+		return 0
+	}
+	return float64(sys.SwapUsed) / float64(sys.MemTotal)
 }
 
 var siUnits = []string{"bytes", "KB", "MB", "GB", "TB", "PB"}

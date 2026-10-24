@@ -63,3 +63,30 @@ func TestByteSize(t *testing.T) {
 		t.Errorf("byteSize(1GiB) = %q, want %q", got, "1.07 GB")
 	}
 }
+
+func TestDiagnoseHeavySwapDespiteInflatedAvailable(t *testing.T) {
+	// The Mac case: 6 GB swapped on 8 GB, but inactive pages keep
+	// "available" at 20% so the low-RAM test alone never fired.
+	sys := sysStats{Cores: 6, Load1: 2, MemTotal: 8 * 1024 * 1024 * 1024, MemAvailable: 1700 * 1024 * 1024, SwapTotal: 7 * 1024 * 1024 * 1024, SwapUsed: 6 * 1024 * 1024 * 1024}
+	top := memGroup{Name: "Codex (Renderer)", RSSBytes: 1800 * 1024 * 1024, PctMem: 21}
+	v := diagnose(sys, true, top, true, cpuProc{}, false)
+	if !v.Culprit {
+		t.Fatalf("expected heavy swap to be a culprit, got %+v", v)
+	}
+}
+
+func TestDiagnoseKernelCriticalPressure(t *testing.T) {
+	sys := sysStats{Cores: 4, MemTotal: 8 * 1024 * 1024 * 1024, MemAvailable: 3 * 1024 * 1024 * 1024, Pressure: "critical"}
+	v := diagnose(sys, true, memGroup{}, false, cpuProc{}, false)
+	if !v.Culprit {
+		t.Fatalf("expected critical kernel pressure to be a culprit, got %+v", v)
+	}
+}
+
+func TestDiagnoseCarriesWarningsWithoutCulprit(t *testing.T) {
+	sys := sysStats{Cores: 6, Load1: 1, MemTotal: 8 * 1024 * 1024 * 1024, MemAvailable: 2 * 1024 * 1024 * 1024, Warnings: []string{"2.8 GB swapped (33% of RAM) — getting tight"}}
+	v := diagnose(sys, true, memGroup{}, false, cpuProc{}, false)
+	if v.Culprit || len(v.Warnings) != 1 {
+		t.Fatalf("expected no culprit but one warning, got %+v", v)
+	}
+}

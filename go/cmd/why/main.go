@@ -35,13 +35,20 @@ func main() {
 
 func printReport(v verdict, sys sysStats, sysOK bool) {
 	emoji := "🔥"
-	if !v.Culprit {
+	switch {
+	case v.Culprit:
+	case len(v.Warnings) > 0:
+		emoji = "⚠️ "
+	default:
 		emoji = "✅"
 	}
 	fmt.Printf("%s %s\n", emoji, v.Text)
 	if sysOK {
 		fmt.Printf("load %.2f (%d cores) · mem %d%% free%s\n",
 			sys.Load1, sys.Cores, freePercent(sys.MemAvailable, sys.MemTotal), swapSuffix(sys.SwapUsed, sys.SwapTotal))
+	}
+	for _, w := range v.Warnings {
+		fmt.Printf("⚠️  %s\n", w)
 	}
 }
 
@@ -52,17 +59,23 @@ func freePercent(available, total uint64) int {
 	return int(float64(available) / float64(total) * 100)
 }
 
+// swapSuffix shows swap as an absolute size: macOS grows its swap file on
+// demand, so a percentage of the swap total is meaningless.
 func swapSuffix(used, total uint64) string {
-	if total == 0 {
+	if total == 0 && used == 0 {
 		return ""
 	}
-	return fmt.Sprintf(" · swap %d%% used", int(float64(used)/float64(total)*100))
+	return " · swap " + byteSize(used)
 }
 
 func printJSON(v verdict, sys sysStats, sysOK bool) {
 	out := map[string]any{
 		"diagnosis": v.Text,
 		"culprit":   v.Culprit,
+		"warnings":  v.Warnings,
+	}
+	if v.Warnings == nil {
+		out["warnings"] = []string{}
 	}
 	if sysOK {
 		out["load1"] = sys.Load1
@@ -71,6 +84,7 @@ func printJSON(v verdict, sys sysStats, sysOK bool) {
 		out["mem_available"] = sys.MemAvailable
 		out["swap_total"] = sys.SwapTotal
 		out["swap_used"] = sys.SwapUsed
+		out["mem_pressure"] = sys.Pressure
 	}
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
