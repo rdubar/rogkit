@@ -65,3 +65,16 @@ func TestEstimateMemAvailable(t *testing.T) {
 		t.Fatalf("expected 300, got %d", got)
 	}
 }
+
+func TestParsePSI(t *testing.T) {
+	cases := map[string]string{
+		"some avg10=0.00 avg60=0.00 avg300=0.00 total=0\nfull avg10=0.00 avg60=0.00 avg300=0.00 total=0\n":      "normal",
+		"some avg10=30.00 avg60=12.50 avg300=4.00 total=1\nfull avg10=5.00 avg60=3.00 avg300=1.00 total=1\n":    "warn",
+		"some avg10=80.00 avg60=60.00 avg300=20.00 total=1\nfull avg10=40.00 avg60=25.00 avg300=9.00 total=1\n": "critical",
+	}
+	for in, want := range cases {
+		if got := parsePSI(in); got != want {
+			t.Errorf("parsePSI(%q) = %q, want %q", in, got, want)
+		}
+	}
+}

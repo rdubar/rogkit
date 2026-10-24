@@ -31,6 +31,7 @@ func gather() (*Stats, error) {
 	}
 	readVMStat(s)
 	readSwapUsage(s)
+	s.Pressure = readPressureLevel()
 
 	return s, nil
 }
@@ -126,6 +127,29 @@ func readVMStat(s *Stats) {
 	}
 
 	s.MemAvailable = (pages["Pages free"] + pages["Pages inactive"] + pages["Pages speculative"]) * pageSize
+	s.Compressed = pages["Pages occupied by compressor"] * pageSize
+}
+
+// readPressureLevel reads the kernel's own memory-pressure verdict (the
+// one Activity Monitor's graph colours by): 1 normal, 2 warn, 4 critical.
+func readPressureLevel() string {
+	level, err := unix.SysctlUint32("kern.memorystatus_vm_pressure_level")
+	if err != nil {
+		return ""
+	}
+	return pressureLabel(level)
+}
+
+func pressureLabel(level uint32) string {
+	switch level {
+	case 1:
+		return "normal"
+	case 2:
+		return "warn"
+	case 4:
+		return "critical"
+	}
+	return ""
 }
 
 func readSwapUsage(s *Stats) {

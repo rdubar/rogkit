@@ -19,6 +19,8 @@ type Stats struct {
 	Cores                  int
 	MemTotal, MemAvailable uint64 // bytes
 	SwapTotal, SwapUsed    uint64 // bytes
+	Compressed             uint64 // bytes held by the macOS memory compressor (0 elsewhere)
+	Pressure               string // kernel's own verdict: "normal", "warn", "critical", or "" if unknown
 	RebootRequired         bool   // authoritative signal (Linux: /var/run/reboot-required)
 	RebootReason           string
 }
@@ -47,11 +49,14 @@ func main() {
 	os.Exit(exitCode(score, stats.RebootRequired))
 }
 
-// rebootScore mirrors the old syscheck.py heuristic. The current weighting
-// caps out around 80 points under normal conditions: uptime up to 25, load
-// up to 25, memory up to 20, swap up to 10. Kept deliberately simple —
-// this is a fallback for when there's no authoritative signal, not a
-// precision instrument.
+// rebootScore mirrors the old syscheck.py heuristic, with memory pressure
+// weighted heavily enough to reach "advised" on its own: uptime up to 25,
+// load up to 25, available memory up to 20, swap up to 60, kernel pressure
+// up to 40. Swap is measured against RAM rather than swap total, because
+// macOS grows its swap file on demand — "67% of swap used" says nothing,
+// while "6 GB swapped on an 8 GB machine" means it will freeze. Kept
+// deliberately simple — a fallback for when there's no authoritative
+// signal, not a precision instrument.
 func rebootScore(s *Stats) int {
 	score := 0.0
 
@@ -83,17 +88,68 @@ func rebootScore(s *Stats) int {
 		}
 	}
 
-	if s.SwapTotal > 0 {
-		swapRatio := float64(s.SwapUsed) / float64(s.SwapTotal)
-		if swapRatio > 0.25 {
-			score += 10
-		}
+	switch ratio := swapRAMRatio(s); {
+	case ratio >= swapHeavyRatio:
+		score += 60
+	case ratio >= swapHighRatio:
+		score += 35
+	case ratio >= swapTightRatio:
+		score += 15
+	}
+
+	switch s.Pressure {
+	case "critical":
+		score += 40
+	case "warn":
+		score += 15
 	}
 
 	if score > 100 {
 		score = 100
 	}
 	return int(score + 0.5)
+}
+
+// Swap-to-RAM thresholds: a quarter of RAM swapped is getting tight, half
+// is where an 8 GB Mac starts stalling on wake, three quarters is freezing.
+const (
+	swapTightRatio = 0.25
+	swapHighRatio  = 0.50
+	swapHeavyRatio = 0.75
+)
+
+func swapRAMRatio(s *Stats) float64 {
+	if s.MemTotal == 0 {
+		return 0
+	}
+	return float64(s.SwapUsed) / float64(s.MemTotal)
+}
+
+// memWarnings names the memory limits that are likely causing trouble,
+// most serious first, each with what to do about it. Empty when memory
+// looks healthy.
+func memWarnings(s *Stats) []string {
+	var out []string
+	switch s.Pressure {
+	case "critical":
+		out = append(out, "kernel reports critical memory pressure — quit big apps now")
+	case "warn":
+		out = append(out, "kernel reports memory pressure")
+	}
+	ratio := swapRAMRatio(s)
+	swapped := fmt.Sprintf("%s swapped (%.0f%% of RAM)", byteSize(s.SwapUsed), ratio*100)
+	switch {
+	case ratio >= swapHeavyRatio:
+		out = append(out, swapped+" — expect freezes; quit big apps or reboot")
+	case ratio >= swapHighRatio:
+		out = append(out, swapped+" — likely sluggish; quit big apps (run `mem`)")
+	case ratio >= swapTightRatio:
+		out = append(out, swapped+" — getting tight")
+	}
+	if s.MemTotal > 0 && float64(s.MemAvailable)/float64(s.MemTotal) < 0.10 {
+		out = append(out, fmt.Sprintf("only %d%% of RAM available", freePercent(s.MemAvailable, s.MemTotal)))
+	}
+	return out
 }
 
 func verdict(score int, rebootRequired bool) (emoji, label string) {
@@ -177,12 +233,25 @@ func printReport(s *Stats, score int, emoji, label string, oneline bool) {
 		swapSuffix(s.SwapUsed, s.SwapTotal),
 	)
 
+	warnings := memWarnings(s)
+	warnMark := "⚠️ "
+	if !utf8Locale() {
+		warnMark = "[!] "
+	}
+
 	if oneline {
-		fmt.Printf("%s%s%s\n", headline, sep, stats)
+		line := headline + sep + stats
+		if len(warnings) > 0 {
+			line += sep + warnMark + warnings[0]
+		}
+		fmt.Println(line)
 		return
 	}
 	fmt.Println(headline)
 	fmt.Println(stats)
+	for _, w := range warnings {
+		fmt.Println(warnMark + w)
+	}
 }
 
 func printJSON(s *Stats, score int, label string) {
@@ -196,6 +265,9 @@ func printJSON(s *Stats, score int, label string) {
 		"mem_available":   s.MemAvailable,
 		"swap_total":      s.SwapTotal,
 		"swap_used":       s.SwapUsed,
+		"compressed":      s.Compressed,
+		"mem_pressure":    s.Pressure,
+		"warnings":        nonNil(memWarnings(s)),
 		"reboot_required": s.RebootRequired,
 		"reboot_reason":   s.RebootReason,
 		"score":           score,
@@ -213,11 +285,36 @@ func freePercent(available, total uint64) int {
 	return int(float64(available) / float64(total) * 100)
 }
 
+// swapSuffix shows swap as an absolute size: on macOS the swap total
+// grows on demand, so a percentage of it is meaningless.
 func swapSuffix(used, total uint64) string {
-	if total == 0 {
+	if total == 0 && used == 0 {
 		return ""
 	}
-	return fmt.Sprintf("%sswap %d%% used", separator(), int(float64(used)/float64(total)*100))
+	return fmt.Sprintf("%sswap %s", separator(), byteSize(used))
+}
+
+func nonNil(list []string) []string {
+	if list == nil {
+		return []string{}
+	}
+	return list
+}
+
+var siUnits = []string{"B", "KB", "MB", "GB", "TB"}
+
+func byteSize(size uint64) string {
+	f := float64(size)
+	for i, unit := range siUnits {
+		if f < 1000 || i == len(siUnits)-1 {
+			if i == 0 {
+				return fmt.Sprintf("%d %s", size, unit)
+			}
+			return fmt.Sprintf("%.1f %s", f, unit)
+		}
+		f /= 1000
+	}
+	return ""
 }
 
 func formatDuration(seconds float64) string {

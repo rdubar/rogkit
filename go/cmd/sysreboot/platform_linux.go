@@ -23,6 +23,9 @@ func gather() (*Stats, error) {
 		s.Load1, s.Load5, s.Load15 = l1, l5, l15
 	}
 	readMemInfo(s)
+	if data, err := os.ReadFile("/proc/pressure/memory"); err == nil {
+		s.Pressure = parsePSI(string(data))
+	}
 
 	if markerPath, ok := readRebootMarkerPath([]string{
 		"/run/reboot-required",
@@ -140,4 +143,36 @@ func readRebootRequiredPkgs(markerPath string) string {
 		return strings.Join(pkgs[:3], ", ") + ", " + ellipsis
 	}
 	return strings.Join(pkgs, ", ")
+}
+
+// parsePSI turns /proc/pressure/memory (kernel 4.20+) into a verdict from
+// the 60-second averages: "full" means every runnable task was stalled on
+// memory, "some" means at least one was. 10% of the last minute spent
+// stalled is well past the point a user notices.
+func parsePSI(text string) string {
+	var some, full float64
+	for _, line := range strings.Split(text, "\n") {
+		fields := strings.Fields(line)
+		if len(fields) == 0 {
+			continue
+		}
+		for _, f := range fields[1:] {
+			if v, ok := strings.CutPrefix(f, "avg60="); ok {
+				n, _ := strconv.ParseFloat(v, 64)
+				switch fields[0] {
+				case "some":
+					some = n
+				case "full":
+					full = n
+				}
+			}
+		}
+	}
+	switch {
+	case full >= 10:
+		return "critical"
+	case some >= 10:
+		return "warn"
+	}
+	return "normal"
 }

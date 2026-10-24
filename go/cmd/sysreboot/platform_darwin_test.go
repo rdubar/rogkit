@@ -57,3 +57,11 @@ func TestParseDarwinHelpers(t *testing.T) {
 		}
 	})
 }
+
+func TestPressureLabel(t *testing.T) {
+	for level, want := range map[uint32]string{1: "normal", 2: "warn", 4: "critical", 0: ""} {
+		if got := pressureLabel(level); got != want {
+			t.Errorf("pressureLabel(%d) = %q, want %q", level, got, want)
+		}
+	}
+}

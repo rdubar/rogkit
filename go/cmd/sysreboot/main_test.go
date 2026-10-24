@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -17,8 +18,8 @@ func TestRebootScoreAndExitCode(t *testing.T) {
 	}
 
 	score := rebootScore(stats)
-	if score != 80 {
-		t.Fatalf("expected score 80, got %d", score)
+	if score != 85 {
+		t.Fatalf("expected score 85, got %d", score)
 	}
 	if got := exitCode(score, false); got != 2 {
 		t.Fatalf("expected exit code 2, got %d", got)
@@ -63,5 +64,34 @@ func TestFormatDuration(t *testing.T) {
 	}
 	if got := formatDuration(27 * 3600); got != "1d 3h" {
 		t.Fatalf("expected 1d 3h, got %q", got)
+	}
+}
+
+func TestSwapAgainstRAMDrivesVerdict(t *testing.T) {
+	const gb = 1024 * 1024 * 1024
+	// Freshly rebooted 8 GB Mac with 6 GB swapped: the case that froze on
+	// open while the old swap-total ratio stayed quiet.
+	stats := &Stats{UptimeSeconds: 3600, Cores: 6, Load1: 2, MemTotal: 8 * gb, MemAvailable: 1600 * 1024 * 1024, SwapTotal: 7 * gb, SwapUsed: 6 * gb}
+	score := rebootScore(stats)
+	if score < 70 {
+		t.Fatalf("expected 6 GB swap on 8 GB RAM to advise a reboot, got score %d", score)
+	}
+	warnings := memWarnings(stats)
+	if len(warnings) == 0 || !strings.Contains(warnings[0], "expect freezes") {
+		t.Fatalf("expected a freeze warning, got %q", warnings)
+	}
+}
+
+func TestMemWarnings(t *testing.T) {
+	const gb = 1024 * 1024 * 1024
+	healthy := &Stats{MemTotal: 8 * gb, MemAvailable: 4 * gb, SwapUsed: 512 * 1024 * 1024}
+	if w := memWarnings(healthy); len(w) != 0 {
+		t.Fatalf("expected no warnings for healthy memory, got %q", w)
+	}
+
+	tight := &Stats{MemTotal: 8 * gb, MemAvailable: 2 * gb, SwapUsed: 3 * gb, Pressure: "warn"}
+	w := memWarnings(tight)
+	if len(w) != 2 || !strings.Contains(w[0], "pressure") || !strings.Contains(w[1], "getting tight") {
+		t.Fatalf("unexpected warnings %q", w)
 	}
 }
