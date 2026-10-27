@@ -262,6 +262,8 @@ def _resolve_connection(system: str, tier: str) -> tuple[dict | None, str | None
         target = tunnel._tunnel_target(pids[0])
         if not expected or target != expected:
             return None, "Refusing: the open live tunnel does not point at the read-only endpoint."
+    if not tunnel._ensure_unlocked(entry):
+        return None, "Vaultwarden is locked and could not be unlocked."
     password = tunnel._entry_password(entry)
     if password is None:
         return None, "Could not fetch the database password (see message above)."

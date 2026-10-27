@@ -263,6 +263,26 @@ def _rbw_password(item: str) -> str | None:
     return result.stdout.strip()
 
 
+def _ensure_unlocked(entry: dict) -> bool:
+    """Unlock rbw up front if this entry needs it, so the prompt comes before any slow work.
+
+    Entries without a vaultwarden_item (env_var fallback) need no unlock. `rbw unlock` runs
+    uncaptured so pinentry can use the terminal.
+    """
+    if not entry.get("vaultwarden_item"):
+        return True
+    if not shutil.which("rbw"):
+        _print_message("rbw not found. Install with: brew install rbw", style="red")
+        return False
+    if subprocess.run(["rbw", "unlocked"], capture_output=True).returncode == 0:
+        return True
+    _print_message("Vaultwarden is locked -- unlocking now.", style="yellow")
+    if subprocess.run(["rbw", "unlock"]).returncode != 0:
+        _print_message("rbw unlock failed.", style="red")
+        return False
+    return True
+
+
 def _entry_password(entry: dict) -> str | None:
     """Fetch an entry's password: prefer rbw (vaultwarden_item), fall back to env_var.
 
@@ -293,6 +313,9 @@ def cmd_db(args: argparse.Namespace) -> int:
     if entry is None:
         return 1
 
+    if not _ensure_unlocked(entry):
+        return 1
+
     if cmd_open(args) != 0:
         return 1
 
@@ -318,6 +341,8 @@ def cmd_pw(args: argparse.Namespace) -> int:
     if entry is None:
         return 1
     _warn_if_live(entry)
+    if not _ensure_unlocked(entry):
+        return 1
 
     item = entry.get("vaultwarden_item", "")
     if item:

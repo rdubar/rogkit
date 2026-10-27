@@ -189,6 +189,8 @@ alias mongo='rogkit_py -m rogkit_package.bin.mongo'
 alias pgscratch='rogkit_py -m rogkit_package.bin.pgscratch'
 alias tunnel='rogkit_py -m rogkit_package.bin.tunnel'
 alias erp_sql='rogkit_py -m rogkit_package.bin.erpsql'
+# Keep Vaultwarden unlocked for 8h (persists in rbw config; once per machine), then unlock
+alias rbw-day='rbw config set lock_timeout 28800 && rbw stop-agent; rbw unlock'
 
 # ------------------------------------------------------------------------------
 # Development Tools

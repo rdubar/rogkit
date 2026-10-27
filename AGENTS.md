@@ -272,6 +272,11 @@ manually to use `tunnel` on another machine). Each entry: `system`, `tier`,
 at connect time) or `env_var` (fallback for systems not yet in Vaultwarden -- reads a
 static var from `~/.config/apv/env.sh`, same staleness risk as the old aliases).
 
+`tunnel db`/`tunnel pw` and `erp_sql` run `rbw unlock` up front when the vault is locked,
+before opening SSH or querying. The Vaultwarden master password is never stored in config:
+the unlock prompt is the human gate on AI sessions. `rbw-day` (alias) sets rbw's
+`lock_timeout` to 8h so that's one prompt per working day.
+
 | Command | Effect |
 |---|---|
 | `tunnel list` | Show every registered entry and open/closed status |

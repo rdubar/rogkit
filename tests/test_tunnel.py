@@ -145,3 +145,49 @@ def test_rbw_password_reports_failure(monkeypatch, capsys):
     monkeypatch.setattr(tunnel.subprocess, "run", lambda *a, **k: FakeResult())
     assert tunnel._rbw_password("Some Item") is None
     assert "rbw unlock" in capsys.readouterr().out
+
+
+def test_ensure_unlocked_skips_entries_without_vaultwarden_item(monkeypatch):
+    monkeypatch.setattr(tunnel.subprocess, "run", lambda *a, **k: (_ for _ in ()).throw(AssertionError("ran rbw")))
+    assert tunnel._ensure_unlocked({"env_var": "X"}) is True
+
+
+def test_ensure_unlocked_does_not_prompt_when_already_unlocked(monkeypatch):
+    calls = []
+
+    class FakeResult:
+        returncode = 0
+
+    monkeypatch.setattr(tunnel.shutil, "which", lambda name: "/usr/bin/rbw")
+    monkeypatch.setattr(tunnel.subprocess, "run", lambda cmd, **k: calls.append(cmd) or FakeResult())
+    assert tunnel._ensure_unlocked({"vaultwarden_item": "x"}) is True
+    assert calls == [["rbw", "unlocked"]]
+
+
+def test_ensure_unlocked_runs_unlock_when_locked(monkeypatch, capsys):
+    calls = []
+
+    class FakeResult:
+        def __init__(self, returncode):
+            self.returncode = returncode
+
+    def fake_run(cmd, **kwargs):
+        calls.append(cmd)
+        return FakeResult(1 if cmd == ["rbw", "unlocked"] else 0)
+
+    monkeypatch.setattr(tunnel, "RICH_AVAILABLE", False)
+    monkeypatch.setattr(tunnel.shutil, "which", lambda name: "/usr/bin/rbw")
+    monkeypatch.setattr(tunnel.subprocess, "run", fake_run)
+    assert tunnel._ensure_unlocked({"vaultwarden_item": "x"}) is True
+    assert calls == [["rbw", "unlocked"], ["rbw", "unlock"]]
+    assert "locked" in capsys.readouterr().out
+
+
+def test_ensure_unlocked_fails_when_unlock_fails(monkeypatch):
+    class FakeResult:
+        returncode = 1
+
+    monkeypatch.setattr(tunnel, "RICH_AVAILABLE", False)
+    monkeypatch.setattr(tunnel.shutil, "which", lambda name: "/usr/bin/rbw")
+    monkeypatch.setattr(tunnel.subprocess, "run", lambda *a, **k: FakeResult())
+    assert tunnel._ensure_unlocked({"vaultwarden_item": "x"}) is False
