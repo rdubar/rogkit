@@ -270,7 +270,7 @@ manually to use `tunnel` on another machine). Each entry: `system`, `tier`,
 `bastion_user`, `bastion_host`, `host_ro`/`host_rw`, `remote_port`, `local_port`,
 `db_name`, `db_user`, and either `vaultwarden_item` (preferred -- fetched live via `rbw`
 at connect time) or `env_var` (fallback for systems not yet in Vaultwarden -- reads a
-static var from `~/.env_apv`, same staleness risk as the old aliases).
+static var from `~/.config/apv/env.sh`, same staleness risk as the old aliases).
 
 | Command | Effect |
 |---|---|
@@ -293,6 +293,16 @@ Known gaps: `erp`/test and `odoo13-*` have no Vaultwarden entries as of 2026-09-
 `OpenERP7_DB_PW - Live` exists for ERP) -- `erp`/test falls back to `$ERP_TEST_PW`.
 `odoo13-uk`/test's bastion/db were inferred from the confirmed DE/UK-live pattern, not
 independently connection-tested.
+
+### erp_sql (guarded read-only SQL for AI-assisted sessions)
+
+`rogkit_package/bin/erpsql.py` (alias `erp_sql`): `erp_sql erp live "SELECT count(*) FROM sale_order"`,
+or `erp_sql erp live -` with the query on stdin. Uses the `tunnel` registry; the tunnel must already be
+open (it never opens one). SELECT-only, no wildcards, blocks red-list data (hr_*, credentials, salary) and
+personal-data columns, uses the read-only endpoint on live, row cap and timeout, audit log at
+`~/.local/state/rogkit/erpsql-audit.log`. `erp_sql --rules` lists the rules, `--check` validates without
+connecting. Optional `[erpsql]` config keys: `extra_red_tables`, `extra_pii_tables`, `extra_pii_columns`.
+The static checks are guardrails; the real boundary is the DB role.
 
 ## Troubleshooting
 

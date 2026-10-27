@@ -188,6 +188,7 @@ alias spot='rogkit_py -m rogkit_package.bin.spot'
 alias mongo='rogkit_py -m rogkit_package.bin.mongo'
 alias pgscratch='rogkit_py -m rogkit_package.bin.pgscratch'
 alias tunnel='rogkit_py -m rogkit_package.bin.tunnel'
+alias erp_sql='rogkit_py -m rogkit_package.bin.erpsql'
 
 # ------------------------------------------------------------------------------
 # Development Tools

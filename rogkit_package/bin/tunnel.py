@@ -268,7 +268,7 @@ def _entry_password(entry: dict) -> str | None:
 
     The env_var fallback exists for systems not yet migrated to Vaultwarden (e.g. P2P,
     which as of 2026-09-10 has no Vaultwarden entry at all -- confirmed via `rbw list`).
-    It carries the exact same staleness risk as the old .env_apv approach; prefer adding
+    It carries the exact same staleness risk as the old env-file approach; prefer adding
     a Vaultwarden entry and switching to vaultwarden_item when one exists.
     """
     item = entry.get("vaultwarden_item", "")
