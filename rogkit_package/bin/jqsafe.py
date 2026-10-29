@@ -128,12 +128,12 @@ class Deny:
 # ---------------------------------------------------------------------------
 
 
-def safe_text(value: Any) -> str:
-    """Render a value on one line with control characters escaped, clipped to MAX_VALUE_CHARS."""
+def safe_text(value: Any, *, clip: bool = True) -> str:
+    """Render a value on one line with control characters escaped, clipped to MAX_VALUE_CHARS unless clip=False."""
     text = json.dumps(value, ensure_ascii=False)
     if isinstance(value, str):
         text = text[1:-1]  # drop the surrounding quotes; json.dumps already escaped \n, ESC and quotes
-    if len(text) > MAX_VALUE_CHARS:
+    if clip and len(text) > MAX_VALUE_CHARS:
         return f"{text[:MAX_VALUE_CHARS]}...(len {len(text)})"
     return text
 
@@ -257,7 +257,8 @@ def walk(
         if isinstance(node, list):
             for index, item in enumerate(node):
                 if _scalar_text(_dig(item, step[1])) == step[2]:
-                    yield from walk(item, rest, f"{trail}[{index}]", deny, deny_filter)
+                    label = f"{trail}[{index}:{'.'.join(step[1])}={step[2]}]"
+                    yield from walk(item, rest, label, deny, deny_filter)
 
 
 # ---------------------------------------------------------------------------
@@ -270,7 +271,7 @@ def collect_show(data: Any, paths: list[str], deny: Deny) -> tuple[dict[str, str
     shown: dict[str, str] = {}
     notes: list[str] = []
     for path in paths:
-        label = safe_text(path)
+        label = safe_text(path, clip=False)
         try:
             matches = list(walk(data, parse_path(path), "", deny, deny))
         except DeniedKey as exc:
@@ -280,7 +281,7 @@ def collect_show(data: Any, paths: list[str], deny: Deny) -> tuple[dict[str, str
             notes.append(f"no match for {label!r}")
         for trail, value in matches:
             if isinstance(value, (dict, list)):
-                notes.append(f"{safe_text(trail or path)!r} is a container; name a leaf path instead")
+                notes.append(f"{safe_text(trail or path, clip=False)!r} is a container; name a leaf path instead")
             else:
                 shown[trail] = safe_text(value)
     return shown, notes
@@ -299,7 +300,7 @@ def collect_present(data: Any, paths: list[str], deny: Deny | None = None) -> tu
         try:
             matches = list(walk(data, parse_path(path), "", None, deny_filter))
         except DeniedKey as exc:
-            notes.append(f"withheld {safe_text(path)!r}: filter key {safe_text(str(exc))!r} looks personal")
+            notes.append(f"withheld {safe_text(path, clip=False)!r}: filter key {safe_text(str(exc))!r} looks personal")
             continue
         result[path] = any(value not in (None, "", [], {}) for _, value in matches)
     return result, notes
@@ -381,7 +382,7 @@ def render_show(shown: dict[str, str], present: dict[str, bool], notes: list[str
             lines.append(f"{prefix}: {body}")
         else:
             lines.extend(f"{suffix} = {value}" for suffix, value in items)
-    lines.extend(f"present {safe_text(path)}: {flag}" for path, flag in present.items())
+    lines.extend(f"present {safe_text(path, clip=False)}: {flag}" for path, flag in present.items())
     lines.extend(f"note: {note}" for note in notes)
     return "\n".join(lines)
 
