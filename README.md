@@ -30,6 +30,7 @@ A few tools you may find immediately useful, day to day:
 | `sys` | One-or-two-line reboot advisor — is this machine actually fine? |
 | `uprec` | Longest uptime this machine has ever managed, and where the current run ranks |
 | `json` | Pretty-print and query JSON from file or stdin |
+| `jqsafe` | Inspect JSON safely: shape only by default, values only for paths you name, personal-looking keys never shown |
 | `dedupe` | Find duplicate files by content across a directory tree |
 | `serve` | Serve any folder over HTTP instantly |
 | `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |
