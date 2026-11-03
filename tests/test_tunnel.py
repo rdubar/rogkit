@@ -191,3 +191,31 @@ def test_ensure_unlocked_fails_when_unlock_fails(monkeypatch):
     monkeypatch.setattr(tunnel.shutil, "which", lambda name: "/usr/bin/rbw")
     monkeypatch.setattr(tunnel.subprocess, "run", lambda *a, **k: FakeResult())
     assert tunnel._ensure_unlocked({"vaultwarden_item": "x"}) is False
+
+
+def _db_args(monkeypatch, argv):
+    monkeypatch.setattr("sys.argv", ["tunnel", "db", "erp", "live", *argv])
+    return tunnel.parse_args()
+
+
+def _run_db(monkeypatch, args):
+    """Run cmd_db with every outside call stubbed; return the argv psql would get."""
+    calls = {}
+    monkeypatch.setattr(tunnel, "_require_entry", lambda a: ENTRIES[0])
+    monkeypatch.setattr(tunnel, "_ensure_unlocked", lambda e: True)
+    monkeypatch.setattr(tunnel, "cmd_open", lambda a: 0)
+    monkeypatch.setattr(tunnel, "_entry_password", lambda e: "pw")
+    monkeypatch.setattr(tunnel.os, "execvpe", lambda f, argv, env: calls.setdefault("argv", argv))
+    tunnel.cmd_db(args)
+    return calls["argv"]
+
+
+def test_db_without_extra_args_runs_plain_psql(monkeypatch):
+    argv = _run_db(monkeypatch, _db_args(monkeypatch, []))
+    assert argv[0] == "psql" and len(argv) == 2
+
+
+def test_db_passes_psql_args_after_double_dash(monkeypatch):
+    args = _db_args(monkeypatch, ["--", "--csv", "-v", "x=1", "-f", "q.sql", "-o", "out.csv"])
+    argv = _run_db(monkeypatch, args)
+    assert argv[2:] == ["--csv", "-v", "x=1", "-f", "q.sql", "-o", "out.csv"]

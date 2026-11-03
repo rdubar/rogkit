@@ -329,7 +329,8 @@ def cmd_db(args: argparse.Namespace) -> int:
     env = dict(os.environ, PGPASSWORD=password)
     conninfo = f"host=127.0.0.1 port={port} user={db_user} dbname={db_name} sslmode=prefer"
     try:
-        os.execvpe("psql", ["psql", conninfo], env)
+        psql_args = args.psql_args[1:] if args.psql_args[:1] == ["--"] else args.psql_args
+        os.execvpe("psql", ["psql", conninfo, *psql_args], env)
     except FileNotFoundError:
         _print_message("psql not found on PATH.", style="red")
         return 1
@@ -461,6 +462,11 @@ def parse_args() -> argparse.Namespace:
     p_db.add_argument("system")
     p_db.add_argument("tier")
     p_db.add_argument("--writer", action="store_true", help="Use the writer endpoint instead of read-only")
+    p_db.add_argument(
+        "psql_args",
+        nargs=argparse.REMAINDER,
+        help="extra psql arguments after --, e.g. -- --csv -f query.sql -o out.csv",
+    )
     p_db.set_defaults(func=cmd_db)
 
     p_pw = sub.add_parser("pw", help="Fetch the password for an entry via rbw")
