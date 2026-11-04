@@ -225,6 +225,21 @@ def _strip_trailing_semicolon(sql: str) -> str:
     return sql.strip().rstrip(";").rstrip()
 
 
+def _psql_error(stderr: str) -> str:
+    """First useful psql error line: a query ERROR or a connection FATAL (e.g. a rejected password).
+
+    psql never prints the password, so these lines are safe to show. With sslmode=prefer a failed login is
+    reported twice (with and without SSL); the first FATAL is the real cause.
+    """
+    lines = [line.strip() for line in stderr.splitlines()]
+    for line in lines:
+        if line.startswith("ERROR"):
+            return line
+        if "FATAL:" in line:
+            return line[line.index("FATAL:"):]
+    return next((line for line in lines if line.startswith("psql: error")), "psql failed")
+
+
 def run_query(conn: dict, sql: str, *, limit: int, timeout_s: int) -> tuple[list[list[str]], bool]:
     """Run a validated query through psql in a read-only session. Returns (rows incl. header, truncated)."""
     wrapped = f"SELECT * FROM ({_strip_trailing_semicolon(sql)}) AS _erpsql LIMIT {limit + 1}"
@@ -241,8 +256,7 @@ def run_query(conn: dict, sql: str, *, limit: int, timeout_s: int) -> tuple[list
     ]
     result = subprocess.run(cmd, capture_output=True, text=True, env=env, timeout=timeout_s + 10)
     if result.returncode != 0:
-        lines = [line for line in result.stderr.strip().splitlines() if line.startswith("ERROR")]
-        raise RuntimeError(lines[0] if lines else "psql failed")
+        raise RuntimeError(_psql_error(result.stderr))
     rows = list(csv.reader(io.StringIO(result.stdout)))
     truncated = len(rows) - 1 > limit
     return (rows[: limit + 1], truncated)

@@ -126,3 +126,23 @@ def test_closed_tunnel_is_reported_not_opened(monkeypatch: pytest.MonkeyPatch) -
     conn, error = erpsql._resolve_connection("erp", "test")
     assert conn is None
     assert "tunnel open" in error
+
+
+def test_psql_error_shows_query_error():
+    stderr = 'ERROR:  relation "foo" does not exist\nLINE 1: SELECT * FROM foo\n'
+    assert erpsql._psql_error(stderr) == 'ERROR:  relation "foo" does not exist'
+
+
+def test_psql_error_shows_first_fatal_of_a_failed_login():
+    stderr = (
+        'psql: error: connection to server at "127.0.0.1", port 5443 failed: '
+        'FATAL:  password authentication failed for user "roger.dubar"\n'
+        'connection to server at "127.0.0.1", port 5443 failed: '
+        'FATAL:  no pg_hba.conf entry for host "172.16.5.204", user "roger.dubar", database "odoo", no encryption\n'
+    )
+    assert erpsql._psql_error(stderr) == 'FATAL:  password authentication failed for user "roger.dubar"'
+
+
+def test_psql_error_falls_back_to_psql_error_line_then_generic():
+    assert erpsql._psql_error('psql: error: could not connect\n') == 'psql: error: could not connect'
+    assert erpsql._psql_error('') == 'psql failed'
