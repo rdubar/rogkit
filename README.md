@@ -31,6 +31,7 @@ A few tools you may find immediately useful, day to day:
 | `uprec` | Longest uptime this machine has ever managed, and where the current run ranks |
 | `json` | Pretty-print and query JSON from file or stdin |
 | `jqsafe` | Inspect JSON safely: shape only by default, values only for paths you name, personal-looking keys never shown |
+| `awake` | Show what is keeping the machine awake (ours vs other apps, SSH/tty, caffeinate parents); labelled holds via `awake on`/`awake run`, `awake off` releases only ours, `awake purge` kills every caffeinate/systemd-inhibit after a y/N, `awake blank` turns the display off |
 | `dedupe` | Find duplicate files by content across a directory tree |
 | `serve` | Serve any folder over HTTP instantly |
 | `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |

@@ -309,6 +309,26 @@ personal-data columns, uses the read-only endpoint on live, row cap and timeout,
 connecting. Optional `[erpsql]` config keys: `extra_red_tables`, `extra_pii_tables`, `extra_pii_columns`.
 The static checks are guardrails; the real boundary is the DB role.
 
+## Awake (keep-awake holds and sleep diagnosis)
+
+`rogkit_package/bin/awake.py` (alias `awake`). **Agents: use this instead of an ad hoc `caffeinate`,
+`pmset` or `systemd-inhibit`** when a long job needs the machine kept awake, or when asked why a machine
+isn't sleeping. macOS (m3/neo) and systemd Linux (pi); works over SSH, no daemon.
+
+- `awake` / `awake status`: our holds plus every other assertion blocking sleep (owner, age, launching
+  parent for external `caffeinate`, SSH/tty notes, power-source and lid caveats). `--all`, `--json`.
+- `awake run -l LABEL -- cmd ...`: hold only while the command runs (preferred for agent jobs).
+- `awake on [LABEL] [--for 2h | --while PID] [-d]`: detached hold that survives SSH disconnect.
+- `awake off ID|LABEL` / `--all`: releases only holds `awake` created; never sleeps the machine.
+- `awake purge [-y]`: kills every `caffeinate`/`systemd-inhibit` (ours and external) after a y/N; never
+  apps or system services, never sudo. Don't run it without the user's say-so: it also kills other
+  sessions' holds.
+- `awake blank`: display off (macOS); the machine stays as awake as before.
+
+Lid: on battery a Mac sleeps on lid close whatever holds exist (`caffeinate -s` is AC-only per
+caffeinate(8)); lid-closed on AC is not documented, so don't promise it. State files live in
+`~/.local/state/rogkit/awake/`.
+
 ## Troubleshooting
 
 ### Pi 5 network choice
