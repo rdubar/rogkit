@@ -31,7 +31,7 @@ Example per-set config:
     name = "LocalBackup"
     include_secrets = true
     destinations = ["~/Archive/Backups"]
-    paths = ["~/.ssh", "~/.config/", "~/dev", "~/.env"]
+    paths = ["~/.ssh", "~/.config/", "~/dev"]  # secrets live in ~/.config/secrets/.env
 
     # Encrypted — secrets safe for Pi/off-machine storage
     [[backup.encrypted_set]]
@@ -202,7 +202,7 @@ CONFIG_HELP = dedent(
         name = "LocalBackup"
         include_secrets = true
         destinations = ["~/Archive/Backups"]
-        paths = ["~/.ssh", "~/.config/", "~/dev", "~/.env"]
+        paths = ["~/.ssh", "~/.config/", "~/dev"]  # secrets live in ~/.config/secrets/.env
 
         [[backup.encrypted_set]]
         name = "Secrets"
