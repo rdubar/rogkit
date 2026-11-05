@@ -36,6 +36,13 @@ A few tools you may find immediately useful, day to day:
 | `serve` | Serve any folder over HTTP instantly |
 | `httpcheck` | Check HTTP status, timing, redirects, and content type for URLs |
 
+`awake run -- command ...` establishes its hold before starting the command and returns
+the command's exit status. Durations and watched PIDs must be greater than zero.
+If sleep assertions cannot be queried, `awake` exits unsuccessfully; JSON output uses
+`"assertions": null` with an `"error"` message rather than reporting no blockers.
+Holds created before process identity tracking appear as external assertions after
+upgrading; `awake off` only releases holds whose recorded identity it can verify.
+
 ---
 
 ## Prerequisites

@@ -23,6 +23,7 @@ import shutil
 import signal
 import subprocess
 import sys
+import tempfile
 import time
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -91,6 +92,8 @@ class Hold:
     display: bool = False
     command: str | None = None  # set for ``awake run``
     host: str = field(default_factory=platform.node)
+    boot_id: str | None = None
+    process_start: str | None = None
 
 
 @dataclass
@@ -116,16 +119,31 @@ class Assertion:
 _DURATION_RE = re.compile(r"(\d+)\s*([dhms])")
 
 
+class AwakeError(RuntimeError):
+    """An OS query or holder operation could not be completed reliably."""
+
+
+def positive_int(text: str) -> int:
+    """Parse a strictly positive integer."""
+    try:
+        value = int(text)
+    except ValueError:
+        raise argparse.ArgumentTypeError("must be a positive integer") from None
+    if value <= 0:
+        raise argparse.ArgumentTypeError("must be greater than zero")
+    return value
+
+
 def parse_duration(text: str) -> int:
     """Parse ``90``, ``45m``, ``2h``, ``1h30m`` or ``1d`` into seconds."""
     text = text.strip().lower()
     if text.isdigit():
-        return int(text)
+        return positive_int(text)
     parts = _DURATION_RE.findall(text)
     if not parts or _DURATION_RE.sub("", text).strip():
         raise argparse.ArgumentTypeError(f"bad duration {text!r} (try 30m, 2h, 1h30m)")
     mult = {"d": 86400, "h": 3600, "m": 60, "s": 1}
-    return sum(int(n) * mult[u] for n, u in parts)
+    return positive_int(str(sum(int(n) * mult[u] for n, u in parts)))
 
 
 def fmt_seconds(seconds: float) -> str:
@@ -143,16 +161,33 @@ def fmt_seconds(seconds: float) -> str:
     return f"{secs}s"
 
 
-def _run(cmd: list[str]) -> str:
-    """Run a command and return stdout, or empty string if it is missing or fails."""
+def _run(cmd: list[str], *, required: bool = False) -> str:
+    """Run an OS query; required queries raise rather than disguising failure as empty output."""
     try:
-        return subprocess.run(cmd, capture_output=True, text=True, timeout=10).stdout
-    except OSError, subprocess.SubprocessError:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=10,
+            env={**os.environ, "LC_ALL": "C"},
+        )
+        if result.returncode:
+            if required:
+                raise AwakeError(
+                    f"{cmd[0]}: {result.stderr.strip() or f'exit code {result.returncode}'}"
+                )
+            return ""
+        return result.stdout
+    except (OSError, subprocess.SubprocessError) as exc:
+        if required:
+            raise AwakeError(f"{cmd[0]}: {exc}") from exc
         return ""
 
 
 def pid_alive(pid: int) -> bool:
     """Return True if a process with this PID exists."""
+    if pid <= 0:
+        return False
     try:
         os.kill(pid, 0)
     except ProcessLookupError:
@@ -193,7 +228,16 @@ def _state_path(hold_id: str) -> Path:
 def save_hold(hold: Hold) -> None:
     """Write a hold's state file."""
     STATE_DIR.mkdir(parents=True, exist_ok=True)
-    _state_path(hold.id).write_text(json.dumps(asdict(hold), indent=2))
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=STATE_DIR, suffix=".tmp", delete=False
+    ) as tmp:
+        path = Path(tmp.name)
+        try:
+            tmp.write(json.dumps(asdict(hold), indent=2))
+            tmp.flush()
+            os.replace(path, _state_path(hold.id))
+        finally:
+            path.unlink(missing_ok=True)
 
 
 def remove_hold(hold_id: str) -> None:
@@ -201,9 +245,40 @@ def remove_hold(hold_id: str) -> None:
     _state_path(hold_id).unlink(missing_ok=True)
 
 
-def is_our_holder(pid: int) -> bool:
-    """True if PID is alive and still a caffeinate/systemd-inhibit (guards against PID reuse)."""
-    return pid_alive(pid) and proc_comm(pid) in HOLDER_NAMES
+def process_identity(pid: int) -> tuple[str, str] | None:
+    """Return boot and process creation identities; never infer ownership from a PID alone."""
+    if not pid_alive(pid):
+        return None
+    if IS_MAC:
+        boot = _run(["sysctl", "-n", "kern.boottime"], required=True).strip()
+        # ps's numeric start time is unavailable on macOS. lstart is stable within a boot.
+        start = _run(["ps", "-o", "lstart=", "-p", str(pid)]).strip()
+    else:
+        try:
+            boot = Path("/proc/sys/kernel/random/boot_id").read_text().strip()
+            # comm may contain spaces and parentheses; fields after its final ')' start at field 3.
+            start = Path(f"/proc/{pid}/stat").read_text().rsplit(")", 1)[1].split()[19]
+        except FileNotFoundError:
+            return None
+        except (OSError, IndexError) as exc:
+            raise AwakeError(f"cannot identify pid {pid}: {exc}") from exc
+    if not boot or not start:
+        if not pid_alive(pid):
+            return None
+        raise AwakeError(f"cannot identify pid {pid}")
+    return boot, start
+
+
+def is_our_holder(hold: Hold) -> bool:
+    """Verify the saved process identity as well as its executable name."""
+    if not hold.boot_id or not hold.process_start:
+        return False
+    if process_identity(hold.pid) != (hold.boot_id, hold.process_start):
+        return False
+    name = proc_comm(hold.pid)
+    if not name and pid_alive(hold.pid):
+        raise AwakeError(f"cannot read executable name for pid {hold.pid}")
+    return name in HOLDER_NAMES
 
 
 def load_holds() -> list[Hold]:
@@ -214,10 +289,12 @@ def load_holds() -> list[Hold]:
     for path in sorted(STATE_DIR.glob("*.json")):
         try:
             hold = Hold(**json.loads(path.read_text()))
+        except FileNotFoundError:
+            continue
         except ValueError, TypeError:
             path.unlink(missing_ok=True)
             continue
-        if is_our_holder(hold.pid):
+        if is_our_holder(hold):
             holds.append(hold)
         else:
             path.unlink(missing_ok=True)
@@ -264,43 +341,67 @@ def start_hold(
     command: str | None = None,
 ) -> Hold:
     """Start a detached holder process and record it."""
-    hold_id = secrets.token_hex(2)
+    if seconds is not None and seconds <= 0:
+        raise AwakeError("duration must be greater than zero")
+    if while_pid is not None and while_pid <= 0:
+        raise AwakeError("PID must be greater than zero")
+    hold_id = secrets.token_hex(4)
     argv = _holder_argv(label, seconds=seconds, while_pid=while_pid, display=display)
     STATE_DIR.mkdir(parents=True, exist_ok=True)
     err_path = STATE_DIR / f"{hold_id}.err"
-    with err_path.open("w") as err:
-        proc = subprocess.Popen(
-            argv,
-            stdin=subprocess.DEVNULL,
-            stdout=subprocess.DEVNULL,
-            stderr=err,
-            start_new_session=True,  # survives SSH disconnect / terminal close
-        )
-    time.sleep(0.3)
-    if proc.poll() is not None:
-        msg = err_path.read_text().strip() or f"exit code {proc.returncode}"
+    try:
+        with err_path.open("w") as err:
+            proc = subprocess.Popen(
+                argv,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=err,
+                start_new_session=True,  # survives SSH disconnect / terminal close
+            )
+    except OSError:
         err_path.unlink(missing_ok=True)
-        raise SystemExit(f"awake: holder failed to start: {msg}")
-    err_path.unlink(missing_ok=True)
-    now = time.time()
-    hold = Hold(
-        id=hold_id,
-        label=label,
-        pid=proc.pid,
-        started=now,
-        expires=now + seconds if seconds else None,
-        while_pid=while_pid,
-        display=display,
-        command=command,
-    )
-    save_hold(hold)
-    return hold
+        raise
+    try:
+        time.sleep(0.3)
+        if proc.poll() is not None:
+            msg = err_path.read_text().strip() or f"exit code {proc.returncode}"
+            raise AwakeError(f"holder failed to start: {msg}")
+        identity = process_identity(proc.pid)
+        if identity is None:
+            raise AwakeError("holder exited before its identity could be recorded")
+        now = time.time()
+        hold = Hold(
+            id=hold_id,
+            label=label,
+            pid=proc.pid,
+            started=now,
+            expires=now + seconds if seconds else None,
+            while_pid=while_pid,
+            display=display,
+            command=command,
+            boot_id=identity[0],
+            process_start=identity[1],
+        )
+        save_hold(hold)
+        return hold
+    except BaseException:
+        # This Popen object still owns its unreaped child, so its PID cannot have been reused.
+        if proc.poll() is None:
+            proc.terminate()
+            try:
+                proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                proc.wait()
+        raise
+    finally:
+        err_path.unlink(missing_ok=True)
 
 
 def stop_hold(hold: Hold) -> bool:
     """Stop one of our holds. Returns True if a process was signalled."""
     signalled = False
-    if is_our_holder(hold.pid):
+    if is_our_holder(hold):
         try:
             os.kill(hold.pid, signal.SIGTERM)
             signalled = True
@@ -354,28 +455,35 @@ def parse_logind_inhibitors(text: str) -> list[Assertion]:
     """Parse ``busctl --json=short call ... ListInhibitors`` output."""
     try:
         rows = json.loads(text)["data"][0]
-    except ValueError, KeyError, IndexError, TypeError:
-        return []
-    result: list[Assertion] = []
-    for what, who, why, mode, _uid, pid in rows:
-        result.append(
-            Assertion(
-                pid=int(pid),
-                process=who,
-                kind=what,
-                name=why,
-                blocking=mode == "block"
-                and any(w in what.split(":") for w in ("sleep", "idle")),
-                details=[f"mode={mode}"],
+        if not isinstance(rows, list):
+            raise ValueError("expected inhibitor array")
+        result: list[Assertion] = []
+        for what, who, why, mode, _uid, pid in rows:
+            if not all(isinstance(value, str) for value in (what, who, why, mode)):
+                raise ValueError("expected inhibitor strings")
+            result.append(
+                Assertion(
+                    pid=int(pid),
+                    process=who,
+                    kind=what,
+                    name=why,
+                    blocking=mode == "block"
+                    and any(w in what.split(":") for w in ("sleep", "idle")),
+                    details=[f"mode={mode}"],
+                )
             )
-        )
+    except (ValueError, KeyError, IndexError, TypeError) as exc:
+        raise AwakeError("invalid logind inhibitor response") from exc
     return result
 
 
 def system_assertions() -> list[Assertion]:
     """Return every sleep assertion/inhibitor the OS reports right now."""
     if IS_MAC:
-        return parse_pmset_assertions(_run(["pmset", "-g", "assertions"]))
+        out = _run(["pmset", "-g", "assertions"], required=True)
+        if "Listed by owning process:" not in out:
+            raise AwakeError("invalid pmset assertions response")
+        return parse_pmset_assertions(out)
     out = _run(
         [
             "busctl",
@@ -385,7 +493,8 @@ def system_assertions() -> list[Assertion]:
             "/org/freedesktop/login1",
             "org.freedesktop.login1.Manager",
             "ListInhibitors",
-        ]
+        ],
+        required=True,
     )
     return parse_logind_inhibitors(out)
 
@@ -452,10 +561,10 @@ def _hold_rows(holds: list[Hold]) -> list[tuple[str, str, str, str, str]]:
     for h in holds:
         if h.expires:
             left = f"{fmt_seconds(h.expires - now)} left"
-        elif h.while_pid:
-            left = f"while pid {h.while_pid}"
         elif h.command:
             left = f"while: {h.command[:40]}"
+        elif h.while_pid:
+            left = f"while pid {h.while_pid}"
         else:
             left = "until awake off"
         started = datetime.fromtimestamp(h.started).strftime("%H:%M")
@@ -564,19 +673,29 @@ def _find_holds(holds: list[Hold], keys: list[str]) -> list[Hold]:
 
 def cmd_list(args: argparse.Namespace) -> int:
     holds = load_holds()
-    assertions = system_assertions()
+    error = None
+    try:
+        assertions = system_assertions()
+    except AwakeError as exc:
+        assertions = []
+        error = str(exc)
     annotate(assertions, holds)
     if args.json:
         print(
             json.dumps(
                 {
                     "holds": [asdict(h) for h in holds],
-                    "assertions": [asdict(a) for a in assertions],
+                    "assertions": None if error else [asdict(a) for a in assertions],
+                    **({"error": error} if error else {}),
                 },
                 indent=2,
             )
         )
-        return 0
+        return 1 if error else 0
+    if error:
+        render_holds(holds)
+        _print_message(f"Unable to query assertions: {error}", style="red")
+        return 1
     if args.command == "status":
         render_status(holds, assertions, show_all=args.all)
     else:
@@ -586,7 +705,7 @@ def cmd_list(args: argparse.Namespace) -> int:
 
 
 def cmd_on(args: argparse.Namespace) -> int:
-    if args.for_ and args.while_pid:
+    if args.for_ is not None and args.while_pid is not None:
         raise SystemExit("awake: use either --for or --while, not both (yet)")
     if args.while_pid and not pid_alive(args.while_pid):
         raise SystemExit(f"awake: pid {args.while_pid} is not running")
@@ -618,20 +737,37 @@ def cmd_run(args: argparse.Namespace) -> int:
             "awake run: give a command, e.g. awake run --label sync -- rsync ..."
         )
     label = args.label or Path(argv[0]).name
-    child = subprocess.Popen(argv, cwd=get_invoking_cwd())
+    # Anchor the hold to this supervisor, which is alive before even an instant command starts.
+    # The OS also releases it if the supervisor unexpectedly dies.
     hold = start_hold(
-        label, while_pid=child.pid, display=args.display, command=" ".join(argv)
+        label, while_pid=os.getpid(), display=args.display, command=" ".join(argv)
     )
-    _print_message(
-        f"awake [{hold.id}] holding while {label!r} runs (pid {child.pid})", style="dim"
-    )
+    child: subprocess.Popen | None = None
+    previous = {}
+
+    def forward(signum: int, _frame: object) -> None:
+        """Keep supervising until the child exits after an interrupt or termination request."""
+        if child is None:
+            raise SystemExit(128 + signum)
+        try:
+            child.send_signal(signum)
+        except ProcessLookupError:
+            pass
+
     try:
-        code = child.wait()
-    except KeyboardInterrupt:
+        for sig in (signal.SIGINT, signal.SIGTERM):
+            previous[sig] = signal.signal(sig, forward)
+        child = subprocess.Popen(argv, cwd=get_invoking_cwd())
+        _print_message(
+            f"awake [{hold.id}] holding while {label!r} runs (pid {child.pid})",
+            style="dim",
+        )
         code = child.wait()
     finally:
+        for sig, handler in previous.items():
+            signal.signal(sig, handler)
         stop_hold(hold)
-    return code
+    return code if code >= 0 else 128 - code
 
 
 def cmd_off(args: argparse.Namespace) -> int:
@@ -665,6 +801,7 @@ class Purgeable:
     parent: str
     children: list[str]
     ours: str | None = None
+    identity: tuple[str, str] | None = None
 
     @property
     def parent_alive(self) -> bool:
@@ -704,6 +841,7 @@ def find_purgeable(holds: list[Hold]) -> list[Purgeable]:
                     parent,
                     [c for c in children if c],
                     by_pid.get(pid),
+                    process_identity(pid),
                 )
             )
     return found
@@ -781,6 +919,15 @@ def cmd_purge(args: argparse.Namespace) -> int:
             _print_message("Nothing killed.", style="dim")
             return 1
     for t in killable:
+        if (
+            t.identity is None
+            or process_identity(t.pid) != t.identity
+            or proc_comm(t.pid) not in HOLDER_NAMES
+        ):
+            _print_message(
+                f"Skipped {t.pid}: process exited or identity changed.", style="yellow"
+            )
+            continue
         try:
             os.kill(t.pid, signal.SIGTERM)
             _print_message(f"Killed {t.pid}", style="green")
@@ -800,7 +947,7 @@ def cmd_purge(args: argparse.Namespace) -> int:
 def cmd_blank(args: argparse.Namespace) -> int:
     if not IS_MAC:
         raise SystemExit("awake blank: only macOS is supported in v1")
-    subprocess.run(["pmset", "displaysleepnow"], check=False)
+    _run(["pmset", "displaysleepnow"], required=True)
     blockers = [a for a in system_assertions() if a.blocking]
     if load_holds() or blockers:
         _print_message(
@@ -849,7 +996,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     p.add_argument(
         "--while",
         dest="while_pid",
-        type=int,
+        type=positive_int,
         metavar="PID",
         help="release when PID exits",
     )
@@ -898,7 +1045,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main(argv: list[str] | None = None) -> None:
     """CLI entry point."""
     args = parse_args(argv)
-    sys.exit(args.func(args))
+    try:
+        code = args.func(args)
+    except (AwakeError, OSError) as exc:
+        print(f"awake: {exc}", file=sys.stderr)
+        code = 1
+    sys.exit(code)
 
 
 if __name__ == "__main__":
