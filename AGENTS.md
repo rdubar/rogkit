@@ -262,7 +262,8 @@ when set up — each generates its own age identity and its own
 
 `rogkit_package/bin/tunnel.py` (alias `tunnel`) manages SSH DB tunnels and credentials
 for ERP/Odoo13/P2P, replacing the old per-system aliases that used to live in
-`~/.zshrc_apv` (`tunnel_live`, `erp_live`, etc. -- now commented out there, 2026-09-10).
+`~/.zshrc_apv` (`tunnel_live`, `erp_live`, etc.; commented out 2026-09-10, file retired 2026-11-02: credentials
+now in `~/.config/apv/env.sh`, APV aliases in `~/apv/scripts/apv-aliases.zsh`).
 
 Single registry: `[[tunnel.entry]]` blocks in `~/.config/rogkit/config.toml` (not
 committed -- machine-local, and not synced by the `~/dev` rsync between m3/neo; copy it
