@@ -150,6 +150,33 @@ def test_declined_pull_is_reported(sandbox: Sandbox) -> None:
     assert "1 commit(s) behind: pull skipped" in _attention(output)
 
 
+def _install_sysreboot(sandbox: Sandbox, required: bool, reason: str = "") -> None:
+    binary = sandbox.checkout / "go" / "bin" / "sysreboot"
+    binary.parent.mkdir(parents=True)
+    # Same shape as the real tool's indented --json, which exits 2 when required.
+    binary.write_text(
+        "#!/bin/sh\ncat <<'EOF'\n{\n"
+        f'  "reboot_reason": "{reason}",\n'
+        f'  "reboot_required": {"true" if required else "false"},\n'
+        '  "score": 2\n}\nEOF\n'
+        f"exit {2 if required else 0}\n"
+    )
+    binary.chmod(0o755)
+
+
+def test_pending_reboot_is_reported_even_with_nothing_to_upgrade(sandbox: Sandbox) -> None:
+    reason = "kernel 6.18.60+rpt-rpi-2712 installed, running 6.18.50+rpt-rpi-2712"
+    _install_sysreboot(sandbox, required=True, reason=reason)
+    output = sandbox.run()
+    assert "(nothing to upgrade)" in output
+    assert f"Reboot required: {reason}." in _attention(output)
+
+
+def test_no_reboot_warning_when_not_required(sandbox: Sandbox) -> None:
+    _install_sysreboot(sandbox, required=False)
+    assert _attention(sandbox.run()) == ""
+
+
 def test_summary_survives_aborting_the_package_upgrade(
     sandbox: Sandbox, monkeypatch: pytest.MonkeyPatch
 ) -> None:

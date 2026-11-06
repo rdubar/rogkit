@@ -301,7 +301,7 @@ Support matrix:
 
 | Platform | Status | Notes |
 |----------|--------|-------|
-| Linux | Supported | `/run/reboot-required` is the authoritative reboot signal; `/var/run` is accepted as a compatibility path. |
+| Linux | Supported | A reboot is reported from `/run/reboot-required` (`/var/run` is accepted as a compatibility path) or from a newer same-flavour kernel in `/boot` than the one running. |
 | macOS | Supported | Uses native `sysctl` plus a tiny `vm_stat` parse for page counters. |
 | Windows | Not supported yet | Explicitly out of scope for now. |
 

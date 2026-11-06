@@ -63,7 +63,24 @@ confirm() {
 WARNINGS=()
 add_warning() { WARNINGS+=("$1"); }
 
-print_warnings() {
+# Ask sysreboot rather than only checking the marker file: some systems (stock
+# Raspberry Pi OS) install a new kernel without writing one. Checked whether or
+# not this run upgraded anything, so an earlier or desktop-driven upgrade counts.
+check_reboot() {
+    local sysreboot="$REPO_ROOT/go/bin/sysreboot"
+    if [[ -x "$sysreboot" ]]; then
+        local json reason
+        json=$("$sysreboot" --json 2>/dev/null)
+        grep -q '"reboot_required": true' <<<"$json" || return 0
+        reason=$(sed -n 's/.*"reboot_reason": "\(.*\)",*$/\1/p' <<<"$json")
+        add_warning "Reboot required: $reason. Run 'sudo reboot' when ready."
+    elif [[ -f /var/run/reboot-required ]]; then
+        add_warning "Reboot required. Run 'sudo reboot' when ready."
+    fi
+}
+
+print_summary() {
+    check_reboot
     [[ ${#WARNINGS[@]} -gt 0 ]] || return 0
     section "Needs attention"
     local warning
@@ -210,11 +227,6 @@ update_debian() {
     section "Cleaning up..."
     sudo apt autoremove -y
     sudo apt --fix-broken install -y
-
-    if [[ -f /var/run/reboot-required ]]; then
-        echo
-        echo "⚠  Reboot required — run 'sudo reboot' when ready"
-    fi
 }
 
 # --- macOS (Homebrew) ---
@@ -271,7 +283,7 @@ update_macos() {
 
 # --- Main ---
 start_time=$(date +%s)
-trap print_warnings EXIT
+trap print_summary EXIT
 
 echo "RogKit updater — $(date)"
 if [[ $DO_FULL -eq 1 ]]; then
