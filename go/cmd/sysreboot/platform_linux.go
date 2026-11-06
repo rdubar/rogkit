@@ -5,14 +5,15 @@ package main
 import (
 	"bufio"
 	"os"
+	"path/filepath"
 	"runtime"
 	"strconv"
 	"strings"
 )
 
-// gather reads /proc directly — no subprocess, no heuristics needed for
-// the headline signal, since Debian/Ubuntu/Raspberry Pi OS already write
-// an authoritative marker when a reboot is required.
+// gather reads /proc and /boot directly — no subprocess, no heuristics
+// needed for the headline signal: the reboot marker when something has
+// written one, or a newer installed kernel than the one running.
 func gather() (*Stats, error) {
 	s := &Stats{Cores: runtime.NumCPU()}
 
@@ -38,7 +39,28 @@ func gather() (*Stats, error) {
 		}
 	}
 
+	if running, pending := readPendingKernel(); pending != "" {
+		s.RebootRequired = true
+		s.RebootReason = "kernel " + pending + " installed, running " + running
+	}
+
 	return s, nil
+}
+
+// readPendingKernel compares the running kernel with those in /boot. It backs
+// up the marker, which needs something installed to write it: stock Raspberry
+// Pi OS installs a new kernel without one.
+func readPendingKernel() (running, pending string) {
+	data, err := os.ReadFile("/proc/sys/kernel/osrelease")
+	if err != nil {
+		return "", ""
+	}
+	images, err := filepath.Glob("/boot/vmlinuz-*")
+	if err != nil {
+		return "", ""
+	}
+	running = strings.TrimSpace(string(data))
+	return running, newerInstalledKernel(running, images)
 }
 
 func readUptime() (float64, error) {

@@ -21,7 +21,7 @@ type Stats struct {
 	SwapTotal, SwapUsed    uint64 // bytes
 	Compressed             uint64 // bytes held by the macOS memory compressor (0 elsewhere)
 	Pressure               string // kernel's own verdict: "normal", "warn", "critical", or "" if unknown
-	RebootRequired         bool   // authoritative signal (Linux: /var/run/reboot-required)
+	RebootRequired         bool   // authoritative signal (Linux: reboot marker or newer installed kernel)
 	RebootReason           string
 }
 
