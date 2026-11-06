@@ -30,10 +30,11 @@ Options:
   -y, --yes     Skip confirmation prompts
   -h, --help    Show this help
 
-Also pulls the rogkit repo (fast-forward only), then rebuilds the Go
-binaries via scripts/build_go.sh — always, not just when the pull brought
-changes in, so a new or locally edited tool is never left unbuilt. If the
-media daemon is running it is restarted too, so it serves the new code.
+Also pulls the rogkit repo (fast-forward only, keeping local changes), then
+rebuilds the Go binaries via scripts/build_go.sh — always, not just when the
+pull brought changes in, so a new or locally edited tool is never left
+unbuilt. If the media daemon is running it is restarted too, so it serves
+the new code. Anything needing attention is repeated at the end.
 
 Platforms supported: Debian/Ubuntu/Raspberry Pi OS, macOS (Homebrew)
 EOF
@@ -57,6 +58,20 @@ confirm() {
     [[ $reply =~ ^[Yy]$ ]]
 }
 
+# Anything the user must act on is repeated at the very end, where a long apt
+# or brew run can't scroll it away. Runs on every exit, including "Aborted."
+WARNINGS=()
+add_warning() { WARNINGS+=("$1"); }
+
+print_warnings() {
+    [[ ${#WARNINGS[@]} -gt 0 ]] || return 0
+    section "Needs attention"
+    local warning
+    for warning in "${WARNINGS[@]}"; do
+        echo "⚠  $warning"
+    done
+}
+
 # --- RogKit repo itself ---
 update_self() {
     section "Checking rogkit repo for updates..."
@@ -70,18 +85,16 @@ update_self() {
         return
     fi
 
-    if [[ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]]; then
-        echo "  Uncommitted changes in $REPO_ROOT — skipping (commit or stash first)"
-        return
-    fi
-
     local upstream
     upstream=$(git -C "$REPO_ROOT" rev-parse --abbrev-ref --symbolic-full-name '@{u}' 2>/dev/null) || {
         echo "  No upstream tracking branch configured — skipping"
         return
     }
 
-    git -C "$REPO_ROOT" fetch --quiet
+    git -C "$REPO_ROOT" fetch --quiet || {
+        add_warning "Could not check for rogkit updates: git fetch failed."
+        return
+    }
 
     local incoming
     incoming=$(git -C "$REPO_ROOT" log --oneline "HEAD..$upstream")
@@ -90,13 +103,33 @@ update_self() {
         return
     fi
 
+    local behind
+    behind=$(git -C "$REPO_ROOT" rev-list --count "HEAD..$upstream")
+
     echo "Commits available:"
     echo "$incoming"
+
+    # Local changes don't stop the pull: --ff-only leaves them in place and
+    # git refuses by itself if the pull would overwrite one. A stray edit to
+    # uv.lock must not leave the checkout behind indefinitely.
+    local changes
+    changes=$(git -C "$REPO_ROOT" status --short)
+    if [[ -n "$changes" ]]; then
+        echo
+        echo "Local changes (kept):"
+        echo "$changes"
+    fi
+
     echo
-    confirm "Pull?" || { echo "Skipped."; return; }
+    confirm "Pull?" || {
+        echo "Skipped."
+        add_warning "rogkit is $behind commit(s) behind: pull skipped."
+        return
+    }
 
     section "Pulling..."
-    git -C "$REPO_ROOT" pull --ff-only
+    git -C "$REPO_ROOT" pull --ff-only || \
+        add_warning "rogkit is $behind commit(s) behind: pull failed (git's error is above), so the Go tools were rebuilt from the old code."
 }
 
 # Rebuilding is deliberately not conditional on the pull having brought
@@ -238,6 +271,7 @@ update_macos() {
 
 # --- Main ---
 start_time=$(date +%s)
+trap print_warnings EXIT
 
 echo "RogKit updater — $(date)"
 if [[ $DO_FULL -eq 1 ]]; then
