@@ -26,6 +26,9 @@ Usage:
   `python vido.py -d "search_term_or_url"`
 - Use `--cookies-from-browser firefox` or `--cookies cookies.txt` for age-restricted videos
   (or set `cookies_from_browser` / `cookies_file` in the [vido] config section).
+- Use `--playlist` to download every video in a YouTube playlist. Without it, playlist
+  URLs are skipped with a warning, and a watch URL with `&list=` downloads only that video.
+  Each video is moved to the download folder as soon as it finishes.
 - If no arguments are provided, the script will prompt for input.
 """
 
@@ -81,6 +84,7 @@ class Config:
             self.cookies_file = self.config['vido'].get('cookies_file') or None
             self.cookies_from_browser = self.config['vido'].get('cookies_from_browser') or None
             self.debug = False
+            self.playlist = False
         except Exception as e:
             _print_message(f"Failed to load [vido] section of config file {config_file}: {e}", style="magenta")
             exit(1)
@@ -106,7 +110,8 @@ class Config:
     def get_download_options(self):
         """Get yt_dlp download options with format and output template."""
         return {
-            "noplaylist": True,  # a watch URL with &list= downloads just that video
+            "noplaylist": not self.playlist,  # without --playlist, a watch URL with &list= downloads just that video
+            "ignoreerrors": self.playlist,  # one unavailable video shouldn't stop the rest of a playlist
             "format": "bestvideo[height<=1080]+bestaudio/best[height<=1080]",
             "outtmpl": os.path.join(self.temp_folder, "%(title).80s-%(id)s.%(ext)s"),  # Include temp_folder in output template
             "verbose": self.debug,
@@ -129,21 +134,35 @@ def _print_error_hint(error: Exception) -> None:
         _print_message("If this site used to work, try `vido --update` to get the latest yt_dlp.", style="cyan")
 
 
-def get_title_from_url(url, config=None):
-    """Extract video title from URL using yt_dlp."""
-    ydl_opts = {'quiet': True, 'no_warnings': True, 'skip_download': True, 'noplaylist': True}
+def probe_url(url, config=None):
+    """Fetch metadata for a URL without downloading; playlist entries are listed flat (fast)."""
+    playlist = bool(config is not None and config.playlist)
+    ydl_opts = {
+        'quiet': True, 'no_warnings': True, 'skip_download': True,
+        'noplaylist': not playlist, 'extract_flat': 'in_playlist',
+    }
     if config is not None:
         ydl_opts.update(config.get_base_options())
         if config.debug:  # show yt_dlp's cookie extraction and request details
             ydl_opts.update(quiet=False, no_warnings=False, verbose=True)
     try:
         with YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False)
-            return info_dict.get('title', None)
+            return ydl.extract_info(url, download=False)
     except Exception as e:
         _print_message(f"Error fetching title with yt_dlp: {e}", style="magenta")
         _print_error_hint(e)
         return None
+
+
+def get_title_from_url(url, config=None):
+    """Extract video (or playlist) title from URL using yt_dlp."""
+    info = probe_url(url, config)
+    return info.get('title') if info else None
+
+
+def _playlist_count(info) -> int:
+    """Number of videos in a probed playlist."""
+    return info.get('playlist_count') or len(list(info.get('entries') or []))
 
 def set_directory(directory=None):
     """Set working directory, creating temp directory if none specified."""
@@ -181,27 +200,59 @@ def process_lines(lines, config):
             process_url(line.strip(), config)
 
 def process_url(url, config):
-    """Download video from URL and move to final destination."""
-    title = get_title_from_url(url, config)
+    """Download video(s) from URL, moving each to the final destination as it finishes."""
+    info = probe_url(url, config)
+    title = info.get('title') if info else None
     if not title:
         _print_message("Skipping URL due to title fetch failure.", style="magenta")
         return
 
-    _print_message(f"Downloading: {title}", style="cyan")
+    if info.get('_type') == 'playlist':
+        count = _playlist_count(info)
+        if not config.playlist:
+            _print_message(
+                f"Skipped playlist '{title}' ({count} videos). "
+                "Rerun with --playlist to download every video in it.",
+                style="yellow",
+            )
+            return
+        _print_message(f"Downloading playlist: {title} ({count} videos)", style="cyan")
+    else:
+        if not config.playlist and "list=" in url:
+            _print_message(
+                "This URL is part of a playlist; downloading just this video. "
+                "Use --playlist to download the whole playlist.",
+                style="yellow",
+            )
+        _print_message(f"Downloading: {title}", style="cyan")
+
+    moved: list[str] = []
+
+    def move_to_downloads(filepath):
+        """yt_dlp post hook: move each finished file out of temp so temp never holds more than one video."""
+        final_output = os.path.join(config.download_folder, os.path.basename(filepath))
+        try:
+            shutil.move(filepath, final_output)
+        except Exception as e:
+            _print_message(f"Could not move {filepath} to {final_output}: {e}", style="magenta")
+            return
+        moved.append(final_output)
+        _print_message(f"Downloaded to {final_output}", style="green")
+
     try:
         with YoutubeDL(config.get_download_options()) as ydl:
-            video_info = ydl.extract_info(url, download=True)
-            output = ydl.prepare_filename(video_info)
-
-            final_output = os.path.join(config.download_folder, os.path.basename(output))
-            os.rename(output, final_output)
-
+            ydl.add_post_hook(move_to_downloads)  # runs per video, after merging, before the next one starts
+            ydl.extract_info(url, download=True)
     except Exception as e:
         _print_message(f"Error downloading {url}\n{e}", style="magenta")
         _print_error_hint(e)
         return
 
-    _print_message(f"Downloaded to {final_output}", style="green")
+    if info.get('_type') == 'playlist':
+        style = "green" if len(moved) == count else "yellow"
+        _print_message(f"Playlist done: {len(moved)} of {count} videos downloaded.", style=style)
+    elif not moved:
+        _print_message(f"Nothing was downloaded for {url}.", style="magenta")
 
 def get_movies(search, config):
     """Main function to download videos from URLs, files, or search terms."""
@@ -373,6 +424,11 @@ def main(argv: list[str] | None = None) -> int:
         metavar="BROWSER[:PROFILE]",
         help="Load cookies from a browser: BROWSER[+KEYRING][:PROFILE], e.g. firefox, chromium+gnomekeyring (overrides config)"
     )
+    parser.add_argument(
+        "--playlist",
+        action="store_true",
+        help="Download every video in a playlist URL (without it, playlists are skipped with a warning)"
+    )
     parser.add_argument("-d", "--debug", action="store_true", help="Enable debug mode")
     parser.add_argument("-p", "--plain", action="store_true", help="Plain text output")
     args = parser.parse_args(argv)
@@ -409,6 +465,7 @@ def main(argv: list[str] | None = None) -> int:
 
     config = Config(args.config)
     config.debug = args.debug
+    config.playlist = args.playlist
     if args.cookies:
         config.cookies_file, config.cookies_from_browser = args.cookies, None
     elif args.cookies_from_browser:
