@@ -95,11 +95,12 @@ def copy_html(html: str, plain: str) -> str:
             )
             subprocess.run(["osascript", "-l", "JavaScript", "-e", script, str(h), str(p)], check=True)
         return "macOS pasteboard (HTML + plain text)"
+    # wl-copy and xclip stay running to serve the clipboard; detach their output so ssh can exit.
     if shutil.which("wl-copy"):
-        subprocess.run(["wl-copy", "--type", "text/html"], input=html.encode(), check=True)
+        subprocess.run(["wl-copy", "--type", "text/html"], input=html.encode(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return "wl-copy (HTML)"
     if shutil.which("xclip"):
-        subprocess.run(["xclip", "-selection", "clipboard", "-t", "text/html"], input=html.encode(), check=True)
+        subprocess.run(["xclip", "-selection", "clipboard", "-t", "text/html"], input=html.encode(), check=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
         return "xclip (HTML)"
     raise RuntimeError("No HTML clipboard found: install wl-clipboard (Wayland) or xclip (X11).")
 
