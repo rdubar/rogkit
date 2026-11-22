@@ -6,6 +6,7 @@ bold, links, lists and code blocks come through. Plain-text targets get the
 original Markdown.
 
     mdclip post.md            # copy as rich text
+    mdclip bug hunter         # not a path? found by name with opener's `o`
     mdclip post.md --body     # drop the leading "# Title" (Substack has its own title box)
     mdclip post.md --print    # print the HTML instead of copying
 """
@@ -23,6 +24,7 @@ from pathlib import Path
 from markdown_it import MarkdownIt
 
 from ..settings import get_invoking_cwd
+from .findfile import find_file
 
 try:  # optional rich formatting
     from rich.console import Console
@@ -105,7 +107,7 @@ def copy_html(html: str, plain: str) -> str:
 def parse_args() -> argparse.Namespace:
     """Parse command-line arguments."""
     parser = argparse.ArgumentParser(description="Copy a Markdown file to the clipboard as rich text (HTML).")
-    parser.add_argument("file", help="Markdown file")
+    parser.add_argument("file", nargs="+", help="a Markdown file, or words in its name (found with opener's o)")
     parser.add_argument("--body", action="store_true", help="drop the leading '# Title' line")
     parser.add_argument("--print", dest="print_only", action="store_true", help="print the HTML, don't copy")
     return parser.parse_args()
@@ -114,11 +116,13 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     """CLI entry point."""
     args = parse_args()
-    path = Path(args.file).expanduser()
-    if not path.is_absolute():
-        path = Path(get_invoking_cwd()) / path
-    if not path.is_file():
-        _print_message(f"Not found: {path}", style="red")
+    try:
+        path = find_file(args.file, suffixes=(".md", ".markdown"), cwd=get_invoking_cwd())
+    except FileNotFoundError as e:
+        _print_message(str(e), style="red")
+        return 1
+    if not path:
+        _print_message(f"No Markdown file found for: {' '.join(args.file)}", style="red")
         return 1
     source = prepare_markdown(path.read_text(encoding="utf-8"), body=args.body)
     html = markdown_to_html(source)

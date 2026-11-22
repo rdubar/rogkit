@@ -115,6 +115,7 @@ alias transparent='rogkit_py -m rogkit_package.bin.transparent'
 alias clipboard='rogkit_py -m rogkit_package.bin.clipboard'
 alias clip='rogkit_py -m rogkit_package.bin.clipboard'
 alias mdclip='rogkit_py -m rogkit_package.bin.mdclip'
+alias findfile='rogkit_py -m rogkit_package.bin.findfile'
 
 alias randomcase='rogkit_py -m rogkit_package.bin.randomcase'
 

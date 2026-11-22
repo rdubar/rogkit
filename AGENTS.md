@@ -126,6 +126,8 @@ if __name__ == "__main__":
    `alias tool_name='rogkit_py -m rogkit_package.bin.tool_name'`
 3. Create `tests/test_<tool_name>.py` with at least a smoke test
 4. Add any new dependencies to `pyproject.toml` (correct optional group)
+5. If the tool takes a file, resolve it with `from .findfile import find_file` so a name
+   works as well as a path (`mdclip bug hunter`). It uses opener's `o` (github.com/rdubar/opener).
 
 ## Hard Rules (DO NOT VIOLATE)
 
